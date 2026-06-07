@@ -17,4 +17,8 @@ public class RegistrationResponse {
     private String email;
     private String displayName;
     private UserStatus status;
+    private String avatarUrl;
+    private Integer totalPoints;
+    private Boolean autoPlayAudio;
+    private Boolean isPremium;
 }

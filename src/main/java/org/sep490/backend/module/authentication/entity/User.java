@@ -48,15 +48,19 @@ public class User {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+    @Builder.Default
     @Column(name = "total_xp")
     private Integer totalXp = 0;
 
+    @Builder.Default
     @Column(name = "total_points")
     private Integer totalPoints = 0;
 
+    @Builder.Default
     @Column(name = "auto_play_audio")
     private Boolean autoPlayAudio = true;
 
+    @Builder.Default
     @Column(name = "is_premium")
     private Boolean isPremium = false;
 
