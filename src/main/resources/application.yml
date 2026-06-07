@@ -26,6 +26,18 @@ spring:
         jwt:
           issuer-uri: ${ISSUER_URI}
 
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    username: ${SMTP_USER}
+    password: ${SMTP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 keycloak:
   auth-server-url: ${IDP_URL}
   realm: ${REALM}

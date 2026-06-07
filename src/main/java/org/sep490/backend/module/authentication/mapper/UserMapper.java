@@ -1,6 +1,7 @@
 package org.sep490.backend.module.authentication.mapper;
 
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
 import org.sep490.backend.module.authentication.dto.request.RegistrationRequest;
 import org.sep490.backend.module.authentication.dto.response.RegistrationResponse;
