@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### environment files ###
+.env
+src/main/resources/.env
+src/test/resources/.env
