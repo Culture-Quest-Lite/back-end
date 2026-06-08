@@ -2,10 +2,7 @@ package org.sep490.backend.module.authentication.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.sep490.backend.module.authentication.dto.request.LoginRequest;
-import org.sep490.backend.module.authentication.dto.request.RegistrationRequest;
-import org.sep490.backend.module.authentication.dto.request.SendOtpRequest;
-import org.sep490.backend.module.authentication.dto.request.VerifyOtpRequest;
+import org.sep490.backend.module.authentication.dto.request.*;
 import org.sep490.backend.module.authentication.dto.response.LoginResponse;
 import org.sep490.backend.module.authentication.dto.response.RegistrationResponse;
 import org.sep490.backend.module.authentication.service.AuthService;
@@ -57,5 +54,31 @@ public class AuthenticationController {
             ) {
     LoginResponse response = authService.login(request);
     return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout(
+            @Valid @RequestBody LogoutRequest request
+    ) {
+        authService.logout(request);
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Đăng xuất thành công");
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok("Link đặt lại mật khẩu đã được gửi tới email của bạn");
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok("Đặt lại mật khẩu thành công");
     }
 }
