@@ -64,12 +64,12 @@ public class AuthServiceImpl implements AuthService {
 
         String keycloakUserId;
 
-            keycloakUserId = keyCloakAuthClient.createUser(
-                    request.getUsername(),
-                    request.getEmail(),
-                    request.getDisplayName(),
-                    request.getPassword(),
-                    List.of("EXPLORER"));
+        keycloakUserId = keyCloakAuthClient.createUser(
+                request.getUsername(),
+                request.getEmail(),
+                request.getDisplayName(),
+                request.getPassword(),
+                List.of("EXPLORER"));
         try {
             sendVerificationOtp(request.getEmail());
             User user = buildCustomer(request, keycloakUserId);
@@ -118,7 +118,8 @@ public class AuthServiceImpl implements AuthService {
             long secondsSinceLastOtp = Duration.between(emailOtp.getCreatedAt(), LocalDateTime.now()).getSeconds();
             if (secondsSinceLastOtp < 30) {
                 long secondsLeft = 30 - secondsSinceLastOtp;
-                throw new BusinessException("Vui lòng đợi thêm " + secondsLeft + " giây nữa để yêu cầu gửi lại mã OTP.");
+                throw new BusinessException(
+                        "Vui lòng đợi thêm " + secondsLeft + " giây nữa để yêu cầu gửi lại mã OTP.");
             }
         }
         sendVerificationOtp(email);
@@ -148,10 +149,11 @@ public class AuthServiceImpl implements AuthService {
         List<String> roles = realmAccess != null ? (List<String>) realmAccess.get("roles") : List.of();
         log.debug("User '{}' has realm roles: {}", request.getUsername(), roles);
 
-        boolean hasAllowedRole = roles.stream().anyMatch(role ->
-                "EXPLORER".equals(role) || "ADMIN".equals(role) || "CURATOR".equals(role) || "PARTNER".equals(role));
+        boolean hasAllowedRole = roles.stream().anyMatch(role -> "EXPLORER".equals(role) || "ADMIN".equals(role)
+                || "CURATOR".equals(role) || "PARTNER".equals(role));
         if (!hasAllowedRole) {
-            log.warn("Login denied for user '{}': no allowed role found in realm_access.roles = {}", request.getUsername(), roles);
+            log.warn("Login denied for user '{}': no allowed role found in realm_access.roles = {}",
+                    request.getUsername(), roles);
             throw new BusinessException("Tài khoản không có quyền truy cập cửa hàng này");
         }
 
@@ -233,6 +235,90 @@ public class AuthServiceImpl implements AuthService {
         keyCloakAuthClient.resetUserPassword(user.getKeycloakUserId(), request.getNewPassword());
         userRepository.save(user);
         tokenRepository.delete(resetToken);
+    }
+
+    @Override
+    public void changePassword(String keycloakUserId, ChangePasswordRequest request) {
+        if (!request.isPasswordMatch()) {
+            throw new BusinessException("Mật khẩu mới và xác nhận mật khẩu không khớp");
+        }
+
+        User user = userRepository.findByKeycloakUserId(keycloakUserId)
+                .orElseThrow(() -> new BusinessException("Người dùng không tồn tại"));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException("Tài khoản đã bị khóa hoặc ngừng hoạt động");
+        }
+
+        if (request.getOldPassword().equals(request.getNewPassword())) {
+            throw new BusinessException("Mật khẩu mới không được trùng với mật khẩu hiện tại");
+        }
+
+        try {
+            keyCloakAuthClient.login(user.getUsername(), request.getOldPassword());
+        } catch (BusinessException e) {
+            throw new BusinessException("Mật khẩu hiện tại không đúng");
+        }
+
+        keyCloakAuthClient.updateUserPassword(keycloakUserId, request.getNewPassword());
+    }
+
+    @Override
+    @Transactional
+    public LoginResponse loginGoogle(String code, String redirectUri) {
+        KeyCloakTokenResponse tokenResponse = keyCloakAuthClient.exchangeCode(code, redirectUri);
+        if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
+            throw new BusinessException("Không thể trao đổi mã xác thực để lấy Token từ Keycloak");
+        }
+
+        String accessToken = tokenResponse.getAccessToken();
+        Map<String, Object> payload = decodeJwtPayload(accessToken);
+        String keycloakUserId = (String) payload.get("sub");
+        String email = (String) payload.get("email");
+        String preferredUsername = (String) payload.get("preferred_username");
+        String displayName = (String) payload.get("name");
+
+        if (keycloakUserId == null || email == null) {
+            throw new BusinessException("Token không hợp lệ hoặc thiếu thông tin định danh");
+        }
+        Optional<User> userOpt = userRepository.findByKeycloakUserId(keycloakUserId);
+        if (userOpt.isEmpty()) {
+            try {
+                keyCloakAuthClient.updateUserRoles(keycloakUserId, List.of("EXPLORER"));
+            } catch (Exception e) {
+                log.error("Lỗi khi tự động gán role EXPLORER trong Keycloak: {}", e.getMessage());
+            }
+
+            User newUser = User.builder()
+                    .keycloakUserId(keycloakUserId)
+                    .username(preferredUsername != null ? preferredUsername : email)
+                    .email(email)
+                    .displayName(displayName != null ? displayName : preferredUsername)
+                    .status(UserStatus.ACTIVE)
+                    .totalXp(0)
+                    .totalPoints(0)
+                    .autoPlayAudio(true)
+                    .isPremium(false)
+                    .build();
+
+            levelRepository.findFirstByOrderByRequiredXpAsc()
+                    .ifPresent(newUser::setLevel);
+
+            userRepository.save(newUser);
+        } else {
+            User existingUser = userOpt.get();
+            if (existingUser.getStatus() != UserStatus.ACTIVE) {
+                throw new BusinessException("Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động");
+            }
+        }
+
+        return LoginResponse.builder()
+                .accessToken(tokenResponse.getAccessToken())
+                .refreshToken(tokenResponse.getRefreshToken())
+                .tokenType(tokenResponse.getTokenType())
+                .expiresIn(tokenResponse.getExpiresIn())
+                .refreshExpiresIn(tokenResponse.getRefreshExpiresIn())
+                .build();
     }
 
     private Map<String, Object> decodeJwtPayload(String token) {
