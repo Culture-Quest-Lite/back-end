@@ -9,21 +9,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.config.keycloak.KeyCloakTokenResponse;
-import org.sep490.backend.module.authentication.dto.request.LoginRequest;
-import org.sep490.backend.module.authentication.dto.request.RegistrationRequest;
-import org.sep490.backend.module.authentication.dto.request.SendOtpRequest;
-import org.sep490.backend.module.authentication.dto.request.VerifyOtpRequest;
+import org.sep490.backend.module.authentication.dto.request.*;
 import org.sep490.backend.module.authentication.dto.response.LoginResponse;
 import org.sep490.backend.module.authentication.dto.response.RegistrationResponse;
 import org.sep490.backend.module.authentication.entity.EmailOtp;
+import org.sep490.backend.module.authentication.entity.PasswordResetToken;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.EmailOtpRepository;
-import org.sep490.backend.module.authentication.entity.Level;
 import org.sep490.backend.module.authentication.repository.LevelRepository;
+import org.sep490.backend.module.authentication.repository.PasswordResetTokenRepository;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.authentication.service.AuthService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -48,6 +47,10 @@ public class AuthServiceImpl implements AuthService {
     private final JavaMailSender mailSender;
     private final EmailOtpRepository emailOtpRepository;
     private final LevelRepository levelRepository;
+    private final PasswordResetTokenRepository tokenRepository;
+
+    @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
+    private String frontendUrl;
 
     @Override
     @Transactional
@@ -131,11 +134,6 @@ public class AuthServiceImpl implements AuthService {
         try {
             tokenResponse = keyCloakAuthClient.login(request.getUsername(), request.getPassword());
         } catch (BusinessException e) {
-            // Propagate Keycloak-specific errors (e.g. invalid_grant, connection refused)
-            log.warn("Keycloak login failed for user '{}': {}", request.getUsername(), e.getMessage());
-            throw new BusinessException("Tên đăng nhập hoặc mật khẩu không chính xác");
-        } catch (Exception e) {
-            log.error("Unexpected error during Keycloak login for user '{}'", request.getUsername(), e);
             throw new BusinessException("Tên đăng nhập hoặc mật khẩu không chính xác");
         }
 
@@ -161,7 +159,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new BusinessException("Tên đăng nhập hoặc mật khẩu không chính xác"));
 
         if (user.getStatus() != UserStatus.ACTIVE) {
-            String errorMessage = roles.contains("EXPLORER")
+            String errorMessage = roles.contains("EXPLORER") || roles.contains("CURATOR") || roles.contains("PARTNER")
                     ? "Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động"
                     : "Tài khoản admin của bạn đã bị khóa hoặc ngừng hoạt động";
             throw new BusinessException(errorMessage);
@@ -174,6 +172,67 @@ public class AuthServiceImpl implements AuthService {
                 .expiresIn(tokenResponse.getExpiresIn())
                 .refreshExpiresIn(tokenResponse.getRefreshExpiresIn())
                 .build();
+    }
+
+    @Override
+    public void logout(LogoutRequest request) {
+        keyCloakAuthClient.logout(request.getRefreshToken());
+    }
+
+    @Override
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmailIgnoreCase(request.getEmail().trim())
+                .orElseThrow(() -> new BusinessException("Không tìm thấy email"));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException("Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa");
+        }
+
+        tokenRepository.deleteByUser(user);
+        String token = UUID.randomUUID().toString();
+        PasswordResetToken resetToken = new PasswordResetToken(token, user);
+        tokenRepository.save(resetToken);
+
+        String resetUrl = frontendUrl + "/reset-password?token=" + token;
+
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setTo(user.getEmail());
+            helper.setSubject("[CULTURE QUEST LITE] YÊU CẦU ĐẶT LẠI MẬT KHẨU");
+
+            ClassPathResource resource = new ClassPathResource("templates/reset-password-email.html");
+            String content = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
+            content = content.replace("{{RESET_LINK}}", resetUrl);
+
+            helper.setText(content, true);
+            mailSender.send(message);
+            log.info("Đã gửi email đặt lại mật khẩu tới: {}", user.getEmail());
+        } catch (MessagingException | IOException e) {
+            log.error("Lỗi khi gửi email đặt lại mật khẩu", e);
+            throw new BusinessException("Không thể gửi email lúc này. Vui lòng thử lại sau!");
+        }
+    }
+
+    @Override
+    public void resetPassword(ResetPasswordRequest request) {
+        if (!request.isPasswordMatch()) {
+            throw new BusinessException("Mật khẩu không trùng khớp");
+        }
+
+        PasswordResetToken resetToken = tokenRepository.findByToken(request.getToken())
+                .orElseThrow(() -> new BusinessException("Liên kết đổi mật khẩu không hợp lệ hoặc đã hết hạn"));
+
+        if (resetToken.isExpired()) {
+            tokenRepository.delete(resetToken);
+            throw new BusinessException("Liên kết đổi mật khẩu đã hết hạn, vui lòng yêu cầu gửi lại email mới");
+        }
+
+        User user = resetToken.getUser();
+        keyCloakAuthClient.resetUserPassword(user.getKeycloakUserId(), request.getNewPassword());
+        userRepository.save(user);
+        tokenRepository.delete(resetToken);
     }
 
     private Map<String, Object> decodeJwtPayload(String token) {
