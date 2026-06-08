@@ -2,9 +2,11 @@ package org.sep490.backend.module.authentication.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.sep490.backend.module.authentication.dto.request.LoginRequest;
 import org.sep490.backend.module.authentication.dto.request.RegistrationRequest;
 import org.sep490.backend.module.authentication.dto.request.SendOtpRequest;
 import org.sep490.backend.module.authentication.dto.request.VerifyOtpRequest;
+import org.sep490.backend.module.authentication.dto.response.LoginResponse;
 import org.sep490.backend.module.authentication.dto.response.RegistrationResponse;
 import org.sep490.backend.module.authentication.service.AuthService;
 import org.springframework.http.ResponseEntity;
@@ -47,5 +49,13 @@ public class AuthenticationController {
         Map<String, String> response = new HashMap<>();
         response.put("message", "Mã OTP đã được gửi lại thành công");
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(
+            @Valid @RequestBody LoginRequest request
+            ) {
+    LoginResponse response = authService.login(request);
+    return ResponseEntity.ok(response);
     }
 }
