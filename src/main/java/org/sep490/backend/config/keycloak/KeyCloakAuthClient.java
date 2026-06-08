@@ -64,7 +64,8 @@ public class KeyCloakAuthClient {
         payload.put("enabled", true);
         payload.put("username", username);
         payload.put("email", email);
-        payload.put("emailVerified", false);
+        payload.put("emailVerified", true);
+        payload.put("requiredActions", List.of());
         payload.put("credentials", List.of(Map.of(
                 "type", "password",
                 "value", password,
@@ -109,6 +110,20 @@ public class KeyCloakAuthClient {
                 .toBodilessEntity());
     }
 
+    public void clearRequiredActions(String keycloakUserId) {
+        String adminToken = fetchAdminAccessToken();
+        Map<String, Object> body = Map.of("requiredActions", List.of());
+        execute(() -> restClientBuilder.build()
+                .put()
+                .uri(properties.adminUserByIdEndPoint(keycloakUserId))
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity());
+        log.info("Cleared required actions for Keycloak user: {}", keycloakUserId);
+    }
+
     public String createUserWithAttributes(
             String username, String email, String displayName,
             String password, List<String> realmRoles, Map<String, List<String>> attributes) {
@@ -117,6 +132,8 @@ public class KeyCloakAuthClient {
         userFields.put("username", username);
         userFields.put("email", email);
         userFields.put("enabled", true);
+        userFields.put("emailVerified", true);
+        userFields.put("requiredActions", List.of()); // Clear default realm required actions to allow immediate login
 
         Map<String, List<String>> allAttributes = new HashMap<>();
         if (attributes != null) {
@@ -324,8 +341,8 @@ public class KeyCloakAuthClient {
             JsonNode json = objectMapper.readTree(body);
             return json.has("errorMessage") ? json.get("errorMessage").asText()
                     : json.has("error_description") ? json.get("error_description").asText()
-                    : json.has("error") ? json.get("error").asText()
-                    : body;
+                            : json.has("error") ? json.get("error").asText()
+                                    : body;
         } catch (Exception e) {
             return body;
         }

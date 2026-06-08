@@ -1,14 +1,19 @@
 package org.sep490.backend.module.authentication.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
+import org.sep490.backend.config.keycloak.KeyCloakTokenResponse;
+import org.sep490.backend.module.authentication.dto.request.LoginRequest;
 import org.sep490.backend.module.authentication.dto.request.RegistrationRequest;
 import org.sep490.backend.module.authentication.dto.request.SendOtpRequest;
 import org.sep490.backend.module.authentication.dto.request.VerifyOtpRequest;
+import org.sep490.backend.module.authentication.dto.response.LoginResponse;
 import org.sep490.backend.module.authentication.dto.response.RegistrationResponse;
 import org.sep490.backend.module.authentication.entity.EmailOtp;
 import org.sep490.backend.module.authentication.entity.User;
@@ -30,9 +35,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.Random;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -118,6 +121,75 @@ public class AuthServiceImpl implements AuthService {
         sendVerificationOtp(email);
     }
 
+    @Override
+    public LoginResponse login(LoginRequest request) {
+        if (request.getUsername() == null || request.getPassword() == null) {
+            throw new BusinessException("Thiếu thông tin đăng nhập");
+        }
+
+        KeyCloakTokenResponse tokenResponse;
+        try {
+            tokenResponse = keyCloakAuthClient.login(request.getUsername(), request.getPassword());
+        } catch (BusinessException e) {
+            // Propagate Keycloak-specific errors (e.g. invalid_grant, connection refused)
+            log.warn("Keycloak login failed for user '{}': {}", request.getUsername(), e.getMessage());
+            throw new BusinessException("Tên đăng nhập hoặc mật khẩu không chính xác");
+        } catch (Exception e) {
+            log.error("Unexpected error during Keycloak login for user '{}'", request.getUsername(), e);
+            throw new BusinessException("Tên đăng nhập hoặc mật khẩu không chính xác");
+        }
+
+        if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
+            throw new BusinessException("Tên đăng nhập hoặc mật khẩu không chính xác");
+        }
+
+        Map<String, Object> payload = decodeJwtPayload(tokenResponse.getAccessToken());
+        String keycloakUserId = (String) payload.get("sub");
+
+        Map<String, Object> realmAccess = (Map<String, Object>) payload.get("realm_access");
+        List<String> roles = realmAccess != null ? (List<String>) realmAccess.get("roles") : List.of();
+        log.debug("User '{}' has realm roles: {}", request.getUsername(), roles);
+
+        boolean hasAllowedRole = roles.stream().anyMatch(role ->
+                "EXPLORER".equals(role) || "ADMIN".equals(role) || "CURATOR".equals(role) || "PARTNER".equals(role));
+        if (!hasAllowedRole) {
+            log.warn("Login denied for user '{}': no allowed role found in realm_access.roles = {}", request.getUsername(), roles);
+            throw new BusinessException("Tài khoản không có quyền truy cập cửa hàng này");
+        }
+
+        User user = userRepository.findByKeycloakUserId(keycloakUserId)
+                .orElseThrow(() -> new BusinessException("Tên đăng nhập hoặc mật khẩu không chính xác"));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            String errorMessage = roles.contains("EXPLORER")
+                    ? "Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động"
+                    : "Tài khoản admin của bạn đã bị khóa hoặc ngừng hoạt động";
+            throw new BusinessException(errorMessage);
+        }
+
+        return LoginResponse.builder()
+                .accessToken(tokenResponse.getAccessToken())
+                .refreshToken(tokenResponse.getRefreshToken())
+                .tokenType(tokenResponse.getTokenType())
+                .expiresIn(tokenResponse.getExpiresIn())
+                .refreshExpiresIn(tokenResponse.getRefreshExpiresIn())
+                .build();
+    }
+
+    private Map<String, Object> decodeJwtPayload(String token) {
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length < 2) {
+                throw new BusinessException("Token Keycloak không hợp lệ");
+            }
+            String payloadJson = new String(Base64.getUrlDecoder().decode(parts[1]));
+            return new ObjectMapper().readValue(payloadJson, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (Exception e) {
+            throw new BusinessException("Xác thực token thất bại");
+        }
+    }
+
     private void sendVerificationOtp(String email) {
         String otpCode = String.format("%06d", new Random().nextInt(1000000));
         emailOtpRepository.deleteByEmail(email);
@@ -129,11 +201,11 @@ public class AuthServiceImpl implements AuthService {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setTo(email);
             helper.setSubject("[CULTURE QUEST LITE] MÃ OTP XÁC THỰC EMAIL");
-            
+
             ClassPathResource resource = new ClassPathResource("templates/otp-email.html");
             String content = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
             content = content.replace("{{OTP_CODE}}", otpCode);
-            
+
             helper.setText(content, true);
             mailSender.send(message);
         } catch (IOException | MessagingException e) {
