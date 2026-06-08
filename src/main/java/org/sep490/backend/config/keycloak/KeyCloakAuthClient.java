@@ -39,6 +39,14 @@ public class KeyCloakAuthClient {
         return postToken(form);
     }
 
+    public KeyCloakTokenResponse exchangeCode(String code, String redirectUri) {
+        MultiValueMap<String, String> form = baseClientForm();
+        form.add("grant_type", "authorization_code");
+        form.add("code", code);
+        form.add("redirect_uri", redirectUri);
+        return postToken(form);
+    }
+
     public void logout(String refreshToken) {
         MultiValueMap<String, String> form = baseClientForm();
         form.add("refresh_token", refreshToken);

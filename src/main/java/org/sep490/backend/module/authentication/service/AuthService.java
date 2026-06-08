@@ -12,4 +12,6 @@ public interface AuthService {
     void logout(LogoutRequest request);
     void forgotPassword(ForgotPasswordRequest request);
     void resetPassword(ResetPasswordRequest request);
+    void changePassword(String keycloakUserId, ChangePasswordRequest request);
+    LoginResponse loginGoogle(String code, String redirectUri);
 }

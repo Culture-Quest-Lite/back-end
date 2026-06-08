@@ -40,7 +40,8 @@ public class SecurityConfig {
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
             "/api/auth/verify-otp",
-            "/api/auth/resend-otp"
+            "/api/auth/resend-otp",
+            "/api/auth/login-by-google"
     };
 
     @Bean

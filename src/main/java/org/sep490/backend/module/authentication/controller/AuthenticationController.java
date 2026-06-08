@@ -7,6 +7,8 @@ import org.sep490.backend.module.authentication.dto.response.LoginResponse;
 import org.sep490.backend.module.authentication.dto.response.RegistrationResponse;
 import org.sep490.backend.module.authentication.service.AuthService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -80,5 +82,21 @@ public class AuthenticationController {
     ) {
         authService.resetPassword(request);
         return ResponseEntity.ok("Đặt lại mật khẩu thành công");
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<String> changePassword(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        String keycloakUserId = jwt.getSubject();
+        authService.changePassword(keycloakUserId, request);
+        return ResponseEntity.ok("Thay đổi mật khẩu thành công");
+    }
+
+    @PostMapping("/login-by-google")
+    public ResponseEntity<LoginResponse> socialSync(@Valid @RequestBody GoogleLoginRequest request) {
+        LoginResponse response = authService.loginGoogle(request.getCode(), request.getRedirectUri());
+        return ResponseEntity.ok(response);
     }
 }
