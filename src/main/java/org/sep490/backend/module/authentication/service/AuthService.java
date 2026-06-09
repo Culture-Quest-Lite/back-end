@@ -2,10 +2,10 @@ package org.sep490.backend.module.authentication.service;
 
 import org.sep490.backend.module.authentication.dto.request.*;
 import org.sep490.backend.module.authentication.dto.response.LoginResponse;
-import org.sep490.backend.module.authentication.dto.response.RegistrationResponse;
+import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 
 public interface AuthService {
-    RegistrationResponse register(RegistrationRequest request);
+    UserProfileResponse register(RegistrationRequest request);
     void verifyEmailWithOtp(VerifyOtpRequest request);
     void resendOtp(SendOtpRequest request);
     LoginResponse login(LoginRequest request);

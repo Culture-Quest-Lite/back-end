@@ -1,4 +1,4 @@
-package org.sep490.backend.module.authentication.dto.response;
+package org.sep490.backend.module.user.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -6,19 +6,23 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 
-@Builder
+import java.time.LocalDateTime;
+
 @Data
-@NoArgsConstructor
+@Builder
 @AllArgsConstructor
-public class RegistrationResponse {
+@NoArgsConstructor
+public class UserProfileResponse {
     private Long userId;
-    private String keycloakUserId;
     private String username;
     private String email;
     private String displayName;
-    private UserStatus status;
     private String avatarUrl;
+    private Integer totalXp;
     private Integer totalPoints;
     private Boolean autoPlayAudio;
     private Boolean isPremium;
+    private UserStatus status;
+    private String levelName;
+    private LocalDateTime createdAt;
 }
