@@ -27,6 +27,14 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/me/{id}")
+    public ResponseEntity<UserProfileResponse> getProfile(
+            @PathVariable Long id
+    ) {
+        UserProfileResponse response = userService.getProfile(id);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/me")
     public ResponseEntity<UserProfileResponse> updateMyProfile(
             @AuthenticationPrincipal Jwt jwt,

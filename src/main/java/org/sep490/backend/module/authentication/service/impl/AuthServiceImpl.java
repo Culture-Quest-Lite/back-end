@@ -17,9 +17,10 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.EmailOtpRepository;
-import org.sep490.backend.module.authentication.repository.LevelRepository;
+import org.sep490.backend.module.user.repository.LevelRepository;
 import org.sep490.backend.module.authentication.repository.PasswordResetTokenRepository;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.user.entity.enumeration.LevelStatus;
 import org.sep490.backend.module.authentication.service.AuthService;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.springframework.beans.factory.annotation.Value;
@@ -301,7 +302,7 @@ public class AuthServiceImpl implements AuthService {
                     .isPremium(false)
                     .build();
 
-            levelRepository.findFirstByOrderByRequiredXpAsc()
+            levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
                     .ifPresent(newUser::setLevel);
 
             userRepository.save(newUser);
@@ -362,7 +363,7 @@ public class AuthServiceImpl implements AuthService {
                     .isPremium(false)
                     .build();
 
-            levelRepository.findFirstByOrderByRequiredXpAsc()
+            levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
                     .ifPresent(newUser::setLevel);
 
             userRepository.save(newUser);
@@ -424,7 +425,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userMapper.toEntity(request);
         user.setTotalXp(0);
         user.setKeycloakUserId(keycloakUserId);
-        levelRepository.findFirstByOrderByRequiredXpAsc()
+        levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
                 .ifPresent(user::setLevel);
         return user;
     }
