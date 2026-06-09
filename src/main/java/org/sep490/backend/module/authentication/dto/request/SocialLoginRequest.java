@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
-public class GoogleLoginRequest {
+public class SocialLoginRequest {
     @NotBlank(message = "Code không được để trống")
     private String code;
 

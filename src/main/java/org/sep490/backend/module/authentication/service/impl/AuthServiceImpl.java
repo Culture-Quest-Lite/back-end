@@ -321,6 +321,67 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
+    @Override
+    public LoginResponse loginFacebook(String code, String redirectUri) {
+        KeyCloakTokenResponse tokenResponse = keyCloakAuthClient.exchangeCode(code, redirectUri);
+        if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
+            throw new BusinessException("Không thể trao đổi mã xác thực để lấy Token từ Keycloak");
+        }
+
+        String accessToken = tokenResponse.getAccessToken();
+        Map<String, Object> payload = decodeJwtPayload(accessToken);
+        String keycloakUserId = (String) payload.get("sub");
+        String email = (String) payload.get("email");
+        String preferredUsername = (String) payload.get("preferred_username");
+        String displayName = (String) payload.get("name");
+
+        if (keycloakUserId == null) {
+            throw new BusinessException("Token không hợp lệ hoặc thiếu thông tin định danh");
+        }
+
+        if (email == null) {
+            email = preferredUsername != null ? preferredUsername + "@facebook.com" : keycloakUserId + "@facebook.com";
+        }
+
+        Optional<User> userOpt = userRepository.findByKeycloakUserId(keycloakUserId);
+        if (userOpt.isEmpty()) {
+            try {
+                keyCloakAuthClient.updateUserRoles(keycloakUserId, List.of("EXPLORER"));
+            } catch (Exception e) {
+                log.error("Lỗi khi tự động gán role EXPLORER trong Keycloak: {}", e.getMessage());
+            }
+            User newUser = User.builder()
+                    .keycloakUserId(keycloakUserId)
+                    .username(preferredUsername != null ? preferredUsername : "fb_" + keycloakUserId)
+                    .email(email)
+                    .displayName(displayName != null ? displayName : "Facebook User")
+                    .status(UserStatus.ACTIVE)
+                    .totalXp(0)
+                    .totalPoints(0)
+                    .autoPlayAudio(true)
+                    .isPremium(false)
+                    .build();
+
+            levelRepository.findFirstByOrderByRequiredXpAsc()
+                    .ifPresent(newUser::setLevel);
+
+            userRepository.save(newUser);
+        } else {
+            User existingUser = userOpt.get();
+            if (existingUser.getStatus() != UserStatus.ACTIVE) {
+                throw new BusinessException("Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động");
+            }
+        }
+
+        return LoginResponse.builder()
+                .accessToken(tokenResponse.getAccessToken())
+                .refreshToken(tokenResponse.getRefreshToken())
+                .tokenType(tokenResponse.getTokenType())
+                .expiresIn(tokenResponse.getExpiresIn())
+                .refreshExpiresIn(tokenResponse.getRefreshExpiresIn())
+                .build();
+    }
+
     private Map<String, Object> decodeJwtPayload(String token) {
         try {
             String[] parts = token.split("\\.");
