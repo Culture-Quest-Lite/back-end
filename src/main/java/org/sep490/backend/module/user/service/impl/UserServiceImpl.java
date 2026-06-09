@@ -31,6 +31,17 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public UserProfileResponse getProfile(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException("Tài khoản người dùng này hiện đang bị khóa hoặc chưa được kích hoạt");
+        }
+        return userMapper.toProfileResponse(user);
+    }
+
+    @Override
     @Transactional
     public UserProfileResponse updateMyProfile(String keycloakUserId, UpdateProfileRequest request) {
         User user = userRepository.findByKeycloakUserId(keycloakUserId)
