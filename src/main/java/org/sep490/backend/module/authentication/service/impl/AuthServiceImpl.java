@@ -11,7 +11,6 @@ import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.config.keycloak.KeyCloakTokenResponse;
 import org.sep490.backend.module.authentication.dto.request.*;
 import org.sep490.backend.module.authentication.dto.response.LoginResponse;
-import org.sep490.backend.module.authentication.dto.response.RegistrationResponse;
 import org.sep490.backend.module.authentication.entity.EmailOtp;
 import org.sep490.backend.module.authentication.entity.PasswordResetToken;
 import org.sep490.backend.module.authentication.entity.User;
@@ -22,6 +21,7 @@ import org.sep490.backend.module.authentication.repository.LevelRepository;
 import org.sep490.backend.module.authentication.repository.PasswordResetTokenRepository;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.authentication.service.AuthService;
+import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -54,7 +54,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public RegistrationResponse register(RegistrationRequest request) {
+    public UserProfileResponse register(RegistrationRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new BusinessException("Tên đăng nhập đã tồn tại");
         }
@@ -75,7 +75,7 @@ public class AuthServiceImpl implements AuthService {
             User user = buildCustomer(request, keycloakUserId);
             user.setStatus(UserStatus.PENDING);
             user = userRepository.save(user);
-            return userMapper.toResponse(user);
+            return userMapper.toProfileResponse(user);
         } catch (Exception e) {
             rollbackKeycloakUser(keycloakUserId);
             throw new BusinessException("Đăng ký tài khoản thất bại: " + e.getMessage());

@@ -4,8 +4,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.sep490.backend.module.authentication.dto.request.*;
 import org.sep490.backend.module.authentication.dto.response.LoginResponse;
-import org.sep490.backend.module.authentication.dto.response.RegistrationResponse;
 import org.sep490.backend.module.authentication.service.AuthService;
+import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -25,8 +25,8 @@ public class AuthenticationController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<RegistrationResponse> register(@Valid @RequestBody RegistrationRequest request) {
-        RegistrationResponse response = authService.register(request);
+    public ResponseEntity<UserProfileResponse> register(@Valid @RequestBody RegistrationRequest request) {
+        UserProfileResponse response = authService.register(request);
         return ResponseEntity.ok(response);
     }
 
