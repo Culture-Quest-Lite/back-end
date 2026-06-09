@@ -95,8 +95,16 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login-by-google")
-    public ResponseEntity<LoginResponse> socialSync(@Valid @RequestBody GoogleLoginRequest request) {
+    public ResponseEntity<LoginResponse> loginGoogle(@Valid @RequestBody SocialLoginRequest request) {
         LoginResponse response = authService.loginGoogle(request.getCode(), request.getRedirectUri());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/login-by-facebook")
+    public ResponseEntity<LoginResponse> loginFacebook(
+            @Valid @RequestBody SocialLoginRequest request
+    ) {
+        LoginResponse response = authService.loginFacebook(request.getCode(), request.getRedirectUri());
         return ResponseEntity.ok(response);
     }
 }

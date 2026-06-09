@@ -14,4 +14,5 @@ public interface AuthService {
     void resetPassword(ResetPasswordRequest request);
     void changePassword(String keycloakUserId, ChangePasswordRequest request);
     LoginResponse loginGoogle(String code, String redirectUri);
+    LoginResponse loginFacebook(String code, String redirectUri);
 }
