@@ -45,6 +45,8 @@ public class SecurityConfig {
             "/api/auth/resend-otp",
             "/api/auth/login-by-google",
             "/api/auth/login-by-facebook"
+            "/api/v1/categories/**",
+            "/api/v1/hotspots/**",
     };
 
     @Bean
