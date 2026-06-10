@@ -1,4 +1,4 @@
-package org.sep490.backend.module.authentication.entity;
+package org.sep490.backend.module.user.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.user.entity.enumeration.LevelStatus;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -34,8 +36,11 @@ public class Level {
     @Column(length = 255)
     private String description;
 
-    @OneToMany(mappedBy = "level", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "level", fetch = FetchType.LAZY)
     private List<User> users = new ArrayList<>();
+    
+    @Enumerated(EnumType.STRING)
+    private LevelStatus status;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

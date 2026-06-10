@@ -11,17 +11,18 @@ import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.config.keycloak.KeyCloakTokenResponse;
 import org.sep490.backend.module.authentication.dto.request.*;
 import org.sep490.backend.module.authentication.dto.response.LoginResponse;
-import org.sep490.backend.module.authentication.dto.response.RegistrationResponse;
 import org.sep490.backend.module.authentication.entity.EmailOtp;
 import org.sep490.backend.module.authentication.entity.PasswordResetToken;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.EmailOtpRepository;
-import org.sep490.backend.module.authentication.repository.LevelRepository;
+import org.sep490.backend.module.user.repository.LevelRepository;
 import org.sep490.backend.module.authentication.repository.PasswordResetTokenRepository;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.user.entity.enumeration.LevelStatus;
 import org.sep490.backend.module.authentication.service.AuthService;
+import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -54,7 +55,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public RegistrationResponse register(RegistrationRequest request) {
+    public UserProfileResponse register(RegistrationRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new BusinessException("Tên đăng nhập đã tồn tại");
         }
@@ -75,7 +76,7 @@ public class AuthServiceImpl implements AuthService {
             User user = buildCustomer(request, keycloakUserId);
             user.setStatus(UserStatus.PENDING);
             user = userRepository.save(user);
-            return userMapper.toResponse(user);
+            return userMapper.toProfileResponse(user);
         } catch (Exception e) {
             rollbackKeycloakUser(keycloakUserId);
             throw new BusinessException("Đăng ký tài khoản thất bại: " + e.getMessage());
@@ -301,7 +302,68 @@ public class AuthServiceImpl implements AuthService {
                     .isPremium(false)
                     .build();
 
-            levelRepository.findFirstByOrderByRequiredXpAsc()
+            levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
+                    .ifPresent(newUser::setLevel);
+
+            userRepository.save(newUser);
+        } else {
+            User existingUser = userOpt.get();
+            if (existingUser.getStatus() != UserStatus.ACTIVE) {
+                throw new BusinessException("Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động");
+            }
+        }
+
+        return LoginResponse.builder()
+                .accessToken(tokenResponse.getAccessToken())
+                .refreshToken(tokenResponse.getRefreshToken())
+                .tokenType(tokenResponse.getTokenType())
+                .expiresIn(tokenResponse.getExpiresIn())
+                .refreshExpiresIn(tokenResponse.getRefreshExpiresIn())
+                .build();
+    }
+
+    @Override
+    public LoginResponse loginFacebook(String code, String redirectUri) {
+        KeyCloakTokenResponse tokenResponse = keyCloakAuthClient.exchangeCode(code, redirectUri);
+        if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
+            throw new BusinessException("Không thể trao đổi mã xác thực để lấy Token từ Keycloak");
+        }
+
+        String accessToken = tokenResponse.getAccessToken();
+        Map<String, Object> payload = decodeJwtPayload(accessToken);
+        String keycloakUserId = (String) payload.get("sub");
+        String email = (String) payload.get("email");
+        String preferredUsername = (String) payload.get("preferred_username");
+        String displayName = (String) payload.get("name");
+
+        if (keycloakUserId == null) {
+            throw new BusinessException("Token không hợp lệ hoặc thiếu thông tin định danh");
+        }
+
+        if (email == null) {
+            email = preferredUsername != null ? preferredUsername + "@facebook.com" : keycloakUserId + "@facebook.com";
+        }
+
+        Optional<User> userOpt = userRepository.findByKeycloakUserId(keycloakUserId);
+        if (userOpt.isEmpty()) {
+            try {
+                keyCloakAuthClient.updateUserRoles(keycloakUserId, List.of("EXPLORER"));
+            } catch (Exception e) {
+                log.error("Lỗi khi tự động gán role EXPLORER trong Keycloak: {}", e.getMessage());
+            }
+            User newUser = User.builder()
+                    .keycloakUserId(keycloakUserId)
+                    .username(preferredUsername != null ? preferredUsername : "fb_" + keycloakUserId)
+                    .email(email)
+                    .displayName(displayName != null ? displayName : "Facebook User")
+                    .status(UserStatus.ACTIVE)
+                    .totalXp(0)
+                    .totalPoints(0)
+                    .autoPlayAudio(true)
+                    .isPremium(false)
+                    .build();
+
+            levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
                     .ifPresent(newUser::setLevel);
 
             userRepository.save(newUser);
@@ -363,7 +425,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userMapper.toEntity(request);
         user.setTotalXp(0);
         user.setKeycloakUserId(keycloakUserId);
-        levelRepository.findFirstByOrderByRequiredXpAsc()
+        levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
                 .ifPresent(user::setLevel);
         return user;
     }
