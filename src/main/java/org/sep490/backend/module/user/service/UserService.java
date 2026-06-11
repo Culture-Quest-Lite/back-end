@@ -1,6 +1,7 @@
 package org.sep490.backend.module.user.service;
 
 import org.sep490.backend.common.dto.BaseFilterRequest;
+import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
@@ -21,4 +22,5 @@ public interface UserService {
     void lockUser(Long id);
     void unlockUser(Long id);
     void updateUserRole(Long userId, UserRole role);
+    User getCurrentUser();
 }

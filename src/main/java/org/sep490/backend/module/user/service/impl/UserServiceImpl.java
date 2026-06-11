@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.sep490.backend.common.dto.BaseFilterRequest;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
+import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
@@ -234,5 +235,17 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             throw new BusinessException("Đồng bộ vai trò lên hệ thống bảo mật thất bại: " + e.getMessage());
         }
+    public User getCurrentUser() {
+        String keycloakUserId = SecurityUtils.getCurrentUserKeyCloakId().orElseThrow(
+                () -> new RuntimeException("Không tìm thấy thông tin người dùng hiện tại")
+        );
+
+        User user = userRepository.findByKeycloakUserId(keycloakUserId)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException("Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa");
+        }
+
+        return user;
     }
 }
