@@ -3,6 +3,9 @@ package org.sep490.backend.module.content.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.common.filter.dto.SearchRequest;
+import org.sep490.backend.common.filter.specification.GenericSpecification;
+import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.dto.request.RouteHotspotRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
@@ -15,8 +18,13 @@ import org.sep490.backend.module.content.mapper.RouteMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
+import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.user.service.UserService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +39,7 @@ public class RouteServiceImpl implements RouteService {
     RouteRepository routeRepository;
     RouteMapper routeMapper;
     RouteHotspotRepository routeHotspotRepository;
-    HotspotRepository hotspotRepository;
+    HotspotService hotspotService;
     UserService userService;
 
     @Override
@@ -98,6 +106,42 @@ public class RouteServiceImpl implements RouteService {
         return route;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<RouteResponse> filterRoutes(SearchRequest request) {
+
+        Sort sort = Sort.by(Sort.Direction.fromString(request.getSortDirection()), request.getSortBy());
+        Pageable pageable = PageRequest.of(request.getPage(), request.getSize(), sort);
+
+        GenericSpecification<Route> spec = new GenericSpecification<>(request);
+
+        return routeRepository.findAll(spec, pageable).map(routeMapper::toResponse);
+    }
+
+    @Override
+    @Transactional
+    public RouteResponse addHotspotToEndOfRoute(Long routeId, Long hotspotId) {
+
+        Route route = getById(routeId);
+        Hotspot hotspot = hotspotService.getById(hotspotId);
+        addHotspotToRoute(route, hotspot);
+        List<RouteHotspot> newRouteHotspots = routeHotspotRepository.findByRoute_RouteId(routeId);
+
+        return buildRouteResponse(route, newRouteHotspots);
+    }
+
+    @Override
+    @Transactional
+    public RouteResponse removeHotspotFromRoute(Long routeId, Long hotspotId) {
+        Route route = getById(routeId);
+        Hotspot hotspot = hotspotService.getById(hotspotId);
+        removeHotspotFromRoute(route, hotspot);
+        List<RouteHotspot> newRouteHotspots = routeHotspotRepository.findByRoute_RouteId(routeId);
+
+        return buildRouteResponse(route, newRouteHotspots);
+    }
+
+
     private List<RouteHotspot> processRouteHotspots(Route route, List<RouteHotspotRequest> hotspotRequests) {
 
         if (hotspotRequests == null || hotspotRequests.isEmpty()) {
@@ -110,8 +154,7 @@ public class RouteServiceImpl implements RouteService {
 
             RouteHotspotRequest req = hotspotRequests.get(i);
 
-            Hotspot hotspot = hotspotRepository.findById(req.getHotspotId())
-                    .orElseThrow(() -> new RuntimeException("Hotspot ID " + req.getHotspotId() + " không tồn tại"));
+            Hotspot hotspot = hotspotService.getById(req.getHotspotId());
 
             RouteHotspot routeHotspot = RouteHotspot.builder()
                     .route(route)
@@ -120,7 +163,15 @@ public class RouteServiceImpl implements RouteService {
                     .build();
 
             if (i < hotspotRequests.size() - 1) {
-                routeHotspot.setDistanceToNext(0.0);
+
+                Long nextHotspotId = hotspotRequests.get(i + 1).getHotspotId();
+
+                Hotspot nextHotspot = hotspotService.getById(nextHotspotId);
+
+                double distanceInMeters = SpatialUtils.calculateDistanceInMeters(
+                        hotspot.getLocation(),
+                        nextHotspot.getLocation());
+                routeHotspot.setDistanceToNext(distanceInMeters);
             } else {
                 routeHotspot.setDistanceToNext(0.0);
             }
@@ -137,5 +188,84 @@ public class RouteServiceImpl implements RouteService {
         response.setHotspots(routeMapper.toRouteHotspotResponseList(routeHotspots));
 
         return response;
+    }
+
+    private void addHotspotToRoute(Route route, Hotspot hotspot) {
+        List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteIdOrderByIndexAsc(route.getRouteId());
+
+        for (RouteHotspot rh : routeHotspots) {
+            if (rh.getHotspot().getHotspotId().equals(hotspot.getHotspotId())) {
+                throw new RuntimeException("Điểm đã tồn tại trong tuyến đường");
+            }
+        }
+
+        RouteHotspot newRouteHotspot = new RouteHotspot();
+        newRouteHotspot.setRoute(route);
+        newRouteHotspot.setHotspot(hotspot);
+        newRouteHotspot.setDistanceToNext(0.0);
+
+        if (!routeHotspots.isEmpty()) {
+            RouteHotspot lastRouteHotspot = routeHotspots.get(routeHotspots.size() - 1);
+
+            newRouteHotspot.setIndex(lastRouteHotspot.getIndex() + 1);
+
+            double distance = SpatialUtils.calculateDistanceInMeters(
+                    lastRouteHotspot.getHotspot().getLocation(),
+                    hotspot.getLocation()
+            );
+
+            lastRouteHotspot.setDistanceToNext(distance);
+            routeHotspotRepository.save(lastRouteHotspot);
+        } else {
+            newRouteHotspot.setIndex(0);
+        }
+
+        routeHotspotRepository.save(newRouteHotspot);
+    }
+
+    private void removeHotspotFromRoute(Route route, Hotspot hotspot) {
+        List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteIdOrderByIndexAsc(route.getRouteId());
+
+        int targetIndex = -1;
+        RouteHotspot targetRouteHotspot = null;
+
+        for (int i = 0; i < routeHotspots.size(); i++) {
+            if (routeHotspots.get(i).getHotspot().getHotspotId().equals(hotspot.getHotspotId())) {
+                targetIndex = i;
+                targetRouteHotspot = routeHotspots.get(i);
+                break;
+            }
+        }
+
+        if (targetRouteHotspot == null) {
+            throw new RuntimeException("Điểm này không nằm trong tuyến đường");
+        }
+
+        if (targetIndex > 0) {
+            RouteHotspot prevRouteHotspot = routeHotspots.get(targetIndex - 1);
+
+            if (targetIndex < routeHotspots.size() - 1) {
+                RouteHotspot nextRouteHotspot = routeHotspots.get(targetIndex + 1);
+
+                double newDistance = SpatialUtils.calculateDistanceInMeters(
+                        prevRouteHotspot.getHotspot().getLocation(),
+                        nextRouteHotspot.getHotspot().getLocation()
+                );
+                prevRouteHotspot.setDistanceToNext(newDistance);
+            }
+            else {
+                prevRouteHotspot.setDistanceToNext(0.0);
+            }
+
+            routeHotspotRepository.save(prevRouteHotspot);
+        }
+
+        for (int i = targetIndex + 1; i < routeHotspots.size(); i++) {
+            RouteHotspot nextRouteHotspot = routeHotspots.get(i);
+            nextRouteHotspot.setIndex(nextRouteHotspot.getIndex() - 1);
+            routeHotspotRepository.save(nextRouteHotspot);
+        }
+
+        routeHotspotRepository.delete(targetRouteHotspot);
     }
 }

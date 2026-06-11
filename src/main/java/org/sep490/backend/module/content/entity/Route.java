@@ -50,6 +50,9 @@ public class Route {
     @Column(name = "difficulty")
     RouteDifficulty difficulty;
 
+    @Column(name = "XP")
+    Long xp;
+
     @Column(name = "estimate_time")
     Double estimateTime; // minutes
 

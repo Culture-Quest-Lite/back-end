@@ -21,4 +21,5 @@ public class HotspotResponse {
     Double checkInRadius;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
+    Long xp;
 }

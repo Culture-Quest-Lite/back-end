@@ -10,6 +10,9 @@ public class RouteHotspotResponse {
     Long routeHotspotId;
     Long routeId;
     Long hotspotId;
+    String hotspotName;
+    String address;
+    Long xp;
     Integer index;
     Double distanceToNext;
 }

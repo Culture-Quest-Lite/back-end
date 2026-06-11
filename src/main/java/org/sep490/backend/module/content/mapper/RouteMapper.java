@@ -30,6 +30,9 @@ public interface RouteMapper {
 
     @Mapping(source = "route.routeId", target = "routeId")
     @Mapping(source = "hotspot.hotspotId", target = "hotspotId")
+    @Mapping(source = "routeHotspot.hotspot.hotspotName", target = "hotspotName")
+    @Mapping(source = "routeHotspot.hotspot.address", target = "address")
+    @Mapping(source = "routeHotspot.hotspot.xp", target = "xp")
     RouteHotspotResponse toRouteHotspotResponse(RouteHotspot routeHotspot);
 
     List<RouteHotspotResponse> toRouteHotspotResponseList(List<RouteHotspot> routeHotspots);

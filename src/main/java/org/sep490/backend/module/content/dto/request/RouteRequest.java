@@ -17,4 +17,5 @@ public class RouteRequest {
     Double totalDistance;
     List<RouteHotspotRequest> hotspots;
     List<Long> categoryIds;
+    Long xp;
 }

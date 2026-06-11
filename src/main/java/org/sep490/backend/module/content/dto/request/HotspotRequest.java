@@ -16,4 +16,5 @@ public class HotspotRequest {
     Double latitude;
     Double longitude;
     Double checkInRadius;
+    Long xp;
 }

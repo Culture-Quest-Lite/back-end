@@ -53,6 +53,9 @@ public class Hotspot implements Serializable {
     @Column(name = "check_in_radius")
     Double checkInRadius;
 
+    @Column(name = "XP")
+    Long xp;
+
     @Column(name = "location")
     Point location;
 
