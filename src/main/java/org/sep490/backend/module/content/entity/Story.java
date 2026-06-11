@@ -32,9 +32,9 @@ public class Story {
     @JoinColumn(name = "hotspot_id", nullable = false)
     Hotspot hotspot;
 
-    @ManyToOne
-    @JoinColumn(name = "created_by", nullable = false)
-    User createdBy;
+//    @ManyToOne
+//    @JoinColumn(name = "created_by", nullable = false)
+//    User createdBy;
 
     @Column(name = "order_index")
     Integer orderIndex;

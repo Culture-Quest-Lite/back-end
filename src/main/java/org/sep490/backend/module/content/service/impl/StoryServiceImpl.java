@@ -28,7 +28,7 @@ public class StoryServiceImpl implements StoryService {
     @Transactional
     public StoryResponse create(StoryRequest storyRequest) {
         Story story = storyMapper.toEntity(storyRequest);
-        story.setCreatedBy(userService.getCurrentUser());
+        //story.setCreatedBy(userService.getCurrentUser());
         story  = storyRepository.save(story);
         return storyMapper.toResponse(story);
     }

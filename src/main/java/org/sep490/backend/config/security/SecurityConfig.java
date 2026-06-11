@@ -47,7 +47,8 @@ public class SecurityConfig {
             "/api/auth/login-by-facebook",
             "/api/v1/categories/**",
             "/api/v1/hotspots/**",
-            "/api/v1/stories/**"
+            "/api/v1/stories/**",
+            "/api/v1/routes/**",
     };
 
     @Bean

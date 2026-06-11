@@ -21,7 +21,7 @@ import org.sep490.backend.module.content.entity.Hotspot;
 public interface HotspotMapper {
     GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
-    @Mapping(source = "createdBy.userId", target = "createByUserId")
+    //@Mapping(source = "createdBy.userId", target = "createByUserId")
     @Mapping(target = "latitude", expression = "java(hotspot.getLocation() != null ? hotspot.getLocation().getY() : null)")
     @Mapping(target = "longitude", expression = "java(hotspot.getLocation() != null ? hotspot.getLocation().getX() : null)")
     HotspotResponse toResponse(Hotspot hotspot);

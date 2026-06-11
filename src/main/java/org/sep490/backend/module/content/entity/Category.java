@@ -28,6 +28,9 @@ public class Category {
     @ManyToMany(mappedBy = "categories")
     Set<Hotspot> hotspots = new HashSet<>();
 
+    @ManyToMany(mappedBy = "categories")
+    Set<Route> routes = new HashSet<>();
+
     @Column(name = "category_name", nullable = false, unique = true, length = 50)
     String categoryName;
 

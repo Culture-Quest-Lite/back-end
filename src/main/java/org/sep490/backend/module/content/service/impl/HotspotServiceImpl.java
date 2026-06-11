@@ -28,7 +28,7 @@ public class HotspotServiceImpl implements HotspotService {
     @Transactional
     public HotspotResponse create(HotspotRequest request) {
         Hotspot hotspot = hotspotMapper.toEntity(request);
-        hotspot.setCreatedBy(userService.getCurrentUser());
+        //hotspot.setCreatedBy(userService.getCurrentUser());
         hotspot = hotspotRepository.save(hotspot);
         return hotspotMapper.toResponse(hotspot);
     }
