@@ -38,7 +38,7 @@ public class Hotspot implements Serializable {
     Set<Category> categories = new HashSet<>();
 
     @ManyToOne
-    @JoinColumn(name = "created_by") // nullable = false
+    @JoinColumn(name = "created_by", nullable = false)
     User createdBy;
 
     @Column(name = "hotspot_name", nullable = false, length = 100)

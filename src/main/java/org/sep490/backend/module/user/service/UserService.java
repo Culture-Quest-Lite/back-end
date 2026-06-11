@@ -1,5 +1,6 @@
 package org.sep490.backend.module.user.service;
 
+import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
@@ -14,4 +15,5 @@ public interface UserService {
     void unfollowUser(String currentKeycloakUserId, Long targetUserId);
     List<FollowUserResponse> getFollowers(Long userId);
     List<FollowUserResponse> getFollowings(Long userId);
+    User getCurrentUser();
 }
