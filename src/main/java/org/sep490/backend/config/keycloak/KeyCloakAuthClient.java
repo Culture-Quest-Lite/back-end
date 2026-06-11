@@ -356,6 +356,23 @@ public class KeyCloakAuthClient {
         }
     }
 
+    public void updateUserEnabledStatus(@NonNull String keycloakUserId, boolean enabled) {
+        String adminToken = fetchAdminAccessToken();
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("enabled", enabled);
+
+        execute(() -> restClientBuilder.build()
+                .put()
+                .uri(properties.adminUserByIdEndPoint(keycloakUserId))
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity());
+
+    }
+
     @FunctionalInterface
     private interface CheckedSupplier<T> {
         T get();

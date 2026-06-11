@@ -1,9 +1,9 @@
 package org.sep490.backend.module.user.controller;
 
 import jakarta.validation.Valid;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
+import org.sep490.backend.module.user.dto.request.UpdateUserRoleRequest;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.service.UserService;
@@ -32,7 +32,7 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/me/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<UserProfileResponse> getProfile(
             @PathVariable Long id
     ) {

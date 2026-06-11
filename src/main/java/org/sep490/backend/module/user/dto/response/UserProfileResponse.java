@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
 
 import java.time.LocalDateTime;
 
@@ -24,5 +25,6 @@ public class UserProfileResponse {
     private Boolean isPremium;
     private UserStatus status;
     private String levelName;
+    private UserRole role;
     private LocalDateTime createdAt;
 }
