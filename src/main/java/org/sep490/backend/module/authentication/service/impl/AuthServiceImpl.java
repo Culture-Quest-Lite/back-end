@@ -17,6 +17,7 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.EmailOtpRepository;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.repository.LevelRepository;
 import org.sep490.backend.module.authentication.repository.PasswordResetTokenRepository;
 import org.sep490.backend.module.authentication.repository.UserRepository;
@@ -300,6 +301,7 @@ public class AuthServiceImpl implements AuthService {
                     .totalPoints(0)
                     .autoPlayAudio(true)
                     .isPremium(false)
+                    .role(UserRole.EXPLORER)
                     .build();
 
             levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
@@ -361,6 +363,7 @@ public class AuthServiceImpl implements AuthService {
                     .totalPoints(0)
                     .autoPlayAudio(true)
                     .isPremium(false)
+                    .role(UserRole.EXPLORER)
                     .build();
 
             levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
@@ -425,6 +428,7 @@ public class AuthServiceImpl implements AuthService {
         User user = userMapper.toEntity(request);
         user.setTotalXp(0);
         user.setKeycloakUserId(keycloakUserId);
+        user.setRole(UserRole.EXPLORER);
         levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
                 .ifPresent(user::setLevel);
         return user;

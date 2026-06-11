@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.user.entity.Level;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -67,6 +68,10 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     private UserStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 50)
+    private UserRole role;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

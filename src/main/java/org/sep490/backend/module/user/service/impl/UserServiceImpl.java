@@ -1,7 +1,9 @@
 package org.sep490.backend.module.user.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.sep490.backend.common.dto.BaseFilterRequest;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
@@ -11,8 +13,15 @@ import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.entity.UserFollow;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.repository.UserFollowRepository;
 import org.sep490.backend.module.user.service.UserService;
+import org.sep490.backend.module.user.specification.UserSpecification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +33,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final UserFollowRepository userFollowRepository;
+    private final KeyCloakAuthClient keyCloakAuthClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -147,6 +157,84 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Page<UserProfileResponse> getAllUsersWithFilter(BaseFilterRequest filterRequest) {
+        Sort sort = filterRequest.getSortDir().equalsIgnoreCase(Sort.Direction.ASC.name())
+                ? Sort.by(filterRequest.getSortBy()).ascending()
+                : Sort.by(filterRequest.getSortBy()).descending();
+        Pageable pageable = PageRequest.of(filterRequest.getPage(), filterRequest.getSize(), sort);
+        Specification<User> spec = UserSpecification.filterUsers(filterRequest.getSearch(), filterRequest.getStatus());
+        Page<User> userPage = userRepository.findAll(spec, pageable);
+        return userPage.map(userMapper::toProfileResponse);
+    }
+
+    @Override
+    @Transactional
+    public void lockUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+        if (user.getStatus() == UserStatus.DELETED) {
+            throw new BusinessException("Tài khoản đã bị xóa khỏi hệ thống");
+        }
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new BusinessException("Tài khoản này đã bị khóa từ trước");
+        }
+
+        user.setStatus(UserStatus.INACTIVE);
+        userRepository.save(user);
+
+        try {
+            keyCloakAuthClient.updateUserEnabledStatus(user.getKeycloakUserId(), false);
+        } catch (Exception e) {
+            throw new BusinessException("Đồng bộ trạng thái khóa lên hệ thống bảo mật thất bại: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public void unlockUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+        if (user.getStatus() == UserStatus.DELETED) {
+            throw new BusinessException("Tài khoản đã bị xóa khỏi hệ thống");
+        }
+        if (user.getStatus() == UserStatus.ACTIVE) {
+            throw new BusinessException("Tài khoản này hiện đang hoạt động bình thường, không cần mở khóa");
+        }
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+
+        try {
+            keyCloakAuthClient.updateUserEnabledStatus(user.getKeycloakUserId(), true);
+        } catch (Exception e) {
+            throw new BusinessException("Đồng bộ trạng thái mở khóa lên hệ thống bảo mật thất bại: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional
+    public void updateUserRole(Long userId, UserRole role) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+
+        if (user.getStatus() == UserStatus.DELETED) {
+            throw new BusinessException("Tài khoản đã bị xóa khỏi hệ thống");
+        }
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException("Tài khoản người dùng này hiện đang bị khóa hoặc chưa được kích hoạt");
+        }
+        if (user.getRole() == role) {
+            throw new BusinessException("Người dùng đã có vai trò này, không cần cập nhật");
+        }
+
+        user.setRole(role);
+        userRepository.save(user);
+
+        try {
+            keyCloakAuthClient.updateUserRoles(user.getKeycloakUserId(), List.of(role.name()));
+        } catch (Exception e) {
+            throw new BusinessException("Đồng bộ vai trò lên hệ thống bảo mật thất bại: " + e.getMessage());
+        }
     public User getCurrentUser() {
         String keycloakUserId = SecurityUtils.getCurrentUserKeyCloakId().orElseThrow(
                 () -> new RuntimeException("Không tìm thấy thông tin người dùng hiện tại")
