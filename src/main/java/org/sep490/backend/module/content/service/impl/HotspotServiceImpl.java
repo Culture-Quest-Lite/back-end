@@ -9,6 +9,7 @@ import org.sep490.backend.common.filter.specification.GenericSpecification;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
+import org.sep490.backend.module.content.enums.ContentStatus;
 import org.sep490.backend.module.content.mapper.HotspotMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteHotspotRepository;
@@ -36,6 +37,11 @@ public class HotspotServiceImpl implements HotspotService {
     @Override
     @Transactional
     public HotspotResponse create(HotspotRequest request) {
+
+        if(!hotspotRepository.isLocationInVietnam(request.getLongitude(), request.getLatitude())) {
+            throw new IllegalArgumentException("Hotspot location must be within Vietnam");
+        }
+
         Hotspot hotspot = hotspotMapper.toEntity(request);
         //hotspot.setCreatedBy(userService.getCurrentUser());
         hotspot = hotspotRepository.save(hotspot);
@@ -70,7 +76,8 @@ public class HotspotServiceImpl implements HotspotService {
     @Transactional
     public void delete(Long id) {
         Hotspot hotspot = getById(id);
-        hotspotRepository.delete(hotspot);
+        hotspot.setStatus(ContentStatus.DELETED);
+        hotspotRepository.save(hotspot);
     }
 
     @Override

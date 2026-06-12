@@ -50,10 +50,10 @@ public class Hotspot implements Serializable {
     @Column(name = "description", columnDefinition = "TEXT")
     String description;
 
-    @Column(name = "check_in_radius")
+    @Column(name = "check_in_radius", nullable = false)
     Double checkInRadius;
 
-    @Column(name = "XP")
+    @Column(name = "XP", nullable = false)
     Long xp;
 
     @Column(name = "location")

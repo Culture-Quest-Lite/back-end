@@ -1,5 +1,6 @@
 package org.sep490.backend.module.content.controller;
 
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -25,13 +26,13 @@ public class StoryController {
     }
 
     @PostMapping
-    public ResponseEntity<StoryResponse> create(@RequestBody StoryRequest storyRequest) {
+    public ResponseEntity<StoryResponse> create(@Valid @RequestBody StoryRequest storyRequest) {
         StoryResponse response = storyService.create(storyRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<StoryResponse> update(@PathVariable Long id, @RequestBody StoryRequest storyRequest) {
+    public ResponseEntity<StoryResponse> update(@PathVariable Long id, @Valid @RequestBody StoryRequest storyRequest) {
         StoryResponse response = storyService.update(id, storyRequest);
         return ResponseEntity.ok(response);
     }

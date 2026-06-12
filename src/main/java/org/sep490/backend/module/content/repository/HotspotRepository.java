@@ -24,4 +24,13 @@ public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpec
             @Param("radiusInMeters") double radiusInMeters,
             @Param("excludeId") Long excludeId
     );
+    @Query(value = "SELECT EXISTS (" +
+            "  SELECT 1 FROM country_boundaries cb " +
+            "  WHERE cb.country_name = 'Vietnam' " +
+            "  AND ST_Within(" +
+            "      ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326), " +
+            "      cb.geom" +
+            "  )" +
+            ")", nativeQuery = true)
+    boolean isLocationInVietnam(@Param("longitude") Double longitude, @Param("latitude") Double latitude);
 }
