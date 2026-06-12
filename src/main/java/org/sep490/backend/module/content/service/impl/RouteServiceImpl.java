@@ -92,8 +92,8 @@ public class RouteServiceImpl implements RouteService {
 
         Route route =  getById(id);
 
-        routeHotspotRepository.deleteByRoute_RouteId(id);
-        routeRepository.delete(route);
+        route.setStatus(ContentStatus.DELETED);
+        routeRepository.save(route);
     }
 
     @Override
