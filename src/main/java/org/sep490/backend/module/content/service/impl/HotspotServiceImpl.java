@@ -37,6 +37,11 @@ public class HotspotServiceImpl implements HotspotService {
     @Override
     @Transactional
     public HotspotResponse create(HotspotRequest request) {
+
+        if(!hotspotRepository.isLocationInVietnam(request.getLongitude(), request.getLatitude())) {
+            throw new IllegalArgumentException("Hotspot location must be within Vietnam");
+        }
+
         Hotspot hotspot = hotspotMapper.toEntity(request);
         //hotspot.setCreatedBy(userService.getCurrentUser());
         hotspot = hotspotRepository.save(hotspot);

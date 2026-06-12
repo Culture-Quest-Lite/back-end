@@ -1,5 +1,6 @@
 package org.sep490.backend.module.content.controller;
 
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -44,20 +45,20 @@ public class HotspotController {
         return ResponseEntity.ok(responses);
     }
 
-    @PostMapping("/search")
-    public ResponseEntity<Page<HotspotResponse>> filter(@RequestBody SearchRequest request) {
+    @GetMapping("/search")
+    public ResponseEntity<Page<HotspotResponse>> filter(@ModelAttribute SearchRequest request) {
         Page<HotspotResponse> responses = hotspotService.filterHotspots(request);
         return ResponseEntity.ok(responses);
     }
 
     @PostMapping
-    public ResponseEntity<HotspotResponse> createHotspot(@RequestBody HotspotRequest hotspotRequest) {
+    public ResponseEntity<HotspotResponse> createHotspot(@Valid @RequestBody HotspotRequest hotspotRequest) {
         HotspotResponse response = hotspotService.create(hotspotRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<HotspotResponse> updateHotspot(@PathVariable Long id, @RequestBody HotspotRequest hotspotRequest) {
+    public ResponseEntity<HotspotResponse> updateHotspot(@PathVariable Long id, @Valid @RequestBody HotspotRequest hotspotRequest) {
         HotspotResponse response = hotspotService.update(id, hotspotRequest);
         return ResponseEntity.ok(response);
     }

@@ -47,16 +47,16 @@ public class Route {
     String description;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "difficulty")
+    @Column(name = "difficulty", nullable = false)
     RouteDifficulty difficulty;
 
-    @Column(name = "XP")
+    @Column(name = "XP", nullable = false)
     Long xp;
 
-    @Column(name = "estimate_time")
+    @Column(name = "estimate_time", nullable = false)
     Double estimateTime; // minutes
 
-    @Column(name = "total_distance")
+    @Column(name = "total_distance", nullable = false)
     Double totalDistance;
 
     @Column(name = "is_locked")

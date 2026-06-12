@@ -46,6 +46,10 @@ public class RouteServiceImpl implements RouteService {
     @Transactional
     public RouteResponse create(RouteRequest request) {
 
+        if(request.getHotspots().size() < 4) {
+            throw new IllegalArgumentException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
+        }
+
         Route route = routeMapper.toEntity(request);
         //User creator = userService.getCurrentUser();
 
@@ -63,6 +67,10 @@ public class RouteServiceImpl implements RouteService {
     @Override
     @Transactional
     public RouteResponse update(Long id, RouteRequest request) {
+
+        if(request.getHotspots().size() < 4) {
+            throw new IllegalArgumentException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
+        }
 
         Route currRoute = getById(id);
 
@@ -135,6 +143,12 @@ public class RouteServiceImpl implements RouteService {
     public RouteResponse removeHotspotFromRoute(Long routeId, Long hotspotId) {
         Route route = getById(routeId);
         Hotspot hotspot = hotspotService.getById(hotspotId);
+        List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteId(routeId);
+
+        if(routeHotspots.size() <= 4) {
+            throw new IllegalArgumentException("Tuyến đường hiện có 4 điểm dừng, thêm điểm dừng mới trước khi xóa");
+        }
+
         removeHotspotFromRoute(route, hotspot);
         List<RouteHotspot> newRouteHotspots = routeHotspotRepository.findByRoute_RouteId(routeId);
 

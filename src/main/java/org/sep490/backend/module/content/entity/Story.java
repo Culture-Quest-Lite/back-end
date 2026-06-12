@@ -36,7 +36,7 @@ public class Story {
 //    @JoinColumn(name = "created_by", nullable = false)
 //    User createdBy;
 
-    @Column(name = "order_index")
+    @Column(name = "order_index", nullable = false)
     Integer orderIndex;
 
     @Column(name = "title", nullable = false, length = 100)

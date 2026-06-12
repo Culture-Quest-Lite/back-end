@@ -1,5 +1,6 @@
 package org.sep490.backend.module.content.controller;
 
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -33,13 +34,13 @@ public class RouteController {
     }
 
     @PostMapping
-    public ResponseEntity<RouteResponse> create(@RequestBody RouteRequest routeRequest) {
+    public ResponseEntity<RouteResponse> create(@Valid @RequestBody RouteRequest routeRequest) {
         RouteResponse routeResponse = routeService.create(routeRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(routeResponse);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<RouteResponse> update(@PathVariable Long id, @RequestBody RouteRequest routeRequest) {
+    public ResponseEntity<RouteResponse> update(@PathVariable Long id, @Valid @RequestBody RouteRequest routeRequest) {
         RouteResponse routeResponse = routeService.update(id, routeRequest);
         return ResponseEntity.ok(routeResponse);
     }
