@@ -235,6 +235,10 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             throw new BusinessException("Đồng bộ vai trò lên hệ thống bảo mật thất bại: " + e.getMessage());
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public User getCurrentUser() {
         String keycloakUserId = SecurityUtils.getCurrentUserKeyCloakId().orElseThrow(
                 () -> new RuntimeException("Không tìm thấy thông tin người dùng hiện tại")
