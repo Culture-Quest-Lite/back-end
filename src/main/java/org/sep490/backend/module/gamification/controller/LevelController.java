@@ -1,4 +1,4 @@
-package org.sep490.backend.module.user.controller;
+package org.sep490.backend.module.gamification.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/levels")
+@RequestMapping("/api/gamification/levels")
 @RequiredArgsConstructor
 public class LevelController {
 
