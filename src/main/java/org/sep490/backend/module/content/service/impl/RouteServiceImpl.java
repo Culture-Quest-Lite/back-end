@@ -3,6 +3,7 @@ package org.sep490.backend.module.content.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
 import org.sep490.backend.common.utils.SpatialUtils;
@@ -47,7 +48,7 @@ public class RouteServiceImpl implements RouteService {
     public RouteResponse create(RouteRequest request) {
 
         if(request.getHotspots().size() < 4) {
-            throw new IllegalArgumentException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
+            throw new BusinessException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
         }
 
         Route route = routeMapper.toEntity(request);
@@ -69,7 +70,7 @@ public class RouteServiceImpl implements RouteService {
     public RouteResponse update(Long id, RouteRequest request) {
 
         if(request.getHotspots().size() < 4) {
-            throw new IllegalArgumentException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
+            throw new BusinessException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
         }
 
         Route currRoute = getById(id);
@@ -109,7 +110,7 @@ public class RouteServiceImpl implements RouteService {
     public Route getById(Long id) {
 
         Route route = routeRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tuyến đường không tồn tại"));
+                .orElseThrow(() -> new BusinessException("Tuyến đường không tồn tại"));
 
         return route;
     }
@@ -146,7 +147,7 @@ public class RouteServiceImpl implements RouteService {
         List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteId(routeId);
 
         if(routeHotspots.size() <= 4) {
-            throw new IllegalArgumentException("Tuyến đường hiện có 4 điểm dừng, thêm điểm dừng mới trước khi xóa");
+            throw new BusinessException("Tuyến đường hiện có 4 điểm dừng, thêm điểm dừng mới trước khi xóa");
         }
 
         removeHotspotFromRoute(route, hotspot);
@@ -209,7 +210,7 @@ public class RouteServiceImpl implements RouteService {
 
         for (RouteHotspot rh : routeHotspots) {
             if (rh.getHotspot().getHotspotId().equals(hotspot.getHotspotId())) {
-                throw new RuntimeException("Điểm đã tồn tại trong tuyến đường");
+                throw new BusinessException("Điểm đã tồn tại trong tuyến đường");
             }
         }
 
@@ -252,7 +253,7 @@ public class RouteServiceImpl implements RouteService {
         }
 
         if (targetRouteHotspot == null) {
-            throw new RuntimeException("Điểm này không nằm trong tuyến đường");
+            throw new BusinessException("Điểm này không nằm trong tuyến đường");
         }
 
         if (targetIndex > 0) {

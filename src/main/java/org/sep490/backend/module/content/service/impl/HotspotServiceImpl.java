@@ -85,7 +85,7 @@ public class HotspotServiceImpl implements HotspotService {
     @Transactional(readOnly = true)
     public Hotspot getById(Long id) {
         Hotspot hotspot = hotspotRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Hotspot not found")
+                () -> new BusinessException("Hotspot not found")
         );
         return hotspot;
     }
@@ -105,7 +105,7 @@ public class HotspotServiceImpl implements HotspotService {
     public List<HotspotResponse> getNearbyHotspots(Long hotspotId, Double distanceInMeters) {
 
         Hotspot centerHotspot = hotspotRepository.findById(hotspotId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy Hotspot với ID: " + hotspotId));
+                .orElseThrow(() -> new BusinessException("Không tìm thấy Hotspot với ID: " + hotspotId));
 
         if(distanceInMeters <= 0) {
             throw new BusinessException("Khoảng cách phải lớn hơn 0");
@@ -113,7 +113,7 @@ public class HotspotServiceImpl implements HotspotService {
 
         Point centerPoint = centerHotspot.getLocation();
         if (centerPoint == null) {
-            throw new RuntimeException("Hotspot này chưa được cấu hình tọa độ.");
+            throw new BusinessException("Hotspot này chưa được cấu hình tọa độ.");
         }
 
         double lon = centerPoint.getX();

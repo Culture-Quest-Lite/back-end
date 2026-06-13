@@ -3,6 +3,7 @@ package org.sep490.backend.module.content.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.content.dto.filter.StoryFilterRequest;
 import org.sep490.backend.module.content.dto.request.StoryRequest;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
@@ -83,7 +84,7 @@ public class StoryServiceImpl implements StoryService {
     @Transactional(readOnly = true)
     public Story getById(Long id) {
         Story story = storyRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Story not found with id: " + id)
+                () -> new BusinessException("Story not found with id: " + id)
         );
         return story;
     }
