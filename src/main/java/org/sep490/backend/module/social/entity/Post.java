@@ -7,13 +7,16 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
+import org.sep490.backend.module.content.entity.Media;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
 import org.sep490.backend.module.social.entity.enumeration.PostVisibility;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -86,6 +89,10 @@ public class Post {
     )
     @Builder.Default
     Set<Tag> tags = new HashSet<>();
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    List<Media> medias = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
