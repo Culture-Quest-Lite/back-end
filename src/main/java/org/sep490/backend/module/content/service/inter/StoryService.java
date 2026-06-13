@@ -1,8 +1,10 @@
 package org.sep490.backend.module.content.service.inter;
 
+import org.sep490.backend.module.content.dto.filter.StoryFilterRequest;
 import org.sep490.backend.module.content.dto.request.StoryRequest;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
 import org.sep490.backend.module.content.entity.Story;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -13,4 +15,5 @@ public interface StoryService {
     List<StoryResponse> getByHotspot(Long hotspotId);
     void delete(Long id);
     Story getById(Long id);
+    Page<StoryResponse> getAll(StoryFilterRequest filter);
 }

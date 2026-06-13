@@ -4,9 +4,11 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.module.content.dto.filter.StoryFilterRequest;
 import org.sep490.backend.module.content.dto.request.StoryRequest;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
 import org.sep490.backend.module.content.service.inter.StoryService;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +24,12 @@ public class StoryController {
     @GetMapping("/{id}")
     public ResponseEntity<StoryResponse> getDetails(@PathVariable Long id) {
         StoryResponse response = storyService.getDetail(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<StoryResponse>> search(@ModelAttribute StoryFilterRequest filter) {
+        Page<StoryResponse> response = storyService.getAll(filter);
         return ResponseEntity.ok(response);
     }
 

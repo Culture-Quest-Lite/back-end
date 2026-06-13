@@ -1,6 +1,6 @@
 package org.sep490.backend.module.content.service.inter;
 
-import org.sep490.backend.module.content.dto.request.TagFilterRequest;
+import org.sep490.backend.module.content.dto.filter.TagFilterRequest;
 import org.sep490.backend.module.content.dto.request.TagRequest;
 import org.sep490.backend.module.content.dto.response.TagResponse;
 import org.sep490.backend.module.content.entity.Tag;
