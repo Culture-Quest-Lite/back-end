@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.content.enums.MediaType;
+import org.sep490.backend.module.social.entity.Post;
 
 import java.time.LocalDateTime;
 
@@ -31,7 +32,9 @@ public class Media {
     @JoinColumn(name = "hotspot_id")
     Hotspot hotspot;
 
-    // post_id
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id")
+    Post post;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type")
