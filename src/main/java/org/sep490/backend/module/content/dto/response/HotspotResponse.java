@@ -12,7 +12,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class HotspotResponse {
     Long hotspotId;
-    List<CategoryResponse> categories;
+    List<TagResponse> tags;
     Long createByUserId;
     String hotspotName;
     String address;

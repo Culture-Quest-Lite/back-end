@@ -34,8 +34,8 @@ public class RouteRequest {
     @Valid
     List<RouteHotspotRequest> hotspots;
 
-    @NotEmpty(message = "Tuyến đường phải thuộc ít nhất 1 danh mục")
-    List<Long> categoryIds;
+    @NotEmpty(message = "Tuyến đường phải thuộc ít nhất 1 tag")
+    List<Long> tagIds;
 
     @NotNull(message = "Điểm thưởng XP không được để trống")
     @PositiveOrZero(message = "Điểm thưởng XP không được là số âm")

@@ -7,4 +7,5 @@ import java.util.Collection;
 
 public interface StoryRepository extends JpaRepository<Story, Long> {
     Collection<Story> findByHotspot_HotspotId(Long hotspotId);
+    Integer countByHotspot_HotspotId(Long hotspotId);
 }

@@ -34,11 +34,11 @@ public class Route {
 
     @ManyToMany
     @JoinTable(
-            name = "route_categories",
+            name = "route_tags",
             joinColumns = @JoinColumn(name = "route_id"),
-            inverseJoinColumns = @JoinColumn(name = "category_id")
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
-    Set<Category> categories = new HashSet<>();
+    Set<Tag> tags = new HashSet<>();
 
     @Column(name = "route_name", nullable = false, length = 100)
     String routeName;

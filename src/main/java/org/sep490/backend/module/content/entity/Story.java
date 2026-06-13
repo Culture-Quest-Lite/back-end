@@ -25,8 +25,8 @@ public class Story {
     Long storyId;
 
     @ManyToOne
-    @JoinColumn(name = "category_id", nullable = false)
-    Category category;
+    @JoinColumn(name = "tag_id", nullable = false)
+    Tag tag;
 
     @ManyToOne
     @JoinColumn(name = "hotspot_id", nullable = false)

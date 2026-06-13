@@ -30,6 +30,12 @@ public class StoryServiceImpl implements StoryService {
     public StoryResponse create(StoryRequest storyRequest) {
         Story story = storyMapper.toEntity(storyRequest);
         //story.setCreatedBy(userService.getCurrentUser());
+
+        int index = storyRepository.countByHotspot_HotspotId(storyRequest.getHotspotId());
+        if (index >= 0) {
+            story.setOrderIndex(index + 1);
+        }
+
         story  = storyRepository.save(story);
         return storyMapper.toResponse(story);
     }

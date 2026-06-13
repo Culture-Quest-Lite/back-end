@@ -5,11 +5,11 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.ReportingPolicy;
 import org.sep490.backend.module.content.dto.request.StoryRequest;
-import org.sep490.backend.module.content.dto.response.CategoryResponse;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
-import org.sep490.backend.module.content.entity.Category;
+import org.sep490.backend.module.content.dto.response.TagResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
+import org.sep490.backend.module.content.entity.Tag;
 
 @Mapper(
         componentModel = "spring",
@@ -19,23 +19,25 @@ public interface StoryMapper {
 
     @Mapping(source = "hotspot.hotspotId", target = "hotspotId")
     StoryResponse toResponse(Story story);
-    CategoryResponse toCategoryResponse(Category category);
 
-    @Mapping(source = "categoryId", target = "category")
+    TagResponse toTagResponse(Tag tag);
+
+    @Mapping(source = "tagId", target = "tag")
     @Mapping(source = "hotspotId", target = "hotspot")
     void updateFromRequest(@MappingTarget Story story, StoryRequest storyRequest);
 
-    @Mapping(source = "categoryId", target = "category")
+    @Mapping(source = "tagId", target = "tag")
     @Mapping(source = "hotspotId", target = "hotspot")
+    @Mapping(target = "orderIndex", ignore = true)
     Story toEntity(StoryRequest storyRequest);
 
-    default Category mapIdToCategory(Long id) {
+    default Tag mapIdToTag(Long id) {
         if (id == null) {
             return null;
         }
-        Category category = new Category();
-        category.setCategoryId(id);
-        return category;
+        Tag tag = new Tag();
+        tag.setTagId(id);
+        return tag;
     }
 
     default Hotspot mapIdToHotspot(Long id) {

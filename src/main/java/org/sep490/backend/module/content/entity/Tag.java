@@ -11,6 +11,8 @@ import org.sep490.backend.module.content.enums.TagStatus;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "tags")
@@ -24,6 +26,12 @@ public class Tag implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "tag_id")
     private Long tagId;
+
+    @ManyToMany(mappedBy = "tags")
+    Set<Hotspot> hotspots = new HashSet<>();
+
+    @ManyToMany(mappedBy = "tags")
+    Set<Route> routes = new HashSet<>();
 
     @Column(name = "tag_name", nullable = false, unique = true, length = 50)
     private String tagName;

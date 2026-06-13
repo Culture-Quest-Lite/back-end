@@ -7,9 +7,9 @@ import org.mapstruct.ReportingPolicy;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.RouteHotspotResponse;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
-import org.sep490.backend.module.content.entity.Category;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.RouteHotspot;
+import org.sep490.backend.module.content.entity.Tag;
 
 import java.util.List;
 
@@ -19,10 +19,10 @@ import java.util.List;
 )
 public interface RouteMapper {
 
-    @Mapping(source = "categoryIds", target = "categories")
+    @Mapping(source = "tagIds", target = "tags")
     Route toEntity(RouteRequest request);
 
-    @Mapping(source = "categoryIds", target = "categories")
+    @Mapping(source = "tagIds", target = "tags")
     void updateFromRequest(@MappingTarget Route route, RouteRequest request);
 
     @Mapping(target = "hotspots", ignore = true)
@@ -37,12 +37,12 @@ public interface RouteMapper {
 
     List<RouteHotspotResponse> toRouteHotspotResponseList(List<RouteHotspot> routeHotspots);
 
-    default Category mapIdToCategory(Long id) {
+    default Tag mapIdToTag(Long id) {
         if (id == null) {
             return null;
         }
-        Category category = new Category();
-        category.setCategoryId(id);
-        return category;
+        Tag tag = new Tag();
+        tag.setTagId(id);
+        return tag;
     }
 }
