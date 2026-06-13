@@ -10,8 +10,8 @@ import java.util.List;
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class HotspotRequest {
-    @NotEmpty(message = "Địa điểm phải thuộc ít nhất 1 danh mục")
-    List<Long> categoryIds;
+    @NotEmpty(message = "Địa điểm phải thuộc ít nhất 1 tag")
+    List<Long> tagIds;
 
     @NotBlank(message = "Tên địa điểm không được để trống")
     @Size(max = 100, message = "Tên địa điểm không được vượt quá 100 ký tự")

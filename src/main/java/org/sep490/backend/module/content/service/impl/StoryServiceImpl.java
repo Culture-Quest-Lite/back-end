@@ -3,6 +3,8 @@ package org.sep490.backend.module.content.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.module.content.dto.filter.StoryFilterRequest;
 import org.sep490.backend.module.content.dto.request.StoryRequest;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
 import org.sep490.backend.module.content.entity.Story;
@@ -10,7 +12,13 @@ import org.sep490.backend.module.content.enums.ContentStatus;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.StoryService;
+import org.sep490.backend.module.content.specification.StorySpecification;
 import org.sep490.backend.module.user.service.UserService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +38,12 @@ public class StoryServiceImpl implements StoryService {
     public StoryResponse create(StoryRequest storyRequest) {
         Story story = storyMapper.toEntity(storyRequest);
         //story.setCreatedBy(userService.getCurrentUser());
+
+        int index = storyRepository.countByHotspot_HotspotId(storyRequest.getHotspotId());
+        if (index >= 0) {
+            story.setOrderIndex(index + 1);
+        }
+
         story  = storyRepository.save(story);
         return storyMapper.toResponse(story);
     }
@@ -70,8 +84,22 @@ public class StoryServiceImpl implements StoryService {
     @Transactional(readOnly = true)
     public Story getById(Long id) {
         Story story = storyRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Story not found with id: " + id)
+                () -> new BusinessException("Story not found with id: " + id)
         );
         return story;
+    }
+
+    @Override
+    public Page<StoryResponse> getAll(StoryFilterRequest filter) {
+
+        Sort sort = filter.getSortDir().equalsIgnoreCase(Sort.Direction.ASC.name())
+                ? Sort.by(filter.getSortBy()).ascending()
+                : Sort.by(filter.getSortBy()).descending();
+
+        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
+
+        Specification<Story> spec = StorySpecification.filter(filter);
+
+        return storyRepository.findAll(spec, pageable).map(storyMapper::toResponse);
     }
 }

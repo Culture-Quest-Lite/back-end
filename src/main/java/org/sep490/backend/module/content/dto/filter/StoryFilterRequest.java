@@ -1,19 +1,19 @@
-package org.sep490.backend.module.content.dto.request;
+package org.sep490.backend.module.content.dto.filter;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
-import org.sep490.backend.module.content.enums.TagStatus;
+import org.sep490.backend.module.content.enums.ContentStatus;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class TagFilterRequest {
-
-    String search;
-
-    TagStatus status;
+public class StoryFilterRequest {
+    String keyword;
+    Long tagId;
+    Long hotspotId;
+    ContentStatus status;
 
     @Min(value = 0, message = "Page không được nhỏ hơn 0")
     int page = 0;
@@ -25,4 +25,3 @@ public class TagFilterRequest {
     String sortBy = "createdAt";
     String sortDir = "desc";
 }
-

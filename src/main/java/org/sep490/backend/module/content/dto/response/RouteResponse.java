@@ -19,6 +19,6 @@ public class RouteResponse {
     Double totalDistance;
     ContentStatus status;
     Long xp;
-    List<CategoryResponse> categories;
+    List<TagResponse> tags;
     List<RouteHotspotResponse> hotspots;
 }

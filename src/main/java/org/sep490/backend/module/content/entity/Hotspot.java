@@ -31,11 +31,11 @@ public class Hotspot implements Serializable {
 
     @ManyToMany
     @JoinTable(
-            name = "hotspot_categories",
+            name = "hotspot_tags",
             joinColumns = @JoinColumn(name = "hotspot_id"),
-            inverseJoinColumns = @JoinColumn(name = "category_id")
+            inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
-    Set<Category> categories = new HashSet<>();
+    Set<Tag> tags = new HashSet<>();
 
 //    @ManyToOne
 //    @JoinColumn(name = "created_by", nullable = false)
@@ -75,13 +75,13 @@ public class Hotspot implements Serializable {
     LocalDateTime publishedAt;
 
 
-    public void addCategory(Category category) {
-        this.categories.add(category);
-        category.getHotspots().add(this);
+    public void addTag(Tag tag) {
+        this.tags.add(tag);
+        tag.getHotspots().add(this);
     }
 
-    public void removeCategory(Category category) {
-        this.categories.remove(category);
-        category.getHotspots().remove(this);
+    public void removeTag(Tag tag) {
+        this.tags.remove(tag);
+        tag.getHotspots().remove(this);
     }
 }

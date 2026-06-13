@@ -9,7 +9,7 @@ import org.sep490.backend.module.content.enums.ContentStatus;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class StoryResponse {
     Long storyId;
-    CategoryResponse category;
+    TagResponse tag;
     Long hotspotId;
     Integer orderIndex;
     String title;

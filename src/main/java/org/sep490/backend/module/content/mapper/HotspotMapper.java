@@ -9,10 +9,10 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.ReportingPolicy;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
-import org.sep490.backend.module.content.dto.response.CategoryResponse;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
-import org.sep490.backend.module.content.entity.Category;
+import org.sep490.backend.module.content.dto.response.TagResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
+import org.sep490.backend.module.content.entity.Tag;
 
 @Mapper(
         componentModel = "spring",
@@ -26,23 +26,23 @@ public interface HotspotMapper {
     @Mapping(target = "longitude", expression = "java(hotspot.getLocation() != null ? hotspot.getLocation().getX() : null)")
     HotspotResponse toResponse(Hotspot hotspot);
 
-    CategoryResponse toCategoryResponse(Category category);
+    TagResponse toTagResponse(Tag tag);
 
-    @Mapping(source = "categoryIds", target = "categories")
+    @Mapping(source = "tagIds", target = "tags")
     @Mapping(target = "location", expression = "java(toPoint(request.getLongitude(), request.getLatitude()))")
     void updateFromRequest(@MappingTarget Hotspot hotspot, HotspotRequest request);
 
-    @Mapping(source = "categoryIds", target = "categories")
+    @Mapping(source = "tagIds", target = "tags")
     @Mapping(target = "location", expression = "java(toPoint(request.getLongitude(), request.getLatitude()))")
     Hotspot toEntity(HotspotRequest request);
 
-    default Category mapIdToCategory(Long id) {
+    default Tag mapIdToTag(Long id) {
         if (id == null) {
             return null;
         }
-        Category category = new Category();
-        category.setCategoryId(id);
-        return category;
+        Tag tag = new Tag();
+        tag.setTagId(id);
+        return tag;
     }
 
     default Point toPoint(Double longitude, Double latitude) {

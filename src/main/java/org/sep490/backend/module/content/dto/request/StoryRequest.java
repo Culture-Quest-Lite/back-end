@@ -8,15 +8,11 @@ import lombok.experimental.FieldDefaults;
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class StoryRequest {
-    @NotNull(message = "Category ID không được để trống")
-    Long categoryId;
+    @NotNull(message = "Tag ID không được để trống")
+    Long tagId;
 
     @NotNull(message = "Hotspot ID không được để trống")
     Long hotspotId;
-
-    @NotNull(message = "Thứ tự cốt truyện không được để trống")
-    @PositiveOrZero(message = "Thứ tự cốt truyện phải từ 0 trở lên")
-    Integer orderIndex;
 
     @NotBlank(message = "Tiêu đề cốt truyện không được để trống")
     @Size(max = 100, message = "Tiêu đề không được vượt quá 100 ký tự")

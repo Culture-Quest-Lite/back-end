@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.locationtech.jts.geom.Point;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
@@ -39,7 +40,7 @@ public class HotspotServiceImpl implements HotspotService {
     public HotspotResponse create(HotspotRequest request) {
 
         if(!hotspotRepository.isLocationInVietnam(request.getLongitude(), request.getLatitude())) {
-            throw new IllegalArgumentException("Hotspot location must be within Vietnam");
+            throw new BusinessException("Hotspot location must be within Vietnam");
         }
 
         Hotspot hotspot = hotspotMapper.toEntity(request);
@@ -84,7 +85,7 @@ public class HotspotServiceImpl implements HotspotService {
     @Transactional(readOnly = true)
     public Hotspot getById(Long id) {
         Hotspot hotspot = hotspotRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("Hotspot not found")
+                () -> new BusinessException("Hotspot not found")
         );
         return hotspot;
     }
@@ -104,11 +105,15 @@ public class HotspotServiceImpl implements HotspotService {
     public List<HotspotResponse> getNearbyHotspots(Long hotspotId, Double distanceInMeters) {
 
         Hotspot centerHotspot = hotspotRepository.findById(hotspotId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy Hotspot với ID: " + hotspotId));
+                .orElseThrow(() -> new BusinessException("Không tìm thấy Hotspot với ID: " + hotspotId));
+
+        if(distanceInMeters <= 0) {
+            throw new BusinessException("Khoảng cách phải lớn hơn 0");
+        }
 
         Point centerPoint = centerHotspot.getLocation();
         if (centerPoint == null) {
-            throw new RuntimeException("Hotspot này chưa được cấu hình tọa độ.");
+            throw new BusinessException("Hotspot này chưa được cấu hình tọa độ.");
         }
 
         double lon = centerPoint.getX();

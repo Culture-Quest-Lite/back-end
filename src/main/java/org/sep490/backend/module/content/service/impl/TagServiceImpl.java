@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.content.enums.TagStatus;
-import org.sep490.backend.module.content.dto.request.TagFilterRequest;
+import org.sep490.backend.module.content.dto.filter.TagFilterRequest;
 import org.sep490.backend.module.content.dto.request.TagRequest;
 import org.sep490.backend.module.content.dto.response.TagResponse;
 import org.sep490.backend.module.content.entity.Tag;
