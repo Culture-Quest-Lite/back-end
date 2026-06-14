@@ -48,6 +48,9 @@ public class Post {
     @Column(name = "status")
     private PostStatus status;
 
+    @Column(name = "reject_reason", nullable = true)
+    private String reason;
+
     @Column(name = "moderate_by")
     private Long moderateBy;
 

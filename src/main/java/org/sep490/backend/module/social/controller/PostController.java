@@ -2,7 +2,6 @@ package org.sep490.backend.module.social.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.apache.catalina.connector.Response;
 import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
 import org.sep490.backend.module.social.dto.response.PostResponse;
@@ -60,5 +59,14 @@ public class PostController {
     public ResponseEntity<String> deletePostPermanently(@PathVariable Long id) {
         postService.deletePostPermanently(id);
         return ResponseEntity.ok("Deleted post permanent successfully!");
+    }
+
+    @GetMapping("/newsfeed")
+    public ResponseEntity<Slice<PostResponse>> getNewsfeed(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Slice<PostResponse> responses = postService.getNewsfeed(page, size);
+        return ResponseEntity.ok(responses);
     }
 }

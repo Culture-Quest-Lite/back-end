@@ -4,7 +4,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
-import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
@@ -13,6 +12,7 @@ import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
 import org.sep490.backend.module.social.dto.request.PostRequest;
+import org.sep490.backend.module.social.dto.request.RejectPostRequest;
 import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.entity.Post;
@@ -25,10 +25,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 
@@ -138,7 +138,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException("Bạn không có quyền xóa bài viết này!");
         }
 
-        post.setStatus(PostStatus.INACTIVE);
+        post.setStatus(PostStatus.DELETED);
         postRepository.save(post);
     }
 
@@ -154,5 +154,53 @@ public class PostServiceImpl implements PostService {
         }
 
         postRepository.delete(post);
+    }
+
+    @Override
+    @Transactional
+    public Slice<PostResponse> getNewsfeed(int page, int size) {
+        User currentUser = userService.getCurrentUser();
+        Pageable pageable = PageRequest.of(page, size);
+        PostStatus status = PostStatus.APPROVED;
+        Slice<Post> newsfeedSlice = postRepository.findNewsfeed(currentUser, status, pageable);
+        return newsfeedSlice.map(postMapper::toResponse);
+    }
+
+    @Override
+    @Transactional
+    public PostResponse approvePost(Long id) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+
+        if (post.getStatus() != PostStatus.PENDING) {
+            throw new BusinessException("Bài viết không ở trạng thại chờ phê duyệt");
+        }
+
+        //bổ sung logic cộng XP/điểm
+
+        User currentUser = userService.getCurrentUser();
+        post.setModerateBy(currentUser.getUserId());
+        post.setModerateAt(LocalDateTime.now());
+        post.setStatus(PostStatus.APPROVED);
+        Post savedPost = postRepository.save(post);
+        return postMapper.toResponse(savedPost);
+    }
+
+    @Override
+    @Transactional
+    public PostResponse rejectPost(Long id, RejectPostRequest request) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+
+        if (post.getStatus() != PostStatus.PENDING) {
+            throw new BusinessException("Bài viết không ở trạng thái chờ phê duyệt");
+        }
+
+        User currentUser = userService.getCurrentUser();
+        post.setModerateBy(currentUser.getUserId());
+        post.setModerateAt(LocalDateTime.now());
+        post.setStatus(PostStatus.REJECTED);
+        Post savedPost = postRepository.save(post);
+        return postMapper.toResponse(savedPost);
     }
 }

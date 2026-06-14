@@ -20,6 +20,7 @@ public class PostResponse {
     String content;
     PostVisibility visibility;
     PostStatus status;
+    String reason;
     Boolean isTaggedHotspot;
     Boolean isTaggedRoute;
     List<Long> hotspotIds;

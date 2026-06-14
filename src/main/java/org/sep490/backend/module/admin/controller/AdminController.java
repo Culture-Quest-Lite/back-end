@@ -2,6 +2,10 @@ package org.sep490.backend.module.admin.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.sep490.backend.module.social.dto.request.PostRequest;
+import org.sep490.backend.module.social.dto.request.RejectPostRequest;
+import org.sep490.backend.module.social.dto.response.PostResponse;
+import org.sep490.backend.module.social.service.PostService;
 import org.sep490.backend.module.user.dto.request.UpdateUserRoleRequest;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
@@ -20,6 +24,7 @@ import java.util.Map;
 public class AdminController {
 
     private final UserService userService;
+    private final PostService postService;
 
     @GetMapping("/users")
     public ResponseEntity<Page<UserProfileResponse>> getAllUsers(
@@ -53,6 +58,21 @@ public class AdminController {
         userService.updateUserRole(id, request.getRoles());
         Map<String, String> response = new HashMap<>();
         response.put("message", "Cập nhật vai trò người dùng thành công");
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/approve")
+    public ResponseEntity<PostResponse> approvePost(@PathVariable Long id) {
+        PostResponse response = postService.approvePost(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/reject")
+    public ResponseEntity<PostResponse> rejectPost(
+            @PathVariable Long id,
+            @RequestBody @Valid RejectPostRequest  request
+    ) {
+        PostResponse response = postService.rejectPost(id, request);
         return ResponseEntity.ok(response);
     }
 }
