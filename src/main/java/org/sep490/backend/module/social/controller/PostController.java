@@ -7,7 +7,11 @@ import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
 import org.sep490.backend.module.social.service.PostService;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -67,6 +71,15 @@ public class PostController {
             @RequestParam(defaultValue = "10") int size
     ) {
         Slice<PostResponse> responses = postService.getNewsfeed(page, size);
+        return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/my-posts")
+    public ResponseEntity<Slice<PostResponse>> getMyPosts(
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt",
+            direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        Slice<PostResponse> responses = postService.getMyPosts(pageable);
         return ResponseEntity.ok(responses);
     }
 }
