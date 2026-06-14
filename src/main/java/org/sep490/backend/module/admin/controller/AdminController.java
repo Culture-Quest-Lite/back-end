@@ -2,6 +2,7 @@ package org.sep490.backend.module.admin.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.sep490.backend.module.social.dto.request.DeletePostRequest;
 import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.request.RejectPostRequest;
 import org.sep490.backend.module.social.dto.response.PostResponse;
@@ -61,18 +62,27 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{id}/approve")
+    @PutMapping("/post/{id}/approve")
     public ResponseEntity<PostResponse> approvePost(@PathVariable Long id) {
         PostResponse response = postService.approvePost(id);
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{id}/reject")
+    @PutMapping("/post/{id}/reject")
     public ResponseEntity<PostResponse> rejectPost(
             @PathVariable Long id,
             @RequestBody @Valid RejectPostRequest  request
     ) {
         PostResponse response = postService.rejectPost(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/ban")
+    public ResponseEntity<PostResponse> banPost(
+            @PathVariable Long id,
+            @RequestBody @Valid DeletePostRequest request
+            ) {
+        PostResponse response = postService.banPostByAdmin(id, request);
         return ResponseEntity.ok(response);
     }
 }

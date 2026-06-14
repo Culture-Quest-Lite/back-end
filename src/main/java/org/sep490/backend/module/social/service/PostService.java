@@ -1,10 +1,14 @@
 package org.sep490.backend.module.social.service;
 
+import org.sep490.backend.module.social.dto.request.DeletePostRequest;
 import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.request.RejectPostRequest;
 import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
 import org.sep490.backend.module.social.dto.response.PostResponse;
+import org.sep490.backend.module.social.entity.Post;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
 public interface PostService {
@@ -17,4 +21,6 @@ public interface PostService {
     Slice<PostResponse> getNewsfeed(int page, int size);
     PostResponse approvePost(Long id);
     PostResponse rejectPost(Long id, RejectPostRequest request);
+    PostResponse banPostByAdmin(Long id, DeletePostRequest request);
+    Slice<PostResponse> getMyPosts(Pageable pageable);
 }

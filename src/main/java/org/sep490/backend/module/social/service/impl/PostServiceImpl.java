@@ -11,6 +11,7 @@ import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
+import org.sep490.backend.module.social.dto.request.DeletePostRequest;
 import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.request.RejectPostRequest;
 import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
@@ -21,10 +22,7 @@ import org.sep490.backend.module.social.mapper.PostMapper;
 import org.sep490.backend.module.social.repository.PostRepository;
 import org.sep490.backend.module.social.service.PostService;
 import org.sep490.backend.module.user.service.UserService;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -199,8 +197,29 @@ public class PostServiceImpl implements PostService {
         User currentUser = userService.getCurrentUser();
         post.setModerateBy(currentUser.getUserId());
         post.setModerateAt(LocalDateTime.now());
+        post.setReason(request.getRejectReason());
         post.setStatus(PostStatus.REJECTED);
         Post savedPost = postRepository.save(post);
         return postMapper.toResponse(savedPost);
+    }
+
+    @Override
+    @Transactional
+    public PostResponse banPostByAdmin(Long id, DeletePostRequest request) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại hoặc đã bị xóa"));
+
+        post.setStatus(PostStatus.DELETED);
+        post.setReason(request.getReason());
+        Post savedPost = postRepository.save(post);
+        return postMapper.toResponse(savedPost);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Slice<PostResponse> getMyPosts(Pageable pageable) {
+        User currentUser = userService.getCurrentUser();
+        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), PostStatus.APPROVED, pageable);
+        return posts.map(postMapper::toResponse);
     }
 }

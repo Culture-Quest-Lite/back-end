@@ -20,4 +20,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Slice<Post> findNewsfeed(@Param("currentUser") User currentUser,
                              @Param("status") PostStatus status,
                              Pageable pageable);
+
+    Slice<Post> findByUser_UserIdAndStatus(Long userId, PostStatus status, Pageable pageable);
 }
