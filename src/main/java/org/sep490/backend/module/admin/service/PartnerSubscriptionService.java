@@ -5,4 +5,6 @@ import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
 
 public interface PartnerSubscriptionService {
     PartnerSubscriptionResponse registerSubscription(PartnerSubscriptionRequest request);
+    PartnerSubscriptionResponse approveSubscription(Long subscriptionId);
+    PartnerSubscriptionResponse rejectSubscription(Long subscriptionId);
 }

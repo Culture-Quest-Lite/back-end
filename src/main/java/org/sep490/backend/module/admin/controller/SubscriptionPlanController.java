@@ -28,11 +28,6 @@ public class SubscriptionPlanController {
         return ResponseEntity.ok(subscriptionPlanService.getAllWithFilter(filter));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<SubscriptionPlanResponse> getDetail(@PathVariable Long id) {
-        return ResponseEntity.ok(subscriptionPlanService.getSubscriptionPlanDetail(id));
-    }
-
     @PostMapping
     public ResponseEntity<SubscriptionPlanResponse> create(
             @Valid @RequestBody SubscriptionPlanRequest request) {

@@ -45,15 +45,48 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         subscription.setPartner(currentPartner);
         subscription.setSubscriptionPlan(plan);
 
-        LocalDateTime now = LocalDateTime.now();
-        subscription.setStartDate(now);
-        if (BillingCycleEnum.MONTHLY.equals(request.getBillingCycle())) {
-            subscription.setEndDate(now.plusMonths(1));
-        } else if (BillingCycleEnum.YEARLY.equals(request.getBillingCycle())) {
-            subscription.setEndDate(now.plusYears(1));
+        subscription.setStatus(PartnerSubscriptionStatus.PENDING);
+
+        subscription.setStartDate(null);
+        subscription.setEndDate(null);
+        subscription = partnerSubscriptionRepository.save(subscription);
+        return subscriptionMapper.toResponse(subscription);
+    }
+
+    @Override
+    @Transactional
+    public PartnerSubscriptionResponse approveSubscription(Long subscriptionId) {
+        PartnerSubscription subscription = partnerSubscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new BusinessException("Yêu cầu đăng ký gói không tồn tại"));
+
+        if (!PartnerSubscriptionStatus.PENDING.equals(subscription.getStatus())) {
+            throw new BusinessException("Chỉ có thể duyệt gói dịch vụ đang ở trạng thái chờ duyệt");
         }
 
         subscription.setStatus(PartnerSubscriptionStatus.ACTIVE);
+        LocalDateTime now = LocalDateTime.now();
+        subscription.setStartDate(now);
+
+        if (BillingCycleEnum.MONTHLY.equals(subscription.getBillingCycle())) {
+            subscription.setEndDate(now.plusMonths(1));
+        } else if (BillingCycleEnum.YEARLY.equals(subscription.getBillingCycle())) {
+            subscription.setEndDate(now.plusYears(1));
+        }
+
+        subscription = partnerSubscriptionRepository.save(subscription);
+        return subscriptionMapper.toResponse(subscription);
+    }
+
+    @Override
+    public PartnerSubscriptionResponse rejectSubscription(Long subscriptionId) {
+        PartnerSubscription subscription = partnerSubscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new BusinessException("Yêu cầu đăng ký gói không tồn tại"));
+
+        if (!PartnerSubscriptionStatus.PENDING.equals(subscription.getStatus())) {
+            throw new BusinessException("Chỉ có thể từ chối gói dịch vụ đang ở trạng thái chờ duyệt (PENDING)");
+        }
+
+        subscription.setStatus(PartnerSubscriptionStatus.REJECTED);
         subscription = partnerSubscriptionRepository.save(subscription);
         return subscriptionMapper.toResponse(subscription);
     }
