@@ -2,6 +2,8 @@ package org.sep490.backend.module.admin.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
+import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
 import org.sep490.backend.module.social.dto.request.DeletePostRequest;
 import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.request.RejectPostRequest;
@@ -26,6 +28,7 @@ public class AdminController {
 
     private final UserService userService;
     private final PostService postService;
+    private final PartnerSubscriptionService partnerSubscriptionService;
 
     @GetMapping("/users")
     public ResponseEntity<Page<UserProfileResponse>> getAllUsers(
@@ -83,6 +86,18 @@ public class AdminController {
             @RequestBody @Valid DeletePostRequest request
             ) {
         PostResponse response = postService.banPostByAdmin(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/subscription/{id}/approve")
+    public ResponseEntity<PartnerSubscriptionResponse> approveSubscription(@PathVariable Long id) {
+        PartnerSubscriptionResponse response = partnerSubscriptionService.approveSubscription(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/subscription/{id}/reject")
+    public ResponseEntity<PartnerSubscriptionResponse> rejectSubscription(@PathVariable Long id) {
+        PartnerSubscriptionResponse response = partnerSubscriptionService.rejectSubscription(id);
         return ResponseEntity.ok(response);
     }
 }
