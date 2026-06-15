@@ -8,6 +8,7 @@ import org.sep490.backend.module.content.dto.filter.TagFilterRequest;
 import org.sep490.backend.module.content.dto.request.TagRequest;
 import org.sep490.backend.module.content.dto.response.TagResponse;
 import org.sep490.backend.module.content.service.inter.TagService;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +23,7 @@ public class TagController {
     TagService tagService;
 
     @GetMapping
-    public ResponseEntity<Page<TagResponse>> getAll(@Valid @ModelAttribute TagFilterRequest filter) {
+    public ResponseEntity<Page<TagResponse>> getAll(@Valid @ParameterObject @ModelAttribute TagFilterRequest filter) {
         return ResponseEntity.ok(tagService.getAllWithFilter(filter));
     }
 

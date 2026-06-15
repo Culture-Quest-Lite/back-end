@@ -2,11 +2,18 @@ package org.sep490.backend.module.user.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.sep490.backend.module.social.dto.response.PostResponse;
+import org.sep490.backend.module.social.service.PostService;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
 import org.sep490.backend.module.user.dto.request.UpdateUserRoleRequest;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.service.UserService;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -22,6 +29,7 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final PostService postService;
 
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> getMyProfile(
@@ -86,5 +94,15 @@ public class UserController {
             @PathVariable Long id
     ) {
         return ResponseEntity.ok(userService.getFollowings(id));
+    }
+
+    @GetMapping("/user/{id}/posts")
+    public ResponseEntity<Slice<PostResponse>> getPostsByUserId(
+            @PathVariable("id") Long userId,
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt",
+            direction = Sort.Direction.DESC) Pageable pageable
+            ) {
+        Slice<PostResponse> responses = postService.getPostsByUserId(userId, pageable);
+        return ResponseEntity.ok(responses);
     }
 }

@@ -23,4 +23,5 @@ public interface PostService {
     PostResponse rejectPost(Long id, RejectPostRequest request);
     PostResponse banPostByAdmin(Long id, DeletePostRequest request);
     Slice<PostResponse> getMyPosts(Pageable pageable);
+    Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable);
 }

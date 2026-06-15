@@ -222,4 +222,11 @@ public class PostServiceImpl implements PostService {
         Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), PostStatus.APPROVED, pageable);
         return posts.map(postMapper::toResponse);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable) {
+        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(userId, PostStatus.APPROVED, pageable);
+        return posts.map(postMapper::toResponse);
+    }
 }

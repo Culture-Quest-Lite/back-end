@@ -1,9 +1,18 @@
 package org.sep490.backend.common.utils;
 
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
 
 public class SpatialUtils {
     private static final double EARTH_RADIUS_METERS = 6371000;
+    private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
+
+    public static Point fromCoordinates(Double longitude, Double latitude) {
+        if (longitude == null || latitude == null) return null;
+        return GEOMETRY_FACTORY.createPoint(new Coordinate(longitude, latitude));
+    }
 
     public static double calculateDistanceInMeters(Point p1, Point p2) {
         if (p1 == null || p2 == null) return 0.0;
