@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.sep490.backend.module.admin.entity.enumeration.BillingCycleEnum;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 @Builder
@@ -28,6 +29,8 @@ public class PartnerSubscriptionRequest {
 
     @NotNull(message = "Vĩ độ không được trống")
     private Double latitude;
+
+    private MultipartFile documentFile;
 
     private BillingCycleEnum billingCycle;
 }

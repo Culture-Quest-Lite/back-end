@@ -10,6 +10,7 @@ import java.util.List;
 
 public interface PartnerSubscriptionRepository extends JpaRepository<PartnerSubscription, Long> {
     List<PartnerSubscription> findByPartner_UserId(Long partnerId);
+    List<PartnerSubscription> findByPartner_UserIdOrderByCreatedAtDesc(Long partnerId);
 
     @Query(value = "SELECT EXISTS (" +
             "  SELECT 1 FROM country_boundaries cb " +

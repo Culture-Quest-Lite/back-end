@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -44,18 +45,23 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         PartnerSubscription subscription = subscriptionMapper.toEntity(request);
         subscription.setPartner(currentPartner);
         subscription.setSubscriptionPlan(plan);
-
+        subscription.setIsVerified(false);
         subscription.setStatus(PartnerSubscriptionStatus.PENDING);
-
         subscription.setStartDate(null);
         subscription.setEndDate(null);
+
+//        if (request.getDocumentFile() != null && !request.getDocumentFile().isEmpty()) {
+//            subscription.setDocumentUrl("s3");
+//        } else {
+//            throw new BusinessException("Giấy tờ xác minh là bắt buộc đối với đối tác");
+//        }
         subscription = partnerSubscriptionRepository.save(subscription);
         return subscriptionMapper.toResponse(subscription);
     }
 
     @Override
     @Transactional
-    public PartnerSubscriptionResponse approveSubscription(Long subscriptionId) {
+    public PartnerSubscriptionResponse verifiedSubscription(Long subscriptionId, boolean isApproved) {
         PartnerSubscription subscription = partnerSubscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new BusinessException("Yêu cầu đăng ký gói không tồn tại"));
 
@@ -63,31 +69,44 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
             throw new BusinessException("Chỉ có thể duyệt gói dịch vụ đang ở trạng thái chờ duyệt");
         }
 
-        subscription.setStatus(PartnerSubscriptionStatus.ACTIVE);
-        LocalDateTime now = LocalDateTime.now();
-        subscription.setStartDate(now);
+        if (isApproved) {
+            subscription.setStatus(PartnerSubscriptionStatus.ACTIVE);
+            subscription.setIsVerified(true);
+            LocalDateTime now = LocalDateTime.now();
+            subscription.setStartDate(now);
 
-        if (BillingCycleEnum.MONTHLY.equals(subscription.getBillingCycle())) {
-            subscription.setEndDate(now.plusMonths(1));
-        } else if (BillingCycleEnum.YEARLY.equals(subscription.getBillingCycle())) {
-            subscription.setEndDate(now.plusYears(1));
+            if (BillingCycleEnum.MONTHLY.equals(subscription.getBillingCycle())) {
+                subscription.setEndDate(now.plusMonths(1));
+            } else if (BillingCycleEnum.YEARLY.equals(subscription.getBillingCycle())) {
+                subscription.setEndDate(now.plusYears(1));
+            }
+        } else {
+            subscription.setStatus(PartnerSubscriptionStatus.REJECTED);
+            subscription.setIsVerified(false);
         }
-
         subscription = partnerSubscriptionRepository.save(subscription);
         return subscriptionMapper.toResponse(subscription);
     }
 
     @Override
-    public PartnerSubscriptionResponse rejectSubscription(Long subscriptionId) {
-        PartnerSubscription subscription = partnerSubscriptionRepository.findById(subscriptionId)
-                .orElseThrow(() -> new BusinessException("Yêu cầu đăng ký gói không tồn tại"));
+    @Transactional(readOnly = true)
+    public List<PartnerSubscriptionResponse> getMySubscriptions() {
+        User currentPartner = userService.getCurrentUser();
+        List<PartnerSubscription> subscriptions = partnerSubscriptionRepository
+                .findByPartner_UserIdOrderByCreatedAtDesc(currentPartner.getUserId());
+        return subscriptions.stream()
+                .map(subscriptionMapper::toResponse)
+                .toList();
+    }
 
-        if (!PartnerSubscriptionStatus.PENDING.equals(subscription.getStatus())) {
-            throw new BusinessException("Chỉ có thể từ chối gói dịch vụ đang ở trạng thái chờ duyệt (PENDING)");
-        }
-
-        subscription.setStatus(PartnerSubscriptionStatus.REJECTED);
-        subscription = partnerSubscriptionRepository.save(subscription);
-        return subscriptionMapper.toResponse(subscription);
+    @Override
+    @Transactional(readOnly = true)
+    public List<PartnerSubscriptionResponse> getSubscriptionsByPartnerId(Long partnerId) {
+        userService.getProfile(partnerId);
+        List<PartnerSubscription> subscriptions = partnerSubscriptionRepository
+                .findByPartner_UserIdOrderByCreatedAtDesc(partnerId);
+        return subscriptions.stream()
+                .map(subscriptionMapper::toResponse)
+                .toList();
     }
 }
