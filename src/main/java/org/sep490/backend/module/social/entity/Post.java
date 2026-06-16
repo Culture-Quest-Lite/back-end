@@ -31,37 +31,37 @@ public class Post {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "post_id")
-    private Long postId;
+    Long postId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    User user;
 
     @Column(name = "content", columnDefinition = "TEXT")
-    private String content;
+    String content;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "visibility")
-    private PostVisibility visibility;
+    PostVisibility visibility;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    private PostStatus status;
+    PostStatus status;
 
     @Column(name = "reject_reason", nullable = true)
-    private String reason;
+    String reason;
 
     @Column(name = "moderate_by")
-    private Long moderateBy;
+    Long moderateBy;
 
     @Column(name = "moderate_at")
-    private LocalDateTime moderateAt;
+    LocalDateTime moderateAt;
 
     @Column(name = "is_tagged_hotspot")
-    private Boolean isTaggedHotspot;
+    Boolean isTaggedHotspot;
 
     @Column(name = "is_tagged_route")
-    private Boolean isTaggedRoute;
+    Boolean isTaggedRoute;
 
     @ManyToMany
     @JoinTable(
@@ -104,6 +104,4 @@ public class Post {
     @UpdateTimestamp
     @Column(name = "updated_at")
     LocalDateTime updatedAt;
-
-
 }

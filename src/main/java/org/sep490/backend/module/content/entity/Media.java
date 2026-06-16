@@ -7,6 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.content.enums.MediaType;
 import org.sep490.backend.module.social.entity.Post;
+import org.sep490.backend.module.admin.entity.PartnerSubscription;
 
 import java.time.LocalDateTime;
 
@@ -35,6 +36,10 @@ public class Media {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id")
     Post post;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "partner_subscription_id")
+    PartnerSubscription partnerSubscription;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type")

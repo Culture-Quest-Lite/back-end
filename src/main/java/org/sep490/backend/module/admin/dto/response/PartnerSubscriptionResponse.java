@@ -5,6 +5,7 @@ import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -24,4 +25,13 @@ public class PartnerSubscriptionResponse {
     LocalDateTime endDate;
     Boolean isVerified;
     String documentUrl;
+    List<MediaDto> medias;
+
+    @Data
+    public static class MediaDto {
+        Long mediaId;
+        String fileUrl;
+        String fileName;
+        String mediaType;
+    }
 }
