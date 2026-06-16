@@ -11,6 +11,9 @@ import org.sep490.backend.module.admin.entity.enumeration.PartnerSubscriptionSta
 import org.sep490.backend.module.authentication.entity.User;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
+import org.sep490.backend.module.content.entity.Media;
 
 @Entity
 @Table(name = "partner_subscriptions")
@@ -46,10 +49,15 @@ public class PartnerSubscription {
     private BillingCycleEnum billingCycle;
 
     @Column(name = "is_verified", nullable = true)
+    @Builder.Default
     private Boolean isVerified = false;
 
     @Column(name = "document_url")
     private String documentUrl;
+
+    @OneToMany(mappedBy = "partnerSubscription", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<Media> medias = new ArrayList<>();
 
     @Column(name = "start_date")
     private LocalDateTime startDate;

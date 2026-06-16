@@ -8,6 +8,7 @@ import org.mapstruct.ReportingPolicy;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
 import org.sep490.backend.module.admin.entity.PartnerSubscription;
+import org.sep490.backend.module.content.entity.Media;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface PartnerSubscriptionMapper {
@@ -39,4 +40,7 @@ public interface PartnerSubscriptionMapper {
     default Double getLatitude(Point coordinate) {
         return coordinate != null ? coordinate.getY() : null;
     }
+
+    @Mapping(target = "mediaType", expression = "java(media.getMediaType() != null ? media.getMediaType().name() : null)")
+    PartnerSubscriptionResponse.MediaDto toMediaDto(Media media);
 }
