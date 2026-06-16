@@ -22,4 +22,6 @@ public class PartnerSubscriptionResponse {
     String status;
     LocalDateTime startDate;
     LocalDateTime endDate;
+    Boolean isVerified;
+    String documentUrl;
 }

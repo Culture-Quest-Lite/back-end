@@ -45,6 +45,12 @@ public class PartnerSubscription {
     @Enumerated(EnumType.STRING)
     private BillingCycleEnum billingCycle;
 
+    @Column(name = "is_verified", nullable = true)
+    private Boolean isVerified = false;
+
+    @Column(name = "document_url")
+    private String documentUrl;
+
     @Column(name = "start_date")
     private LocalDateTime startDate;
 

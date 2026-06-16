@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
 import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
 import org.sep490.backend.module.social.dto.request.DeletePostRequest;
-import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.request.RejectPostRequest;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.service.PostService;
@@ -89,15 +88,11 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/subscription/{id}/approve")
-    public ResponseEntity<PartnerSubscriptionResponse> approveSubscription(@PathVariable Long id) {
-        PartnerSubscriptionResponse response = partnerSubscriptionService.approveSubscription(id);
-        return ResponseEntity.ok(response);
-    }
-
-    @PutMapping("/subscription/{id}/reject")
-    public ResponseEntity<PartnerSubscriptionResponse> rejectSubscription(@PathVariable Long id) {
-        PartnerSubscriptionResponse response = partnerSubscriptionService.rejectSubscription(id);
+    @PatchMapping("/subscription/{id}/verify")
+    public ResponseEntity<PartnerSubscriptionResponse> verifiedSubscription(
+            @PathVariable Long id,
+            @RequestParam boolean isApproved) {
+        PartnerSubscriptionResponse response = partnerSubscriptionService.verifiedSubscription(id, isApproved);
         return ResponseEntity.ok(response);
     }
 }
