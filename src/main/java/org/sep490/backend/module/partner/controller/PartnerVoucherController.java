@@ -16,10 +16,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/vouchers")
+@RequestMapping("/api/partner/vouchers")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class VoucherController {
+public class PartnerVoucherController {
 
     VoucherService voucherService;
 
@@ -27,11 +27,6 @@ public class VoucherController {
     public ResponseEntity<Page<VoucherResponse>> getVouchers(
             @Valid @ParameterObject @ModelAttribute VoucherFilter filter) {
         return ResponseEntity.ok(voucherService.getVouchers(filter));
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<VoucherResponse> getVoucherById(@PathVariable Long id) {
-        return ResponseEntity.ok(voucherService.getVoucherById(id));
     }
 
     @PostMapping
@@ -52,14 +47,9 @@ public class VoucherController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/available")
-    public ResponseEntity<Page<VoucherResponse>> getAvailableVouchers(
+    @GetMapping("/my-vouchers")
+    public ResponseEntity<Page<UserVoucherResponse>> getMyRedeemedVouchers(
             @Valid @ParameterObject @ModelAttribute VoucherFilter filter) {
-        return ResponseEntity.ok(voucherService.getAvailableVouchers(filter));
-    }
-
-    @PostMapping("/{id}/redeem")
-    public ResponseEntity<UserVoucherResponse> redeemVoucher(@PathVariable Long id) {
-        return ResponseEntity.ok(voucherService.redeemVoucher(id));
+        return ResponseEntity.ok(voucherService.getMyRedeemedVouchers(filter));
     }
 }

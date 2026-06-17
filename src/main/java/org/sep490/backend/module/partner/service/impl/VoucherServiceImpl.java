@@ -6,6 +6,9 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.gamification.entity.PointTransaction;
+import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
+import org.sep490.backend.module.gamification.repository.PointTransactionRepository;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
 import org.sep490.backend.module.partner.dto.request.VoucherRequest;
 import org.sep490.backend.module.partner.dto.response.UserVoucherResponse;
@@ -41,6 +44,7 @@ public class VoucherServiceImpl implements VoucherService {
     UserService userService;
     UserVoucherRepository userVoucherRepository;
     UserVoucherMapper userVoucherMapper;
+    PointTransactionRepository pointTransactionRepository;
 
     static SecureRandom random = new SecureRandom();
     private final UserRepository userRepository;
@@ -190,7 +194,40 @@ public class VoucherServiceImpl implements VoucherService {
                 .build();
 
         userVoucher = userVoucherRepository.save(userVoucher);
+
+        long balanceRemaining = currentUser.getTotalPoints() - voucher.getPointsRequired();
+        currentUser.setTotalPoints((int) balanceRemaining);
+
+        PointTransaction pointHistory = PointTransaction.builder()
+                .user(currentUser)
+                .pointAmount(-voucher.getPointsRequired())
+                .transactionType(TransactionType.REDEEM_VOUCHER)
+                .description(voucher.getDescription())
+                .balanceRemaining(balanceRemaining)
+                .referenceId(userVoucher.getUserVoucherId())
+                .build();
+        pointTransactionRepository.save(pointHistory);
+
         return userVoucherMapper.toResponse(userVoucher);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserVoucherResponse> getMyRedeemedVouchers(VoucherFilter filter) {
+        User currentUser = userService.getCurrentUser();
+
+        String sortBy = filter.getSortBy();
+        if ("createdAt".equalsIgnoreCase(sortBy)) {
+            sortBy = "redeemedAt";
+        }
+
+        Sort sort = filter.getSortDir().equalsIgnoreCase(Sort.Direction.ASC.name())
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
+
+        Page<UserVoucher> userVouchers = userVoucherRepository.findByUser_UserId(currentUser.getUserId(), pageable);
+        return userVouchers.map(userVoucherMapper::toResponse);
     }
 
     private String generateRandomHexCode(int length) {

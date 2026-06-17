@@ -25,6 +25,7 @@ public interface PostMapper {
     @Mapping(source = "user.userId", target = "userId")
     @Mapping(source = "user.username", target = "username")
     @Mapping(source = "user.displayName", target = "displayName")
+    @Mapping(source = "user.totalPoints", target = "pointRemaining")
     @Mapping(target = "hotspotIds", expression = "java(mapHotspotsToIds(post.getTaggedHotspots()))")
     @Mapping(target = "routeIds", expression = "java(mapRoutesToIds(post.getTaggedRoutes()))")
     @Mapping(target = "tags", expression = "java(mapTagsToDtos(post.getTags()))")

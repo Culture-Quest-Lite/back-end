@@ -3,6 +3,8 @@ package org.sep490.backend.module.social.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.NonFinal;
+import org.springframework.beans.factory.annotation.Value;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
@@ -11,6 +13,9 @@ import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
+import org.sep490.backend.module.gamification.entity.PointTransaction;
+import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
+import org.sep490.backend.module.gamification.repository.PointTransactionRepository;
 import org.sep490.backend.module.social.dto.request.DeletePostRequest;
 import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.request.RejectPostRequest;
@@ -40,6 +45,11 @@ public class PostServiceImpl implements PostService {
     TagRepository tagRepository;
     PostMapper postMapper;
     UserService userService;
+    PointTransactionRepository pointTransactionRepository;
+
+    @NonFinal
+    @Value("${app.points.create-post:20}")
+    long createPostPoints;
 
     @Override
     @Transactional
@@ -75,11 +85,25 @@ public class PostServiceImpl implements PostService {
         if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
             List<Tag> tags = tagRepository.findAllById(request.getTagIds());
             if (tags.size() != request.getTagIds().size()) {
-                throw new BusinessException("Một số thẻ phân loại (Tag) không tồn tại");
+                throw new BusinessException("Một số thẻ phân loại không tồn tại");
             }
             post.setTags(new HashSet<>(tags));
         }
-        post = postRepository.save(post);
+
+        post = postRepository.saveAndFlush(post);
+
+        long balanceRemaining = user.getTotalPoints() + createPostPoints;
+        user.setTotalPoints((int) balanceRemaining);
+
+        PointTransaction pointTransaction = PointTransaction.builder()
+                .user(user)
+                .pointAmount(createPostPoints)
+                .transactionType(TransactionType.EARN)
+                .description("Bài viết của " + user.getUsername() + " đã được duyệt")
+                .balanceRemaining(balanceRemaining)
+                .referenceId(post.getPostId())
+                .build();
+        pointTransactionRepository.save(pointTransaction);
         return postMapper.toResponse(post);
     }
 
@@ -174,7 +198,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException("Bài viết không ở trạng thại chờ phê duyệt");
         }
 
-        //bổ sung logic cộng XP/điểm
+        // bổ sung logic cộng XP/điểm
 
         User currentUser = userService.getCurrentUser();
         post.setModerateBy(currentUser.getUserId());
@@ -219,7 +243,8 @@ public class PostServiceImpl implements PostService {
     @Transactional(readOnly = true)
     public Slice<PostResponse> getMyPosts(Pageable pageable) {
         User currentUser = userService.getCurrentUser();
-        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), PostStatus.APPROVED, pageable);
+        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), PostStatus.APPROVED,
+                pageable);
         return posts.map(postMapper::toResponse);
     }
 

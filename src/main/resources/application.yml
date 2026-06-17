@@ -46,3 +46,7 @@ keycloak:
   client-secret: ${CLIENT_SECRET}
   admin-client-id: ${ADMIN_CLIENT_ID}
   admin-client-secret: ${ADMIN_CLIENT_SECRET}
+
+app:
+  points:
+    create-post: 20

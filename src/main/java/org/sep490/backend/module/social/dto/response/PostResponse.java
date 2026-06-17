@@ -27,6 +27,7 @@ public class PostResponse {
     List<Long> routeIds;
     List<TagDto> tags;
     LocalDateTime createdAt;
+    Integer pointRemaining;
 
     @Data
     public static class TagDto {
