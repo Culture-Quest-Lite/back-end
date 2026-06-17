@@ -14,4 +14,5 @@ public interface VoucherService {
     void deleteVoucher(Long id);
     Page<VoucherResponse> getAvailableVouchers(VoucherFilter filter);
     UserVoucherResponse redeemVoucher(Long voucherId);
+    Page<UserVoucherResponse> getMyRedeemedVouchers(VoucherFilter filter);
 }
