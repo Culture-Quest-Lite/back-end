@@ -8,9 +8,13 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
 import org.sep490.backend.module.partner.dto.request.VoucherRequest;
+import org.sep490.backend.module.partner.dto.response.UserVoucherResponse;
 import org.sep490.backend.module.partner.dto.response.VoucherResponse;
+import org.sep490.backend.module.partner.entity.UserVoucher;
 import org.sep490.backend.module.partner.entity.Voucher;
+import org.sep490.backend.module.partner.mapper.UserVoucherMapper;
 import org.sep490.backend.module.partner.mapper.VoucherMapper;
+import org.sep490.backend.module.partner.repository.UserVoucherRepository;
 import org.sep490.backend.module.partner.repository.VoucherRepository;
 import org.sep490.backend.module.partner.service.VoucherService;
 import org.sep490.backend.module.user.service.UserService;
@@ -25,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -34,8 +39,11 @@ public class VoucherServiceImpl implements VoucherService {
     VoucherRepository voucherRepository;
     VoucherMapper voucherMapper;
     UserService userService;
+    UserVoucherRepository userVoucherRepository;
+    UserVoucherMapper userVoucherMapper;
 
     static SecureRandom random = new SecureRandom();
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
@@ -118,6 +126,71 @@ public class VoucherServiceImpl implements VoucherService {
         }
         voucher.setStatus(VoucherStatus.DELETED);
         voucherRepository.save(voucher);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<VoucherResponse> getAvailableVouchers(VoucherFilter filter) {
+        Sort sort = filter.getSortDir().equalsIgnoreCase(Sort.Direction.ASC.name())
+                ? Sort.by(filter.getSortBy()).ascending()
+                : Sort.by(filter.getSortBy()).descending();
+        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
+
+        Specification<Voucher> availableSpec = (root, query, cb) -> {
+            LocalDateTime now = LocalDateTime.now();
+            return cb.and(
+                    cb.equal(root.get("status"), VoucherStatus.ACTIVE),
+                    cb.greaterThan(root.get("quantityRemaining"), 0),
+                    cb.lessThanOrEqualTo(root.get("startDate"), now),
+                    cb.greaterThanOrEqualTo(root.get("endDate"), now)
+            );
+        };
+        return voucherRepository.findAll(availableSpec, pageable).map(voucherMapper::toResponse);
+    }
+
+    @Override
+    @Transactional
+    public UserVoucherResponse redeemVoucher(Long voucherId) {
+        Voucher voucher = voucherRepository.findById(voucherId)
+                .orElseThrow(() -> new BusinessException("Voucher không tồn tại"));
+
+        LocalDateTime now = LocalDateTime.now();
+        if (voucher.getStatus() == VoucherStatus.DELETED || voucher.getQuantityRemaining() <= 0
+                || now.isBefore(voucher.getStartDate()) || now.isAfter(voucher.getEndDate())) {
+            throw new BusinessException("Voucher này hiện tại không khả dụng để đổi");
+        }
+
+        User currentUser = userService.getCurrentUser();
+
+        if (currentUser.getTotalPoints() < voucher.getPointsRequired()) {
+            throw new BusinessException("Bạn không đủ số điểm tích lũy để đổi voucher này");
+        }
+
+        if (userVoucherRepository.existsByUserUserIdAndVoucherVoucherId(currentUser.getUserId(), voucherId)) {
+            throw new BusinessException("Bạn đã đổi voucher này trước đó");
+        }
+        int updatedUsers = userRepository.deductPoints(currentUser.getUserId(), voucher.getPointsRequired().intValue());
+        if (updatedUsers == 0) {
+            throw new BusinessException("Giao dịch thất bại do số dư điểm thay đổi. Vui lòng thử lại!");
+        }
+
+        int updatedVouchers = voucherRepository.decrementQuantityRemaining(voucherId);
+        if (updatedVouchers == 0) {
+            throw new BusinessException("Rất tiếc, voucher vừa mới hết số lượng!");
+        }
+
+        UserVoucher userVoucher = UserVoucher.builder()
+                .user(currentUser)
+                .voucher(voucher)
+                .voucherCode(voucher.getVoucherCode())
+                .pointsRequired(voucher.getPointsRequired())
+                .isUsed(false)
+                .redeemedAt(LocalDateTime.now())
+                .expiredAt(voucher.getEndDate())
+                .build();
+
+        userVoucher = userVoucherRepository.save(userVoucher);
+        return userVoucherMapper.toResponse(userVoucher);
     }
 
     private String generateRandomHexCode(int length) {
