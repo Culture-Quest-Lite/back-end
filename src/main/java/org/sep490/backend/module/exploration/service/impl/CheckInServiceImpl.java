@@ -59,6 +59,7 @@ public class CheckInServiceImpl implements CheckInService {
         CheckIn checkin = checkInMapper.toEntity(checkInRequest, user, hotspot, null, distance);
         checkInRepository.save(checkin);
 
+        // use to update UserRouteProgress
         eventPublisher.publishEvent(new CheckInCompletedEvent(user.getUserId(), hotspot.getHotspotId()));
 
         return checkInMapper.toResponse(checkin);
