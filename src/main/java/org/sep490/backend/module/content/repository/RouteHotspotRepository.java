@@ -42,4 +42,6 @@ public interface RouteHotspotRepository extends JpaRepository<RouteHotspot, Long
             @Param("routeId") Long routeId,
             @Param("userId") Long userId
     );
+
+    List<RouteHotspot> findByHotspot_HotspotId(Long hotspotId);
 }
