@@ -57,6 +57,7 @@ public class RouteServiceImpl implements RouteService {
         //route.setCreatedBy(creator);
         route.setStatus(ContentStatus.DRAFT);
         route.setIsLocked(false);
+        route.setTotalStops(request.getHotspots().size());
 
         route = routeRepository.save(route);
 
@@ -76,6 +77,7 @@ public class RouteServiceImpl implements RouteService {
         Route currRoute = getById(id);
 
         routeMapper.updateFromRequest(currRoute, request);
+        currRoute.setTotalStops(request.getHotspots().size());
         currRoute = routeRepository.save(currRoute);
 
         routeHotspotRepository.deleteByRoute_RouteId(id);

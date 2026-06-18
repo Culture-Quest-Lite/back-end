@@ -56,11 +56,14 @@ public class Hotspot implements Serializable {
     @Column(name = "XP", nullable = false)
     Long xp;
 
-    @Column(name = "location")
+    @Column(name = "point", nullable = false)
+    Long point;
+
+    @Column(name = "location", nullable = false)
     Point location;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status")
+    @Column(name = "status", nullable = false)
     ContentStatus status;
 
     @CreationTimestamp

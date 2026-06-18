@@ -62,6 +62,9 @@ public class Route {
     @Column(name = "is_locked")
     Boolean isLocked;
 
+    @Column(name = "total_stops", nullable = false)
+    Integer totalStops;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     ContentStatus status;
