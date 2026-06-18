@@ -5,13 +5,15 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 @Entity
-@Table(name = "route_hotspots")
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
+@Table(name = "route_hotspots", indexes = {
+        //Đánh composite index cho 2 khóa ngoại để tăng tốc độ join bảng
+        @Index(name = "idx_route_hotspot_composite", columnList = "route_id, hotspot_id")
+})
 public class RouteHotspot {
 
     @Id

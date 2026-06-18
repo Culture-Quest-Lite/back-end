@@ -17,11 +17,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "users", indexes = {
+        //Single index cho cột status để quản lý danh sách User
+        @Index(name = "idx_user_status", columnList = "status"),
+        //Composite index để query tìm User theo Role và Status
+        @Index(name = "idx_user_role_status", columnList = "role, status")
+})
 public class User {
 
     @Id
