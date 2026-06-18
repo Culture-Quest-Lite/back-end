@@ -230,6 +230,27 @@ public class VoucherServiceImpl implements VoucherService {
         return userVouchers.map(userVoucherMapper::toResponse);
     }
 
+    @Override
+    @Transactional
+    public UserVoucherResponse useVoucher(String voucherCode) {
+        UserVoucher userVoucher = userVoucherRepository.findByVoucherCode(voucherCode)
+                .orElseThrow(() -> new BusinessException("Mã voucher không tồn tại hoặc không hợp lệ"));
+
+        if (Boolean.TRUE.equals(userVoucher.getIsUsed())) {
+            throw new BusinessException("Voucher này đã được sử dụng trước đó");
+        }
+
+        if (userVoucher.getExpiredAt() != null && LocalDateTime.now().isAfter(userVoucher.getExpiredAt())) {
+            throw new BusinessException("Voucher này đã hết hạn sử dụng");
+        }
+
+        userVoucher.setIsUsed(true);
+        userVoucher.setUsedAt(LocalDateTime.now());
+        userVoucher = userVoucherRepository.save(userVoucher);
+
+        return userVoucherMapper.toResponse(userVoucher);
+    }
+
     private String generateRandomHexCode(int length) {
         StringBuilder sb = new StringBuilder();
         while (sb.length() < length) {

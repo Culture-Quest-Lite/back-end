@@ -15,4 +15,5 @@ public interface VoucherService {
     Page<VoucherResponse> getAvailableVouchers(VoucherFilter filter);
     UserVoucherResponse redeemVoucher(Long voucherId);
     Page<UserVoucherResponse> getMyRedeemedVouchers(VoucherFilter filter);
+    UserVoucherResponse useVoucher(String voucherCode);
 }

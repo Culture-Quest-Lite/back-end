@@ -47,9 +47,8 @@ public class PartnerVoucherController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/my-vouchers")
-    public ResponseEntity<Page<UserVoucherResponse>> getMyRedeemedVouchers(
-            @Valid @ParameterObject @ModelAttribute VoucherFilter filter) {
-        return ResponseEntity.ok(voucherService.getMyRedeemedVouchers(filter));
+    @PostMapping("/use")
+    public ResponseEntity<UserVoucherResponse> useVoucher(@RequestParam String voucherCode) {
+        return ResponseEntity.ok(voucherService.useVoucher(voucherCode));
     }
 }
