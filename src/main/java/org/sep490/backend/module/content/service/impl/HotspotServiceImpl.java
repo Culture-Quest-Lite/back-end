@@ -44,7 +44,7 @@ public class HotspotServiceImpl implements HotspotService {
         }
 
         Hotspot hotspot = hotspotMapper.toEntity(request);
-        //hotspot.setCreatedBy(userService.getCurrentUser());
+        hotspot.setCreatedBy(userService.getCurrentUser());
         hotspot = hotspotRepository.save(hotspot);
         return hotspotMapper.toResponse(hotspot);
     }
