@@ -37,7 +37,7 @@ public class StoryServiceImpl implements StoryService {
     @Transactional
     public StoryResponse create(StoryRequest storyRequest) {
         Story story = storyMapper.toEntity(storyRequest);
-        //story.setCreatedBy(userService.getCurrentUser());
+        story.setCreatedBy(userService.getCurrentUser());
 
         int index = storyRepository.countByHotspot_HotspotId(storyRequest.getHotspotId());
         if (index >= 0) {

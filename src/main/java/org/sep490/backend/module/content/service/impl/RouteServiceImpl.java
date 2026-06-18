@@ -15,6 +15,7 @@ import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.RouteHotspot;
 import org.sep490.backend.module.content.enums.ContentStatus;
+import org.sep490.backend.module.content.enums.RouteType;
 import org.sep490.backend.module.content.mapper.RouteMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteHotspotRepository;
@@ -52,11 +53,13 @@ public class RouteServiceImpl implements RouteService {
         }
 
         Route route = routeMapper.toEntity(request);
-        //User creator = userService.getCurrentUser();
+        User creator = userService.getCurrentUser();
 
-        //route.setCreatedBy(creator);
+        route.setCreatedBy(creator);
         route.setStatus(ContentStatus.DRAFT);
+        route.setType(RouteType.OFFICIAL);
         route.setIsLocked(false);
+        route.setTotalStops(request.getHotspots().size());
 
         route = routeRepository.save(route);
 
@@ -76,6 +79,7 @@ public class RouteServiceImpl implements RouteService {
         Route currRoute = getById(id);
 
         routeMapper.updateFromRequest(currRoute, request);
+        currRoute.setTotalStops(request.getHotspots().size());
         currRoute = routeRepository.save(currRoute);
 
         routeHotspotRepository.deleteByRoute_RouteId(id);

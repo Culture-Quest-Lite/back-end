@@ -8,6 +8,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.enums.ContentStatus;
 import org.sep490.backend.module.content.enums.RouteDifficulty;
+import org.sep490.backend.module.content.enums.RouteType;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -28,9 +29,9 @@ public class Route {
     @Column(name = "route_id")
     Long routeId;
 
-//    @ManyToOne
-//    @JoinColumn(name = "created_by", nullable = false)
-//    User createdBy;
+    @ManyToOne
+    @JoinColumn(name = "created_by", nullable = false)
+    User createdBy;
 
     @ManyToMany
     @JoinTable(
@@ -61,6 +62,13 @@ public class Route {
 
     @Column(name = "is_locked")
     Boolean isLocked;
+
+    @Column(name = "total_stops", nullable = false)
+    Integer totalStops;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type")
+    RouteType type;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")

@@ -37,9 +37,9 @@ public class Hotspot implements Serializable {
     )
     Set<Tag> tags = new HashSet<>();
 
-//    @ManyToOne
-//    @JoinColumn(name = "created_by", nullable = false)
-//    User createdBy;
+    @ManyToOne
+    @JoinColumn(name = "created_by", nullable = false)
+    User createdBy;
 
     @Column(name = "hotspot_name", nullable = false, length = 100)
     String hotspotName;
@@ -56,11 +56,14 @@ public class Hotspot implements Serializable {
     @Column(name = "XP", nullable = false)
     Long xp;
 
-    @Column(name = "location")
+    @Column(name = "point", nullable = false)
+    Long point;
+
+    @Column(name = "location", nullable = false)
     Point location;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status")
+    @Column(name = "status", nullable = false)
     ContentStatus status;
 
     @CreationTimestamp

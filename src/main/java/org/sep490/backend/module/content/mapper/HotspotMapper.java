@@ -8,6 +8,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.ReportingPolicy;
+import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.dto.response.TagResponse;
@@ -46,10 +47,7 @@ public interface HotspotMapper {
     }
 
     default Point toPoint(Double longitude, Double latitude) {
-        if (longitude == null || latitude == null) {
-            return null;
-        }
-        return GEOMETRY_FACTORY.createPoint(new Coordinate(longitude, latitude));
+        return SpatialUtils.fromCoordinates(longitude, latitude);
     }
 
 
