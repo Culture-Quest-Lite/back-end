@@ -6,8 +6,11 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Route;
+import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.exploration.dto.filter.UserRouteProgressFilter;
+import org.sep490.backend.module.exploration.dto.response.CheckInHotspotResponse;
+import org.sep490.backend.module.exploration.dto.response.UserRouteProgressDetailResponse;
 import org.sep490.backend.module.exploration.dto.response.UserRouteProgressResponse;
 import org.sep490.backend.module.exploration.entity.UserRouteProgress;
 import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
@@ -26,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
 
 @Service
 @Transactional
@@ -35,6 +37,7 @@ import java.util.Set;
 public class UserRouteProgressServiceImpl implements UserRouteProgressService {
 
     UserRouteProgressRepository userRouteProgressRepository;
+    RouteHotspotRepository routeHotspotRepository;
     UserService userService;
     RouteService routeService;
     UserRouteProgressMapper userRouteProgressMapper;
@@ -46,22 +49,20 @@ public class UserRouteProgressServiceImpl implements UserRouteProgressService {
         Route route = routeService.getById(routeId);
         UserRouteProgress userRouteProgress = userRouteProgressRepository
                 .findByRoute_RouteIdAndUser_UserId(route.getRouteId(), user.getUserId()).orElse(null);
-        int code = 200;
         HashMap<Integer, UserRouteProgressResponse> result = new HashMap<>();
 
         if(userRouteProgress == null) {
             userRouteProgress = userRouteProgressMapper.toEntity(route, user, 0, 0.0);
             // update to check in hotspots.
             userRouteProgress = userRouteProgressRepository.save(userRouteProgress);
-            code = 201;
-            result.put(code, userRouteProgressMapper.toResponse(userRouteProgress));
+            result.put(201, userRouteProgressMapper.toResponse(userRouteProgress));
         } else {
             if(userRouteProgress.getStatus() == ProgressStatus.IN_PROGRESS) {
                 throw new BusinessException("Route is already in progress");
             } else {
                 userRouteProgress.setStatus(ProgressStatus.IN_PROGRESS);
                 userRouteProgress = userRouteProgressRepository.save(userRouteProgress);
-                result.put(code, userRouteProgressMapper.toResponse(userRouteProgress));
+                result.put(200, userRouteProgressMapper.toResponse(userRouteProgress));
 
             }
         }
@@ -102,5 +103,30 @@ public class UserRouteProgressServiceImpl implements UserRouteProgressService {
         Specification<UserRouteProgress> spec = UserRouteProgressSpecification.filterProgress(filter, user);
 
         return userRouteProgressRepository.findAll(spec, pageable).map(userRouteProgressMapper::toResponse);
+    }
+
+    @Override
+    public UserRouteProgressDetailResponse getRouteProgress(Long progressId) {
+        UserRouteProgress userRouteProgress = getById(progressId);
+        Route route = userRouteProgress.getRoute();
+        User progressUser = userRouteProgress.getUser();
+        User currentUser = userService.getCurrentUser();
+
+        if(!progressUser.equals(currentUser)) {
+            throw new BusinessException("User has not start this route");
+        }
+
+        List<CheckInHotspotResponse> hotspot = routeHotspotRepository
+                .getHotspotCheckInStatusByRouteAndUser(route.getRouteId(), currentUser.getUserId());
+
+        UserRouteProgressDetailResponse detailResponse = userRouteProgressMapper.toDetailResponse(userRouteProgress);
+        detailResponse.setHotspotProgressList(hotspot);
+
+        return detailResponse;
+    }
+
+    @Override
+    public UserRouteProgress getById(Long progressId) {
+        return userRouteProgressRepository.findById(progressId).orElseThrow(() -> new BusinessException("User route progress not found"));
     }
 }

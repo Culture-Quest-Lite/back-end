@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.exploration.dto.filter.UserRouteProgressFilter;
+import org.sep490.backend.module.exploration.dto.response.UserRouteProgressDetailResponse;
 import org.sep490.backend.module.exploration.dto.response.UserRouteProgressResponse;
 import org.sep490.backend.module.exploration.service.inter.UserRouteProgressService;
 import org.springframework.data.domain.Page;
@@ -39,6 +40,12 @@ public class UserRouteProgressController {
     @GetMapping
     public ResponseEntity<Page<UserRouteProgressResponse>> getAll(@ModelAttribute UserRouteProgressFilter filter) {
         Page<UserRouteProgressResponse> response = userRouteProgressService.getAll(filter);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<UserRouteProgressDetailResponse> getById(@PathVariable("id") Long userRouteProgressId) {
+        UserRouteProgressDetailResponse response = userRouteProgressService.getRouteProgress(userRouteProgressId);
         return ResponseEntity.ok(response);
     }
 
