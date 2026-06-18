@@ -50,3 +50,5 @@ keycloak:
 app:
   points:
     create-post: 20
+  firebase:
+    service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:classpath:firebase-service-account.json}
