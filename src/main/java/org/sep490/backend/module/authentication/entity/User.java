@@ -82,6 +82,9 @@ public class User {
     @Column(name = "role", length = 50)
     private UserRole role;
 
+    @Column(name = "fcm_token")
+    private String fcmToken;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

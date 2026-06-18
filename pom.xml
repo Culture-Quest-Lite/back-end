@@ -107,6 +107,13 @@
             <artifactId>hibernate-spatial</artifactId>
         </dependency>
 
+        <!-- Firebase Admin SDK (FCM Push Notification) -->
+        <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>9.3.0</version>
+        </dependency>
+
     </dependencies>
 
     <build>
