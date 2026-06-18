@@ -20,12 +20,17 @@ import java.util.List;
 import java.util.Set;
 
 @Entity
-@Table(name = "posts")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
+@Table(name = "posts", indexes = {
+        //Tìm bài viết theo tác giả
+        @Index(name = "idx_post_user", columnList = "user_id"),
+        //Lọc theo trạng thái hiển thị và sắp xếp bài viết mới nhất lên đầu
+        @Index(name = "idx_post_feed_flow", columnList = "status, visibility, created_at")
+})
 public class Post {
 
     @Id
