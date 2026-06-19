@@ -16,7 +16,10 @@ import org.sep490.backend.module.exploration.entity.UserRouteProgress;
 public interface UserRouteProgressMapper {
 
     @Mapping(target = "totalStops", source = "route.totalStops")
-    @Mapping(target = "status", defaultValue = "IN_PROGRESS")
+    @Mapping(target = "status", constant = "IN_PROGRESS")
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "startedAt", ignore = true)
+    @Mapping(target = "completedAt", ignore = true)
     UserRouteProgress toEntity(Route route, User user, Integer completedStops, Double progressPercentage);
 
     @Mapping(target = "routeId", source = "route.routeId")
