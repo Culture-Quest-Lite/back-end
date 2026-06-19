@@ -15,8 +15,6 @@ env:
 
 jobs:
 
-  # ─── JOB 1: Build Docker Image & Push to GHCR ───────────────────────────────
-  # Dockerfile dùng multi-stage: Maven build bên trong Docker → không cần build riêng
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
@@ -70,8 +68,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ─── JOB 2: Deploy to Server via SSH ─────────────────────────────────────────
-  # Chỉ chạy khi push lên main
   deploy:
     name: Deploy to Production Server
     runs-on: ubuntu-latest
