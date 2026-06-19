@@ -169,18 +169,24 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(errorMessage);
         }
 
-        return LoginResponse.builder()
-                .accessToken(tokenResponse.getAccessToken())
-                .refreshToken(tokenResponse.getRefreshToken())
-                .tokenType(tokenResponse.getTokenType())
-                .expiresIn(tokenResponse.getExpiresIn())
-                .refreshExpiresIn(tokenResponse.getRefreshExpiresIn())
-                .build();
+        return buildLoginResponse(tokenResponse);
     }
 
     @Override
-    public void logout(LogoutRequest request) {
-        keyCloakAuthClient.logout(request.getRefreshToken());
+    public LoginResponse refreshToken(String refreshToken) {
+        if (refreshToken == null || refreshToken.isEmpty()) {
+            throw new BusinessException("Không tìm thấy refresh token. Vui lòng đăng nhập lại");
+        }
+        KeyCloakTokenResponse tokenResponse = keyCloakAuthClient.refreshToken(refreshToken);
+        if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
+            throw new BusinessException("Refresh token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại");
+        }
+        return buildLoginResponse(tokenResponse);
+    }
+
+    @Override
+    public void logout(String refreshToken) {
+        keyCloakAuthClient.logout(refreshToken);
     }
 
     @Override
@@ -315,13 +321,7 @@ public class AuthServiceImpl implements AuthService {
             }
         }
 
-        return LoginResponse.builder()
-                .accessToken(tokenResponse.getAccessToken())
-                .refreshToken(tokenResponse.getRefreshToken())
-                .tokenType(tokenResponse.getTokenType())
-                .expiresIn(tokenResponse.getExpiresIn())
-                .refreshExpiresIn(tokenResponse.getRefreshExpiresIn())
-                .build();
+        return buildLoginResponse(tokenResponse);
     }
 
     @Override
@@ -376,12 +376,15 @@ public class AuthServiceImpl implements AuthService {
                 throw new BusinessException("Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động");
             }
         }
+        return buildLoginResponse(tokenResponse);
+    }
 
+    private LoginResponse buildLoginResponse(KeyCloakTokenResponse tokenResponse) {
         return LoginResponse.builder()
                 .accessToken(tokenResponse.getAccessToken())
-                .refreshToken(tokenResponse.getRefreshToken())
                 .tokenType(tokenResponse.getTokenType())
                 .expiresIn(tokenResponse.getExpiresIn())
+                .refreshToken(tokenResponse.getRefreshToken())
                 .refreshExpiresIn(tokenResponse.getRefreshExpiresIn())
                 .build();
     }

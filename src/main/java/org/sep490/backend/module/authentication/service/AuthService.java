@@ -9,7 +9,8 @@ public interface AuthService {
     void verifyEmailWithOtp(VerifyOtpRequest request);
     void resendOtp(SendOtpRequest request);
     LoginResponse login(LoginRequest request);
-    void logout(LogoutRequest request);
+    LoginResponse refreshToken(String refreshToken);
+    void logout(String refreshToken);
     void forgotPassword(ForgotPasswordRequest request);
     void resetPassword(ResetPasswordRequest request);
     void changePassword(String keycloakUserId, ChangePasswordRequest request);
