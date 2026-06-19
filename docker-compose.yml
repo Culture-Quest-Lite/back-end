@@ -76,6 +76,7 @@ services:
       DB_HOST: postgres
       IDP_URL: http://keycloak:8080
       ISSUER_URI: http://keycloak:8080/realms/${REALM}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/${REALM:-culture-quest-lite}/protocol/openid-connect/certs
     ports:
       - "${PORT}:8080"
     depends_on:
@@ -87,6 +88,7 @@ services:
       - culture-quest-net
     volumes:
       - ./src/main/resources/firebase-service-account.json:/app/firebase-service-account.json:ro
+      - ./.env:/app/.env:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
