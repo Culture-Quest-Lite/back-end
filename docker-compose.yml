@@ -45,8 +45,10 @@ services:
       KC_FEATURES: scripts
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
+      KC_HEALTH_ENABLED: "true"
     ports:
       - "${KC_PORT:-8081}:8080"
+      - "9000:9000"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
     command:
@@ -58,11 +60,11 @@ services:
     networks:
       - culture-quest-net
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health/ready || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health/ready || exit 1"]
       interval: 20s
       timeout: 10s
-      retries: 10
-      start_period: 60s
+      retries: 15
+      start_period: 120s
 
   backend:
     build:
@@ -76,10 +78,10 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      IDP_URL: http://keycloak:8080
-      ISSUER_URI: http://keycloak:8080/realms/${REALM:-culture-quest-lite}
+      IDP_URL: http://keycloak:8081
+      ISSUER_URI: http://keycloak:8081/realms/${REALM:-culture-quest-lite}
     ports:
-      - "${PORT:-8082}:8080"
+      - "${PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
