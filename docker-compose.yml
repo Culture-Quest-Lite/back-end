@@ -6,7 +6,6 @@ networks:
 
 volumes:
   postgres_data:
-  keycloak_data:
 
 services:
 
@@ -15,17 +14,17 @@ services:
     container_name: culture-quest-lite
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_NAME:-back-end}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-123456}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - culture-quest-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-back-end}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -35,17 +34,17 @@ services:
     container_name: culture-quest-keycloak
     restart: unless-stopped
     environment:
-      KEYCLOAK_ADMIN: ${KC_ADMIN:-admin}
-      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:-admin}
+      KEYCLOAK_ADMIN: ${KC_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-back-end}
-      KC_DB_USERNAME: ${DB_USER:-postgres}
-      KC_DB_PASSWORD: ${DB_PASSWORD:-123456}
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      KC_DB_USERNAME: ${DB_USER}
+      KC_DB_PASSWORD: ${DB_PASSWORD}
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
       KC_HEALTH_ENABLED: "true"
     ports:
-      - "${KC_PORT:-8081}:8080"
+      - "${KC_PORT}:8080"
       - "9000:9000"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
@@ -58,7 +57,7 @@ services:
     networks:
       - culture-quest-net
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health/ready || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 15
@@ -75,11 +74,10 @@ services:
       - .env
     environment:
       DB_HOST: postgres
-      DB_PORT: 5432
       IDP_URL: http://keycloak:8080
-      ISSUER_URI: http://keycloak:8080/realms/${REALM:-culture-quest-lite}
+      ISSUER_URI: http://keycloak:8080/realms/${REALM}
     ports:
-      - "${PORT:-8080}:8080"
+      - "${PORT}:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,4 +92,4 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 45s
+      start_period: 60s
