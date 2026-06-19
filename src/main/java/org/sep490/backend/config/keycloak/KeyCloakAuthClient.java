@@ -39,6 +39,14 @@ public class KeyCloakAuthClient {
         return postToken(form);
     }
 
+    public KeyCloakTokenResponse exchangeCode(String code, String redirectUri) {
+        MultiValueMap<String, String> form = baseClientForm();
+        form.add("grant_type", "authorization_code");
+        form.add("code", code);
+        form.add("redirect_uri", redirectUri);
+        return postToken(form);
+    }
+
     public void logout(String refreshToken) {
         MultiValueMap<String, String> form = baseClientForm();
         form.add("refresh_token", refreshToken);
@@ -50,6 +58,13 @@ public class KeyCloakAuthClient {
                 .body(form)
                 .retrieve()
                 .toBodilessEntity());
+    }
+
+    public KeyCloakTokenResponse refreshToken(String refreshToken) {
+        MultiValueMap<String, String> form = baseClientForm();
+        form.add("grant_type", "refresh_token");
+        form.add("refresh_token", refreshToken);
+        return postToken(form);
     }
 
     public String createUser(
@@ -64,7 +79,8 @@ public class KeyCloakAuthClient {
         payload.put("enabled", true);
         payload.put("username", username);
         payload.put("email", email);
-        payload.put("emailVerified", false);
+        payload.put("emailVerified", true);
+        payload.put("requiredActions", List.of());
         payload.put("credentials", List.of(Map.of(
                 "type", "password",
                 "value", password,
@@ -109,6 +125,20 @@ public class KeyCloakAuthClient {
                 .toBodilessEntity());
     }
 
+    public void clearRequiredActions(String keycloakUserId) {
+        String adminToken = fetchAdminAccessToken();
+        Map<String, Object> body = Map.of("requiredActions", List.of());
+        execute(() -> restClientBuilder.build()
+                .put()
+                .uri(properties.adminUserByIdEndPoint(keycloakUserId))
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity());
+        log.info("Cleared required actions for Keycloak user: {}", keycloakUserId);
+    }
+
     public String createUserWithAttributes(
             String username, String email, String displayName,
             String password, List<String> realmRoles, Map<String, List<String>> attributes) {
@@ -117,6 +147,8 @@ public class KeyCloakAuthClient {
         userFields.put("username", username);
         userFields.put("email", email);
         userFields.put("enabled", true);
+        userFields.put("emailVerified", true);
+        userFields.put("requiredActions", List.of()); // Clear default realm required actions to allow immediate login
 
         Map<String, List<String>> allAttributes = new HashMap<>();
         if (attributes != null) {
@@ -324,11 +356,28 @@ public class KeyCloakAuthClient {
             JsonNode json = objectMapper.readTree(body);
             return json.has("errorMessage") ? json.get("errorMessage").asText()
                     : json.has("error_description") ? json.get("error_description").asText()
-                    : json.has("error") ? json.get("error").asText()
-                    : body;
+                            : json.has("error") ? json.get("error").asText()
+                                    : body;
         } catch (Exception e) {
             return body;
         }
+    }
+
+    public void updateUserEnabledStatus(@NonNull String keycloakUserId, boolean enabled) {
+        String adminToken = fetchAdminAccessToken();
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("enabled", enabled);
+
+        execute(() -> restClientBuilder.build()
+                .put()
+                .uri(properties.adminUserByIdEndPoint(keycloakUserId))
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity());
+
     }
 
     @FunctionalInterface

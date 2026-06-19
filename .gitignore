@@ -36,3 +36,4 @@ build/
 .env
 src/main/resources/.env
 src/test/resources/.env
+src/main/resources/firebase-service-account.json

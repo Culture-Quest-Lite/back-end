@@ -8,17 +8,25 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
+import org.sep490.backend.module.partner.entity.Voucher;
+import org.sep490.backend.module.user.entity.Level;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Table(name = "users", indexes = {
+        //Single index cho cột status để quản lý danh sách User
+        @Index(name = "idx_user_status", columnList = "status"),
+        //Composite index để query tìm User theo Role và Status
+        @Index(name = "idx_user_role_status", columnList = "role, status")
+})
 public class User {
 
     @Id
@@ -32,6 +40,9 @@ public class User {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "level_id", nullable = true)
     private Level level;
+
+    @OneToMany(mappedBy = "partner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Voucher> vouchers = new ArrayList<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<AuditLog> auditLogs = new ArrayList<>();
@@ -48,20 +59,31 @@ public class User {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+    @Builder.Default
     @Column(name = "total_xp")
     private Integer totalXp = 0;
 
+    @Builder.Default
     @Column(name = "total_points")
     private Integer totalPoints = 0;
 
+    @Builder.Default
     @Column(name = "auto_play_audio")
     private Boolean autoPlayAudio = true;
 
+    @Builder.Default
     @Column(name = "is_premium")
     private Boolean isPremium = false;
 
     @Enumerated(EnumType.STRING)
     private UserStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 50)
+    private UserRole role;
+
+    @Column(name = "fcm_token")
+    private String fcmToken;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

@@ -26,6 +26,18 @@ spring:
         jwt:
           issuer-uri: ${ISSUER_URI}
 
+  mail:
+    host: ${SMTP_HOST}
+    port: ${SMTP_PORT}
+    username: ${SMTP_USER}
+    password: ${SMTP_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 keycloak:
   auth-server-url: ${IDP_URL}
   realm: ${REALM}
@@ -34,3 +46,9 @@ keycloak:
   client-secret: ${CLIENT_SECRET}
   admin-client-id: ${ADMIN_CLIENT_ID}
   admin-client-secret: ${ADMIN_CLIENT_SECRET}
+
+app:
+  points:
+    create-post: 20
+  firebase:
+    service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:classpath:firebase-service-account.json}
