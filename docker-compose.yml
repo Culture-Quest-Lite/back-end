@@ -41,8 +41,6 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-back-end}
       KC_DB_USERNAME: ${DB_USER:-postgres}
       KC_DB_PASSWORD: ${DB_PASSWORD:-123456}
-      KC_MIGRATION_STRATEGY: OVERWRITE_EXISTING
-      KC_FEATURES: scripts
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
       KC_HEALTH_ENABLED: "true"
@@ -78,8 +76,8 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      IDP_URL: http://keycloak:8081
-      ISSUER_URI: http://keycloak:8081/realms/${REALM:-culture-quest-lite}
+      IDP_URL: http://keycloak:8080
+      ISSUER_URI: http://keycloak:8080/realms/${REALM:-culture-quest-lite}
     ports:
       - "${PORT:-8080}:8080"
     depends_on:
