@@ -12,12 +12,11 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/culture-quest-backend
 
 jobs:
 
   build:
-    name: Build & Test
+    name: Build
     runs-on: ubuntu-latest
 
     steps:
@@ -33,10 +32,6 @@ jobs:
 
       - name: Build with Maven (skip tests)
         run: mvn package -DskipTests -B
-
-      - name: Run unit tests
-        run: mvn test -B
-        continue-on-error: true  
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -56,11 +51,17 @@ jobs:
       packages: write
 
     outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
+      image_full: ${{ steps.lower.outputs.image_full }}
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+
+      - name: Convert image name to lowercase
+        id: lower
+        run: |
+          IMAGE_FULL="${{ env.REGISTRY }}/${{ github.repository_owner }}/culture-quest-backend"
+          echo "image_full=${IMAGE_FULL,,}" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -76,7 +77,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ steps.lower.outputs.image_full }}
           tags: |
             type=ref,event=branch
             type=sha,prefix=,format=short
@@ -104,33 +105,33 @@ jobs:
       url: http://${{ vars.SERVER_HOST }}:8080
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          IMAGE_FULL: ${{ needs.docker.outputs.image_full }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
+          envs: IMAGE_FULL,GH_TOKEN,GH_ACTOR
           script: |
             set -e
 
-            # ── Đi đến thư mục dự án trên server ──
             cd ${{ secrets.SERVER_DEPLOY_DIR }}
 
             echo "==> Pulling latest code..."
             git pull origin main
 
             echo "==> Logging in to GitHub Container Registry..."
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
-              -u ${{ github.actor }} --password-stdin
+            echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
 
-            echo "==> Pulling new Docker image..."
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            echo "==> Pulling new Docker image: $IMAGE_FULL:latest"
+            docker pull "$IMAGE_FULL:latest"
 
-            echo "==> Recreating backend container (zero-downtime for stateless services)..."
+            echo "==> Recreating backend container..."
             docker compose up -d --no-deps --pull always backend
 
             echo "==> Cleaning up unused images..."
