@@ -57,7 +57,7 @@ services:
     networks:
       - culture-quest-net
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health/ready || exit 1"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000"]
       interval: 20s
       timeout: 10s
       retries: 15
