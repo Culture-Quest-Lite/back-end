@@ -35,6 +35,7 @@ public interface HotspotMapper {
 
     @Mapping(source = "tagIds", target = "tags")
     @Mapping(target = "location", expression = "java(toPoint(request.getLongitude(), request.getLatitude()))")
+    @Mapping(source = "point", target = "point")
     Hotspot toEntity(HotspotRequest request);
 
     default Tag mapIdToTag(Long id) {
