@@ -23,5 +23,6 @@ public class HotspotResponse {
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     Long xp;
+    Long point;
     ContentStatus status;
 }

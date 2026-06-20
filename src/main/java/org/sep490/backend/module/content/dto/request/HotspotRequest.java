@@ -35,7 +35,11 @@ public class HotspotRequest {
     @Max(value = 1000, message = "Bán kính check-in tối đa là 5000 mét")
     Double checkInRadius;
 
-    @NotNull(message = "Điểm thưởng XP không được để trống")
-    @PositiveOrZero(message = "Điểm thưởng XP không được là số âm")
+    @NotNull(message = "Điểm kinh nghiệm không được để trống")
+    @PositiveOrZero(message = "Điểm kinh nghiệm không được là số âm")
     Long xp;
+
+    @NotNull(message = "Điểm thưởng không được để trống")
+    @PositiveOrZero(message = "Điểm thưởng không được là số âm")
+    Long point;
 }
