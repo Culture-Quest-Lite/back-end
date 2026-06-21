@@ -43,6 +43,14 @@ public class HotspotServiceImpl implements HotspotService {
             throw new BusinessException("Hotspot location must be within Vietnam");
         }
 
+        if(request.getEndTime().isBefore(request.getStartTime())) {
+            throw new BusinessException("Hotspot end time must be before start time");
+        }
+
+        if(request.getEstimatedDurationMax() < request.getEstimatedDurationMin()) {
+            throw new BusinessException("Hotspot estimated duration max must be greater than min");
+        }
+
         Hotspot hotspot = hotspotMapper.toEntity(request);
         hotspot.setCreatedBy(userService.getCurrentUser());
         hotspot.setStatus(ContentStatus.DRAFT);
