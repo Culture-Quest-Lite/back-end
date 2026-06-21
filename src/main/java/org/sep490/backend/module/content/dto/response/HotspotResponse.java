@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.enums.ContentStatus;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Data
@@ -24,5 +25,9 @@ public class HotspotResponse {
     LocalDateTime updatedAt;
     Long xp;
     Long point;
+    Long estimatedDurationMin;
+    Long estimatedDurationMax;
+    LocalTime startTime;
+    LocalTime endTime;
     ContentStatus status;
 }

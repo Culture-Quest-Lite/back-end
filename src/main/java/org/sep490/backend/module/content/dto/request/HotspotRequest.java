@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
+import java.time.LocalTime;
 import java.util.List;
 
 @Data
@@ -42,4 +43,18 @@ public class HotspotRequest {
     @NotNull(message = "Điểm thưởng không được để trống")
     @PositiveOrZero(message = "Điểm thưởng không được là số âm")
     Long point;
+
+    @NotNull(message = "Thời gian dự kiến tối thiểu không được để trống")
+    @PositiveOrZero(message = "Thời gian dự kiến tối thiểu không được là số âm")
+    Long estimatedDurationMin;
+
+    @NotNull(message = "Thời gian dự kiến tối đa không được để trống")
+    @PositiveOrZero(message = "Thời gian dự kiến tối đa không được là số âm")
+    Long estimatedDurationMax;
+
+    @NotNull(message = "Thời gian bắt đầu đẹp trong ngày không được để trống")
+    LocalTime startTime;
+
+    @NotNull(message = "Thời gian kết thúc đẹp trong ngày không được để trống")
+    LocalTime endTime;
 }
