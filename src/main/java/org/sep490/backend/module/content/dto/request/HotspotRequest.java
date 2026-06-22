@@ -5,7 +5,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
-import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -53,8 +53,8 @@ public class HotspotRequest {
     Long estimatedDurationMax;
 
     @NotNull(message = "Thời gian bắt đầu đẹp trong ngày không được để trống")
-    LocalTime startTime;
+    LocalDateTime startTime;
 
     @NotNull(message = "Thời gian kết thúc đẹp trong ngày không được để trống")
-    LocalTime endTime;
+    LocalDateTime endTime;
 }

@@ -14,6 +14,9 @@ import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.dto.response.TagResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Tag;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Mapper(
         componentModel = "spring",
@@ -22,7 +25,7 @@ import org.sep490.backend.module.content.entity.Tag;
 public interface HotspotMapper {
     GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
-    //@Mapping(source = "createdBy.userId", target = "createByUserId")
+    @Mapping(source = "createdBy.userId", target = "createByUserId")
     @Mapping(target = "latitude", expression = "java(hotspot.getLocation() != null ? hotspot.getLocation().getY() : null)")
     @Mapping(target = "longitude", expression = "java(hotspot.getLocation() != null ? hotspot.getLocation().getX() : null)")
     HotspotResponse toResponse(Hotspot hotspot);
@@ -51,5 +54,17 @@ public interface HotspotMapper {
         return SpatialUtils.fromCoordinates(longitude, latitude);
     }
 
+    default LocalTime map(LocalDateTime value) {
+        if (value == null) {
+            return null;
+        }
+        return value.toLocalTime();
+    }
 
+    default LocalDateTime map(LocalTime value) {
+        if (value == null) {
+            return null;
+        }
+        return value.atDate(LocalDate.now());
+    }
 }
