@@ -67,7 +67,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ${IMAGE_FULL:-culture-quest-backend}:latest
+    image: culture-quest-backend:latest
     container_name: culture-quest-backend
     restart: unless-stopped
     env_file:

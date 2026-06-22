@@ -18,7 +18,6 @@ jobs:
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
 
     permissions:
       contents: read
@@ -62,7 +61,7 @@ jobs:
         with:
           context: .
           dockerfile: Dockerfile
-          push: true
+          push: ${{ github.event_name == 'push' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
