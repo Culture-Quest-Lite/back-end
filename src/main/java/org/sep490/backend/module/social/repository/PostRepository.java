@@ -22,4 +22,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                              Pageable pageable);
 
     Slice<Post> findByUser_UserIdAndStatus(Long userId, PostStatus status, Pageable pageable);
+
+    long countByUser(User user);
 }
