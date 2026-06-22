@@ -71,7 +71,7 @@ jobs:
     name: Deploy to Production Server
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && github.event_name == 'push'
 
     environment:
       name: production
@@ -95,14 +95,22 @@ jobs:
 
             cd ${{ secrets.SERVER_DEPLOY_DIR }}
 
-            echo "==> Pulling latest code..."
-            git pull origin main
+            echo "==> Fetching latest code and switching to ${{ github.ref_name }}..."
+            git fetch origin
+            git checkout ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }} origin/${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
 
             echo "==> Logging in to GitHub Container Registry..."
             echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
 
-            echo "==> Pulling new Docker image: $IMAGE_FULL:latest"
-            docker pull "$IMAGE_FULL:latest"
+            # Determine tag name (latest for main, branch name otherwise)
+            export IMAGE_TAG="${{ github.ref_name }}"
+            if [ "$IMAGE_TAG" = "main" ]; then
+              export IMAGE_TAG="latest"
+            fi
+
+            echo "==> Pulling new Docker image: $IMAGE_FULL:$IMAGE_TAG"
+            docker pull "$IMAGE_FULL:$IMAGE_TAG"
 
             echo "==> Recreating backend container..."
             docker compose up -d --no-deps --pull always backend
