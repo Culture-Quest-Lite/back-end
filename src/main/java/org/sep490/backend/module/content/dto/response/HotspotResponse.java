@@ -8,6 +8,7 @@ import org.sep490.backend.module.content.enums.ContentStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class HotspotResponse {
@@ -23,5 +24,10 @@ public class HotspotResponse {
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     Long xp;
+    Long point;
+    Long estimatedDurationMin;
+    Long estimatedDurationMax;
+    LocalDateTime startTime;
+    LocalDateTime endTime;
     ContentStatus status;
 }

@@ -24,6 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.HashSet;
+import org.sep490.backend.module.content.entity.Tag;
+import org.sep490.backend.module.content.repository.TagRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +37,7 @@ public class HotspotServiceImpl implements HotspotService {
     HotspotMapper hotspotMapper;
     UserService userService;
     RouteHotspotRepository routeHotspotRepository;
+    TagRepository tagRepository;
 
     @Override
     @Transactional
@@ -43,8 +47,19 @@ public class HotspotServiceImpl implements HotspotService {
             throw new BusinessException("Hotspot location must be within Vietnam");
         }
 
+        if(request.getEndTime().isBefore(request.getStartTime())) {
+            throw new BusinessException("Hotspot end time must be before start time");
+        }
+
+        if(request.getEstimatedDurationMax() < request.getEstimatedDurationMin()) {
+            throw new BusinessException("Hotspot estimated duration max must be greater than min");
+        }
+
         Hotspot hotspot = hotspotMapper.toEntity(request);
+        List<Tag> tags = tagRepository.findAllById(request.getTagIds());
+        hotspot.setTags(new HashSet<>(tags));
         hotspot.setCreatedBy(userService.getCurrentUser());
+        hotspot.setStatus(ContentStatus.DRAFT);
         hotspot = hotspotRepository.save(hotspot);
         return hotspotMapper.toResponse(hotspot);
     }
@@ -54,6 +69,8 @@ public class HotspotServiceImpl implements HotspotService {
     public HotspotResponse update(Long id, HotspotRequest request) {
         Hotspot hotspot = getById(id);
         hotspotMapper.updateFromRequest(hotspot, request);
+        List<Tag> tags = tagRepository.findAllById(request.getTagIds());
+        hotspot.setTags(new HashSet<>(tags));
         hotspot = hotspotRepository.save(hotspot);
         return hotspotMapper.toResponse(hotspot);
     }

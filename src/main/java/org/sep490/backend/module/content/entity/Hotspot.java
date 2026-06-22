@@ -11,6 +11,7 @@ import org.sep490.backend.module.content.enums.ContentStatus;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -61,6 +62,18 @@ public class Hotspot implements Serializable {
 
     @Column(name = "location", nullable = false)
     Point location;
+
+    @Column(name = "estimated_duration_min", nullable = false)
+    Long estimatedDurationMin;
+
+    @Column(name = "estimated_duration_max", nullable = false)
+    Long estimatedDurationMax;
+
+    @Column(name = "start_time", nullable = false)
+    LocalTime startTime; // nice time in day
+
+    @Column(name = "end_time", nullable = false)
+    LocalTime endTime;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

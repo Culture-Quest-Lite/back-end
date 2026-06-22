@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -35,7 +36,25 @@ public class HotspotRequest {
     @Max(value = 1000, message = "Bán kính check-in tối đa là 5000 mét")
     Double checkInRadius;
 
-    @NotNull(message = "Điểm thưởng XP không được để trống")
-    @PositiveOrZero(message = "Điểm thưởng XP không được là số âm")
+    @NotNull(message = "Điểm kinh nghiệm không được để trống")
+    @PositiveOrZero(message = "Điểm kinh nghiệm không được là số âm")
     Long xp;
+
+    @NotNull(message = "Điểm thưởng không được để trống")
+    @PositiveOrZero(message = "Điểm thưởng không được là số âm")
+    Long point;
+
+    @NotNull(message = "Thời gian dự kiến tối thiểu không được để trống")
+    @PositiveOrZero(message = "Thời gian dự kiến tối thiểu không được là số âm")
+    Long estimatedDurationMin;
+
+    @NotNull(message = "Thời gian dự kiến tối đa không được để trống")
+    @PositiveOrZero(message = "Thời gian dự kiến tối đa không được là số âm")
+    Long estimatedDurationMax;
+
+    @NotNull(message = "Thời gian bắt đầu đẹp trong ngày không được để trống")
+    LocalDateTime startTime;
+
+    @NotNull(message = "Thời gian kết thúc đẹp trong ngày không được để trống")
+    LocalDateTime endTime;
 }
