@@ -95,10 +95,11 @@ jobs:
 
             cd ${{ secrets.SERVER_DEPLOY_DIR }}
 
-            echo "==> Fetching latest code and switching to ${{ github.ref_name }}..."
+            echo "==> Fetching latest code and resetting to ${{ github.ref_name }}..."
             git fetch origin
+            git reset --hard
             git checkout ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }} origin/${{ github.ref_name }}
-            git pull origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
 
             echo "==> Logging in to GitHub Container Registry..."
             echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
