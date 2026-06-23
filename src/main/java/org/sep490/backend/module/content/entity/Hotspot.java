@@ -51,6 +51,9 @@ public class Hotspot implements Serializable {
     @Column(name = "description", columnDefinition = "TEXT")
     String description;
 
+    @Column(name = "history_information", columnDefinition = "TEXT")
+    String historyInformation;
+
     @Column(name = "check_in_radius", nullable = false)
     Double checkInRadius;
 
@@ -74,6 +77,12 @@ public class Hotspot implements Serializable {
 
     @Column(name = "end_time", nullable = false)
     LocalTime endTime;
+
+    @Column(name = "opening_time")
+    LocalTime openingTime;
+
+    @Column(name = "closing_time")
+    LocalTime closingTime;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

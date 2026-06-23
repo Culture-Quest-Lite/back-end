@@ -1,11 +1,14 @@
 package org.sep490.backend.module.content.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Data
@@ -23,6 +26,9 @@ public class HotspotRequest {
 
     @Size(max = 2000, message = "Mô tả không được vượt quá 2000 ký tự")
     String description;
+
+    @Size(max = 2000, message = "Thông tin lịch sử không được vượt quá 2000 ký tự")
+    String historyInformation;
 
     // check location thuộc VN ở service
     @NotNull(message = "Vĩ độ không được để trống")
@@ -53,8 +59,20 @@ public class HotspotRequest {
     Long estimatedDurationMax;
 
     @NotNull(message = "Thời gian bắt đầu đẹp trong ngày không được để trống")
-    LocalDateTime startTime;
+    @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string", example = "08:00:00")
+    LocalTime startTime;
 
     @NotNull(message = "Thời gian kết thúc đẹp trong ngày không được để trống")
-    LocalDateTime endTime;
+    @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string", example = "09:30:00")
+    LocalTime endTime;
+
+    // allow null
+    @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string", example = "08:00:00")
+    LocalTime openingTime;
+    @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string", example = "22:00:00")
+    LocalTime closingTime;
 }
