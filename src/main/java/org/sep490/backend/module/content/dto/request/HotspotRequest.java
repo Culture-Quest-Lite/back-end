@@ -61,12 +61,12 @@ public class HotspotRequest {
     @NotNull(message = "Thời gian bắt đầu đẹp trong ngày không được để trống")
     @JsonFormat(pattern = "HH:mm:ss")
     @Schema(type = "string", example = "08:00:00")
-    LocalDateTime startTime;
+    LocalTime startTime;
 
     @NotNull(message = "Thời gian kết thúc đẹp trong ngày không được để trống")
     @JsonFormat(pattern = "HH:mm:ss")
     @Schema(type = "string", example = "09:30:00")
-    LocalDateTime endTime;
+    LocalTime endTime;
 
     // allow null
     @JsonFormat(pattern = "HH:mm:ss")
