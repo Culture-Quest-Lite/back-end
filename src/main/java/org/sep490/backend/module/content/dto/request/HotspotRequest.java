@@ -27,6 +27,9 @@ public class HotspotRequest {
     @Size(max = 2000, message = "Mô tả không được vượt quá 2000 ký tự")
     String description;
 
+    @Size(max = 2000, message = "Thông tin lịch sử không được vượt quá 2000 ký tự")
+    String historyInformation;
+
     // check location thuộc VN ở service
     @NotNull(message = "Vĩ độ không được để trống")
     Double latitude;
