@@ -1,11 +1,13 @@
 package org.sep490.backend.module.content.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Data
@@ -53,8 +55,16 @@ public class HotspotRequest {
     Long estimatedDurationMax;
 
     @NotNull(message = "Thời gian bắt đầu đẹp trong ngày không được để trống")
+    @JsonFormat(pattern = "HH:mm:ss")
     LocalDateTime startTime;
 
     @NotNull(message = "Thời gian kết thúc đẹp trong ngày không được để trống")
+    @JsonFormat(pattern = "HH:mm:ss")
     LocalDateTime endTime;
+
+    // allow null
+    @JsonFormat(pattern = "HH:mm:ss")
+    LocalTime openingTime;
+    @JsonFormat(pattern = "HH:mm:ss")
+    LocalTime closingTime;
 }

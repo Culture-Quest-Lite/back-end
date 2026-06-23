@@ -75,6 +75,12 @@ public class Hotspot implements Serializable {
     @Column(name = "end_time", nullable = false)
     LocalTime endTime;
 
+    @Column(name = "opening_time")
+    LocalTime openingTime;
+
+    @Column(name = "closing_time")
+    LocalTime closingTime;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     ContentStatus status;
