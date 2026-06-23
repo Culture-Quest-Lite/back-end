@@ -1,6 +1,7 @@
 package org.sep490.backend.module.content.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
@@ -31,15 +32,19 @@ public class HotspotResponse {
     Long estimatedDurationMax;
 
     @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string")
     LocalTime startTime;
 
     @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string")
     LocalTime endTime;
 
     @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string")
     LocalTime openingTime;
 
     @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string")
     LocalTime closingTime;
 
     ContentStatus status;

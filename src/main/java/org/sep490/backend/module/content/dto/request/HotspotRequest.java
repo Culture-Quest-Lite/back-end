@@ -1,6 +1,7 @@
 package org.sep490.backend.module.content.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -56,15 +57,19 @@ public class HotspotRequest {
 
     @NotNull(message = "Thời gian bắt đầu đẹp trong ngày không được để trống")
     @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string", example = "08:00:00")
     LocalDateTime startTime;
 
     @NotNull(message = "Thời gian kết thúc đẹp trong ngày không được để trống")
     @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string", example = "09:30:00")
     LocalDateTime endTime;
 
     // allow null
     @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string", example = "08:00:00")
     LocalTime openingTime;
     @JsonFormat(pattern = "HH:mm:ss")
+    @Schema(type = "string", example = "22:00:00")
     LocalTime closingTime;
 }
