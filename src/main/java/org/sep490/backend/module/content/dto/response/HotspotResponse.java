@@ -21,6 +21,7 @@ public class HotspotResponse {
     String hotspotName;
     String address;
     String description;
+    String historyInformation;
     Double latitude;
     Double longitude;
     Double checkInRadius;
