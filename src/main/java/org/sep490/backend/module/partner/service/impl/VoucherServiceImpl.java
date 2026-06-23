@@ -70,6 +70,7 @@ public class VoucherServiceImpl implements VoucherService {
         Voucher voucher = voucherMapper.toEntity(request);
         voucher.setPartner(partner);
         voucher.setVoucherCode(generateCode);
+        voucher.setStatus(VoucherStatus.PENDING);
         voucher = voucherRepository.save(voucher);
         return voucherMapper.toResponse(voucher);
     }
@@ -92,7 +93,11 @@ public class VoucherServiceImpl implements VoucherService {
             throw new BusinessException("Ngày bắt đầu phải trước ngày kết thúc");
         }
 
+        VoucherStatus oldStatus = voucher.getStatus();
         voucherMapper.updateEntityFromRequest(request, voucher);
+        if (request.getStatus() == null) {
+            voucher.setStatus(oldStatus);
+        }
         voucher = voucherRepository.save(voucher);
         return voucherMapper.toResponse(voucher);
     }
