@@ -1,11 +1,13 @@
 package org.sep490.backend.module.content.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.enums.ContentStatus;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 
@@ -27,7 +29,18 @@ public class HotspotResponse {
     Long point;
     Long estimatedDurationMin;
     Long estimatedDurationMax;
-    LocalDateTime startTime;
-    LocalDateTime endTime;
+
+    @JsonFormat(pattern = "HH:mm:ss")
+    LocalTime startTime;
+
+    @JsonFormat(pattern = "HH:mm:ss")
+    LocalTime endTime;
+
+    @JsonFormat(pattern = "HH:mm:ss")
+    LocalTime openingTime;
+
+    @JsonFormat(pattern = "HH:mm:ss")
+    LocalTime closingTime;
+
     ContentStatus status;
 }
