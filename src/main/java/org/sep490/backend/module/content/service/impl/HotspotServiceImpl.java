@@ -3,10 +3,12 @@ package org.sep490.backend.module.content.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Point;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
+import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
@@ -119,24 +121,17 @@ public class HotspotServiceImpl implements HotspotService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<HotspotResponse> getNearbyHotspots(Long hotspotId, Double distanceInMeters) {
+    public List<HotspotResponse> getNearbyHotspots(Double latitude, Double longitude, Double distanceInMeters) {
 
-        Hotspot centerHotspot = hotspotRepository.findById(hotspotId)
-                .orElseThrow(() -> new BusinessException("Không tìm thấy Hotspot với ID: " + hotspotId));
+        if(latitude == null || longitude == null) {
+            throw new BusinessException("Tung độ và hoành độ không được để trống");
+        }
 
         if(distanceInMeters <= 0) {
             throw new BusinessException("Khoảng cách phải lớn hơn 0");
         }
 
-        Point centerPoint = centerHotspot.getLocation();
-        if (centerPoint == null) {
-            throw new BusinessException("Hotspot này chưa được cấu hình tọa độ.");
-        }
-
-        double lon = centerPoint.getX();
-        double lat = centerPoint.getY();
-
-        List<Hotspot> nearbies = hotspotRepository.findNearbyHotspots(lon, lat, distanceInMeters, hotspotId);
+        List<Hotspot> nearbies = hotspotRepository.findNearbyHotspots(longitude, latitude, distanceInMeters);
 
         return nearbies.stream()
                 .map(hotspotMapper::toResponse)
