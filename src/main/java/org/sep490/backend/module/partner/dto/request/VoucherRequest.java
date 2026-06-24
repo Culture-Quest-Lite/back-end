@@ -5,6 +5,8 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.partner.entity.enumeration.DiscountType;
 import org.sep490.backend.module.partner.entity.enumeration.VoucherStatus;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -15,6 +17,7 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Builder
 public class VoucherRequest {
+    MultipartFile[] files;
     String voucherCode;
 
     @NotBlank(message = "Tên voucher không được để trống")
@@ -43,8 +46,10 @@ public class VoucherRequest {
     VoucherStatus status;
 
     @NotNull(message = "Ngày bắt đầu là bắt buộc")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     LocalDateTime startDate;
 
     @NotNull(message = "Ngày kết thúc là bắt buộc")
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     LocalDateTime endDate;
 }

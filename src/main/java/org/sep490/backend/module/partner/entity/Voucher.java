@@ -6,10 +6,12 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.partner.entity.enumeration.DiscountType;
 import org.sep490.backend.module.partner.entity.enumeration.VoucherStatus;
-import org.springframework.scheduling.annotation.EnableAsync;
+import org.sep490.backend.module.content.entity.Media;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Data
@@ -20,10 +22,9 @@ import java.time.LocalDateTime;
 @Table(name = "vouchers", indexes = {
         // Chỉ giữ lại index thông thường cho khóa ngoại
         @Index(name = "idx_voucher_partner", columnList = "partner_id")
-},
-        uniqueConstraints = {
-                // Đưa ràng buộc duy nhất ra đúng phân vùng của nó
-                @UniqueConstraint(name = "uk_voucher_code", columnNames = {"code"})
+}, uniqueConstraints = {
+        // Đưa ràng buộc duy nhất ra đúng phân vùng của nó
+        @UniqueConstraint(name = "uk_voucher_code", columnNames = { "code" })
 })
 public class Voucher {
 
@@ -72,6 +73,10 @@ public class Voucher {
 
     @Column(name = "end_date", nullable = false)
     LocalDateTime endDate;
+
+    @OneToMany(mappedBy = "voucher", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    List<Media> medias = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
     LocalDateTime createdAt;

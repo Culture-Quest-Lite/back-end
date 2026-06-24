@@ -5,7 +5,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
-import org.geolatte.geom.M;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
@@ -21,17 +20,21 @@ import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.content.dto.response.MediaResponse;
+import org.sep490.backend.module.content.enums.MediaTargetType;
+import org.sep490.backend.module.content.service.inter.MediaService;
+import org.sep490.backend.module.content.service.inter.S3Service;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StreamUtils;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -47,6 +50,8 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     UserService userService;
     KeyCloakAuthClient keyCloakAuthClient;
     UserRepository userRepository;
+    S3Service s3Service;
+    MediaService mediaService;
 
     private final JavaMailSender mailSender;
     @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
@@ -76,13 +81,37 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         subscription.setStartDate(null);
         subscription.setEndDate(null);
 
-//        if (request.getDocumentFile() != null && !request.getDocumentFile().isEmpty()) {
-//            subscription.setDocumentUrl("s3");
-//        } else {
-//            throw new BusinessException("Giấy tờ xác minh là bắt buộc đối với đối tác");
-//        }
+        if (request.getDocumentFile() != null && !request.getDocumentFile().isEmpty()) {
+            try {
+                String docUrl = s3Service.uploadFile(request.getDocumentFile(), "partner_subscriptions/documents");
+                subscription.setDocumentUrl(docUrl);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi xảy ra khi tải lên tài liệu xác minh lên S3: " + e.getMessage());
+            }
+        } else {
+            throw new BusinessException("Giấy tờ xác minh là bắt buộc đối với đối tác");
+        }
         subscription = partnerSubscriptionRepository.save(subscription);
-        return subscriptionMapper.toResponse(subscription);
+        
+        PartnerSubscriptionResponse response = subscriptionMapper.toResponse(subscription);
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.PARTNER_SUBSCRIPTION, subscription.getId());
+                List<PartnerSubscriptionResponse.MediaDto> mediaDtos = mediaResponses.stream().map(m -> {
+                    PartnerSubscriptionResponse.MediaDto dto = new PartnerSubscriptionResponse.MediaDto();
+                    dto.setMediaId(m.getMediaId());
+                    dto.setFileUrl(m.getFileUrl());
+                    dto.setFileName(m.getFileName());
+                    dto.setMediaType(m.getMediaType());
+                    return dto;
+                }).toList();
+                response.setMedias(mediaDtos);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+        return response;
     }
 
     @Override

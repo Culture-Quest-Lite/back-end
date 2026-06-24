@@ -49,4 +49,5 @@ public class HotspotResponse {
     LocalTime closingTime;
 
     ContentStatus status;
+    List<MediaResponse> medias;
 }
