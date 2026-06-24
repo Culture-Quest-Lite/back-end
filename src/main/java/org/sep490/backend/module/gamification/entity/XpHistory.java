@@ -29,17 +29,17 @@ public class XpHistory {
     private User user;
 
     @Column(name = "xp_amount", nullable = false)
-    private Integer xpAmount;
+    private Long xpAmount;
 
-    @Column(name = "points_amount", nullable = false)
-    private Integer pointsAmount;
+    @Column(name = "balance_after")
+    private Long balanceAfter;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false, length = 30)
     private XpSource source;
 
     @Column(name = "reference_id")
-    private String referenceId; // Lưu ID của Hotspot/Route/Post tương ứng
+    private Long referenceId; // Lưu ID của Hotspot/Route/Post tương ứng
 
     @Column(name = "description")
     private String description;

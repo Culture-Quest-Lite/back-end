@@ -54,6 +54,9 @@ public class Route {
     @Column(name = "XP", nullable = false)
     Long xp;
 
+    @Column(name = "point", nullable = false)
+    Long point;
+
     @Column(name = "estimate_time", nullable = false)
     Double estimateTime; // minutes
 
