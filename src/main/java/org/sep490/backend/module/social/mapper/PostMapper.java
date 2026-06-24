@@ -6,6 +6,7 @@ import org.mapstruct.ReportingPolicy;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.Tag;
+import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.entity.Post;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Set;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
+@Mapper(componentModel = "spring", uses = {MediaMapper.class}, unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface PostMapper {
 
     @Mapping(target = "taggedHotspots", ignore = true)

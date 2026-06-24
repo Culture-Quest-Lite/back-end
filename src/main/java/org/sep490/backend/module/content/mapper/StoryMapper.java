@@ -13,6 +13,7 @@ import org.sep490.backend.module.content.entity.Tag;
 
 @Mapper(
         componentModel = "spring",
+        uses = {MediaMapper.class},
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface StoryMapper {

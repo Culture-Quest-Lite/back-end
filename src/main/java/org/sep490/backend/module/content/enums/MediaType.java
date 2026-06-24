@@ -4,5 +4,6 @@ public enum MediaType {
     AUDIO,
     VIDEO,
     IMAGE,
-    OTHER
+    OTHER,
+    HOTSPOT
 }

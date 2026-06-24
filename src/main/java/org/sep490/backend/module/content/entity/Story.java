@@ -9,6 +9,8 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.enums.ContentStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "stories")
@@ -45,12 +47,13 @@ public class Story {
     @Column(name = "content", columnDefinition = "TEXT")
     String content;
 
-    @Column(name = "audio_url")
-    String audioUrl;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     ContentStatus status;
+
+    @OneToMany(mappedBy = "story", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    List<Media> medias = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
