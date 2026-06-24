@@ -46,15 +46,15 @@ public class HotspotServiceImpl implements HotspotService {
     public HotspotResponse create(HotspotRequest request) {
 
         if(!hotspotRepository.isLocationInVietnam(request.getLongitude(), request.getLatitude())) {
-            throw new BusinessException("Hotspot location must be within Vietnam");
+            throw new BusinessException("Tọa độ của Hotspot phải thuộc lãnh thổ Việt Nam");
         }
 
         if(request.getEndTime().isBefore(request.getStartTime())) {
-            throw new BusinessException("Hotspot end time must be before start time");
+            throw new BusinessException("Thời gian kết thúc không hợp lệ");
         }
 
         if(request.getEstimatedDurationMax() < request.getEstimatedDurationMin()) {
-            throw new BusinessException("Hotspot estimated duration max must be greater than min");
+            throw new BusinessException("Thời gian tham quan dự kiến không hợp lệ");
         }
 
         Hotspot hotspot = hotspotMapper.toEntity(request);
@@ -104,7 +104,7 @@ public class HotspotServiceImpl implements HotspotService {
     @Transactional(readOnly = true)
     public Hotspot getById(Long id) {
         Hotspot hotspot = hotspotRepository.findById(id).orElseThrow(
-                () -> new BusinessException("Hotspot not found")
+                () -> new BusinessException("Không tìm thấy Hotspot")
         );
         return hotspot;
     }

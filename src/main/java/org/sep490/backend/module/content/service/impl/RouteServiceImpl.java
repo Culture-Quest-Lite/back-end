@@ -222,7 +222,7 @@ public class RouteServiceImpl implements RouteService {
 
         for (RouteHotspot rh : routeHotspots) {
             if (rh.getHotspot().getHotspotId().equals(hotspot.getHotspotId())) {
-                throw new BusinessException("Điểm đã tồn tại trong tuyến đường");
+                throw new BusinessException("Điểm dừng đã tồn tại trong tuyến đường");
             }
         }
 
@@ -265,7 +265,7 @@ public class RouteServiceImpl implements RouteService {
         }
 
         if (targetRouteHotspot == null) {
-            throw new BusinessException("Điểm này không nằm trong tuyến đường");
+            throw new BusinessException("Điểm dừng này không nằm trong tuyến đường");
         }
 
         if (targetIndex > 0) {
