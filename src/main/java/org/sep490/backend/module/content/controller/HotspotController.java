@@ -30,6 +30,12 @@ public class HotspotController {
         return ResponseEntity.ok(responses);
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<HotspotResponse> getDetails(@PathVariable Long id) {
+        HotspotResponse response = hotspotService.getDetail(id);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/{id}/nearby")
     public ResponseEntity<List<HotspotResponse>> getNearbyHotspots(
             @PathVariable("id") Long hotspotId,
