@@ -38,6 +38,9 @@ public class PartnerSubscription {
     @Column(name = "shop_name")
     private String shopName;
 
+    @Column(name = "shop_email", nullable = false, unique = true)
+    private String shopEmail;
+
     @Column(name = "address")
     private String address;
 

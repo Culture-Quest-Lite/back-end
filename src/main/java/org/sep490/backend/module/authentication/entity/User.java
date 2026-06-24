@@ -59,6 +59,9 @@ public class User {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+    @Column(name = "background_url")
+    private String backgroundUrl;
+
     @Builder.Default
     @Column(name = "total_xp")
     private Integer totalXp = 0;

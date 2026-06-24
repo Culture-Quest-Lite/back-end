@@ -1,7 +1,7 @@
 package org.sep490.backend.module.user.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.sep490.backend.common.dto.BaseFilterRequest;
+import org.sep490.backend.common.filter.dto.BaseFilterRequest;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.common.utils.SecurityUtils;
@@ -9,6 +9,7 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.social.repository.PostRepository;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
@@ -34,6 +35,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final UserFollowRepository userFollowRepository;
     private final KeyCloakAuthClient keyCloakAuthClient;
+    private final PostRepository postRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -44,10 +46,11 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa");
         }
 
-        return userMapper.toProfileResponse(user);
+        return enrichProfileResponse(user);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public UserProfileResponse getProfile(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
@@ -55,7 +58,7 @@ public class UserServiceImpl implements UserService {
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessException("Tài khoản người dùng này hiện đang bị khóa hoặc chưa được kích hoạt");
         }
-        return userMapper.toProfileResponse(user);
+        return enrichProfileResponse(user);
     }
 
     @Override
@@ -73,12 +76,15 @@ public class UserServiceImpl implements UserService {
         if (request.getAvatarUrl() != null) {
             user.setAvatarUrl(request.getAvatarUrl().trim());
         }
+        if (request.getBackgroundUrl() != null) {
+            user.setBackgroundUrl(request.getBackgroundUrl().trim());
+        }
         if (request.getAutoPlayAudio() != null) {
             user.setAutoPlayAudio(request.getAutoPlayAudio());
         }
 
         user = userRepository.save(user);
-        return userMapper.toProfileResponse(user);
+        return enrichProfileResponse(user);
     }
 
     @Override
@@ -165,7 +171,7 @@ public class UserServiceImpl implements UserService {
         Pageable pageable = PageRequest.of(filterRequest.getPage(), filterRequest.getSize(), sort);
         Specification<User> spec = UserSpecification.filterUsers(filterRequest.getSearch(), filterRequest.getStatus());
         Page<User> userPage = userRepository.findAll(spec, pageable);
-        return userPage.map(userMapper::toProfileResponse);
+        return userPage.map(this::enrichProfileResponse);
     }
 
     @Override
@@ -251,5 +257,17 @@ public class UserServiceImpl implements UserService {
         }
 
         return user;
+    }
+    private UserProfileResponse enrichProfileResponse(User user) {
+        UserProfileResponse response = userMapper.toProfileResponse(user);
+
+        long followers = userFollowRepository.countByFollowing(user);
+        long following = userFollowRepository.countByFollower(user);
+        long posts = postRepository.countByUser(user);
+
+        response.setTotalFollowers(followers);
+        response.setTotalFollowing(following);
+        response.setTotalPosts(posts);
+        return response;
     }
 }

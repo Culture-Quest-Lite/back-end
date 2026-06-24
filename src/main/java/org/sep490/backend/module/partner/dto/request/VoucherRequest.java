@@ -40,7 +40,6 @@ public class VoucherRequest {
     @Min(value = 1, message = "Số lượng tổng cộng phải ít nhất là 1")
     Long quantityTotal;
 
-    @NotNull(message = "Trạng thái là bắt buộc")
     VoucherStatus status;
 
     @NotNull(message = "Ngày bắt đầu là bắt buộc")

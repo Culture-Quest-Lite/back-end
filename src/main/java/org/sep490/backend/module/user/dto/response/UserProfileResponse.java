@@ -19,6 +19,7 @@ public class UserProfileResponse {
     private String email;
     private String displayName;
     private String avatarUrl;
+    private String backgroundUrl;
     private Integer totalXp;
     private Integer totalPoints;
     private Boolean autoPlayAudio;
@@ -27,4 +28,8 @@ public class UserProfileResponse {
     private String levelName;
     private UserRole role;
     private LocalDateTime createdAt;
+
+    private Long totalFollowers;
+    private Long totalFollowing;
+    private Long totalPosts;
 }

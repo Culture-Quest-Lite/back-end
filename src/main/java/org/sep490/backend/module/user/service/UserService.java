@@ -1,6 +1,6 @@
 package org.sep490.backend.module.user.service;
 
-import org.sep490.backend.common.dto.BaseFilterRequest;
+import org.sep490.backend.common.filter.dto.BaseFilterRequest;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;

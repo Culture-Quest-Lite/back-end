@@ -1,5 +1,6 @@
 package org.sep490.backend.module.admin.dto.request;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -20,6 +21,10 @@ public class PartnerSubscriptionRequest {
 
     @NotBlank(message = "Tên quán không được trống")
     private String shopName;
+
+    @NotBlank(message = "Email quản lý shop không được để trống")
+    @Email(message = "Email không đúng định dạng")
+    private String shopEmail;
 
     @NotBlank(message = "Địa chỉ quán không được trống")
     private String address;

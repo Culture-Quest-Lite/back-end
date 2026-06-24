@@ -32,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashSet;
+import org.sep490.backend.module.content.entity.Tag;
+import org.sep490.backend.module.content.repository.TagRepository;
 
 @Service
 @RequiredArgsConstructor
@@ -43,6 +46,7 @@ public class RouteServiceImpl implements RouteService {
     RouteHotspotRepository routeHotspotRepository;
     HotspotService hotspotService;
     UserService userService;
+    TagRepository tagRepository;
 
     @Override
     @Transactional
@@ -53,6 +57,8 @@ public class RouteServiceImpl implements RouteService {
         }
 
         Route route = routeMapper.toEntity(request);
+        List<Tag> tags = tagRepository.findAllById(request.getTagIds());
+        route.setTags(new HashSet<>(tags));
         User creator = userService.getCurrentUser();
 
         route.setCreatedBy(creator);
@@ -79,6 +85,8 @@ public class RouteServiceImpl implements RouteService {
         Route currRoute = getById(id);
 
         routeMapper.updateFromRequest(currRoute, request);
+        List<Tag> tags = tagRepository.findAllById(request.getTagIds());
+        currRoute.setTags(new HashSet<>(tags));
         currRoute.setTotalStops(request.getHotspots().size());
         currRoute = routeRepository.save(currRoute);
 
@@ -214,7 +222,7 @@ public class RouteServiceImpl implements RouteService {
 
         for (RouteHotspot rh : routeHotspots) {
             if (rh.getHotspot().getHotspotId().equals(hotspot.getHotspotId())) {
-                throw new BusinessException("Điểm đã tồn tại trong tuyến đường");
+                throw new BusinessException("Điểm dừng đã tồn tại trong tuyến đường");
             }
         }
 
@@ -257,7 +265,7 @@ public class RouteServiceImpl implements RouteService {
         }
 
         if (targetRouteHotspot == null) {
-            throw new BusinessException("Điểm này không nằm trong tuyến đường");
+            throw new BusinessException("Điểm dừng này không nằm trong tuyến đường");
         }
 
         if (targetIndex > 0) {

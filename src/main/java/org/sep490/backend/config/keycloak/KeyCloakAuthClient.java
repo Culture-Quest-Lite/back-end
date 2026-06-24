@@ -60,6 +60,13 @@ public class KeyCloakAuthClient {
                 .toBodilessEntity());
     }
 
+    public KeyCloakTokenResponse refreshToken(String refreshToken) {
+        MultiValueMap<String, String> form = baseClientForm();
+        form.add("grant_type", "refresh_token");
+        form.add("refresh_token", refreshToken);
+        return postToken(form);
+    }
+
     public String createUser(
             @NonNull String username,
             @NonNull String email,

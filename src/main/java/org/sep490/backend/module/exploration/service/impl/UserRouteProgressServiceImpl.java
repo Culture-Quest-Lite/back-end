@@ -58,7 +58,7 @@ public class UserRouteProgressServiceImpl implements UserRouteProgressService {
             result.put(201, userRouteProgressMapper.toResponse(userRouteProgress));
         } else {
             if(userRouteProgress.getStatus() == ProgressStatus.IN_PROGRESS) {
-                throw new BusinessException("Route is already in progress");
+                throw new BusinessException("Bạn hiện đang trong tuyến đường này");
             } else {
                 userRouteProgress.setStatus(ProgressStatus.IN_PROGRESS);
                 userRouteProgress = userRouteProgressRepository.save(userRouteProgress);
@@ -78,10 +78,10 @@ public class UserRouteProgressServiceImpl implements UserRouteProgressService {
                 .findByRoute_RouteIdAndUser_UserId(route.getRouteId(), user.getUserId()).orElse(null);
 
         if(userRouteProgress == null) {
-            throw new BusinessException("User has not start this route");
+            throw new BusinessException("Bạn chưa bắt đầu hành trình " + route.getRouteName());
         } else {
             if(userRouteProgress.getStatus() == ProgressStatus.ABANDONED) {
-                throw new BusinessException("Route is already abandoned");
+                throw new BusinessException("Bạn đã kết thúc tuyến đường này");
             } else {
                 userRouteProgress.setStatus(ProgressStatus.ABANDONED);
                 userRouteProgress = userRouteProgressRepository.save(userRouteProgress);
@@ -113,7 +113,7 @@ public class UserRouteProgressServiceImpl implements UserRouteProgressService {
         User currentUser = userService.getCurrentUser();
 
         if(!progressUser.equals(currentUser)) {
-            throw new BusinessException("User has not start this route");
+            throw new BusinessException("Bạn chưa bắt đầu tuyến đường này");
         }
 
         List<CheckInHotspotResponse> hotspot = routeHotspotRepository

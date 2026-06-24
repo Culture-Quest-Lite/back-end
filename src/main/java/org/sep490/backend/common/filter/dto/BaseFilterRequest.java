@@ -1,4 +1,4 @@
-package org.sep490.backend.common.dto;
+package org.sep490.backend.common.filter.dto;
 
 import lombok.Data;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
