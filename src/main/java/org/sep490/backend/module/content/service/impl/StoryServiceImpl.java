@@ -84,7 +84,7 @@ public class StoryServiceImpl implements StoryService {
     @Transactional(readOnly = true)
     public Story getById(Long id) {
         Story story = storyRepository.findById(id).orElseThrow(
-                () -> new BusinessException("Story not found with id: " + id)
+                () -> new BusinessException("Không tìm thấy câu chuyện với id: " + id)
         );
         return story;
     }

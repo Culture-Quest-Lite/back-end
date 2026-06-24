@@ -54,9 +54,6 @@ public class Hotspot implements Serializable {
     @Column(name = "history_information", columnDefinition = "TEXT")
     String historyInformation;
 
-    @Column(name = "check_in_radius", nullable = false)
-    Double checkInRadius;
-
     @Column(name = "XP", nullable = false)
     Long xp;
 

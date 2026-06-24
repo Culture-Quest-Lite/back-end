@@ -24,7 +24,6 @@ public class HotspotResponse {
     String historyInformation;
     Double latitude;
     Double longitude;
-    Double checkInRadius;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     Long xp;

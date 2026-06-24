@@ -37,11 +37,6 @@ public class HotspotRequest {
     @NotNull(message = "Kinh độ không được để trống")
     Double longitude;
 
-    @NotNull(message = "Bán kính check-in không được để trống")
-    @Positive(message = "Bán kính check-in phải là số dương")
-    @Max(value = 1000, message = "Bán kính check-in tối đa là 5000 mét")
-    Double checkInRadius;
-
     @NotNull(message = "Điểm kinh nghiệm không được để trống")
     @PositiveOrZero(message = "Điểm kinh nghiệm không được là số âm")
     Long xp;
