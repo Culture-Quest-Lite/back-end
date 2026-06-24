@@ -10,6 +10,7 @@ import org.sep490.backend.module.content.dto.response.StoryResponse;
 import org.sep490.backend.module.content.service.inter.StoryService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,8 +34,8 @@ public class StoryController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping
-    public ResponseEntity<StoryResponse> create(@Valid @RequestBody StoryRequest storyRequest) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<StoryResponse> create(@Valid @ModelAttribute StoryRequest storyRequest) {
         StoryResponse response = storyService.create(storyRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

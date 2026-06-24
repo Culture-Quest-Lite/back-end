@@ -15,14 +15,13 @@ public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpec
             "    CAST(h.location AS geography), " +
             "    CAST(ST_SetSRID(ST_MakePoint(:lon, :lat), 4326) AS geography), " +
             "    :radiusInMeters" +
-            ") " +
-            "AND h.hotspot_id != :excludeId",
+            ") " ,
             nativeQuery = true)
     List<Hotspot> findNearbyHotspots(
             @Param("lon") double lon,
             @Param("lat") double lat,
-            @Param("radiusInMeters") double radiusInMeters,
-            @Param("excludeId") Long excludeId
+            @Param("radiusInMeters") double radiusInMeters
+            //@Param("excludeId") Long excludeId
     );
     @Query(value = "SELECT EXISTS (" +
             "  SELECT 1 FROM country_boundaries cb " +

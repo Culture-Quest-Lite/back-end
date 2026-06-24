@@ -38,7 +38,7 @@ public class SaveRouteServiceImpl implements SavedRouteService {
         Route route = routeService.getById(routeId);
 
         if(savedRouteRepository.existsByRoute_RouteIdAndUser_UserId(routeId, user.getUserId())) {
-            throw new BusinessException("Route already exists");
+            throw new BusinessException("Tuyến đường đã tồn tại");
         }
 
         SavedRoute savedRoute = savedRouteMapper.toEntity(route.getRouteId(), user.getUserId());
@@ -55,7 +55,7 @@ public class SaveRouteServiceImpl implements SavedRouteService {
         User user = userService.getCurrentUser();
 
         if(user.getUserId() != savedRoute.getUser().getUserId()) {
-            throw new BusinessException("You don't have permission to unsave this route");
+            throw new BusinessException("Bạn không có thể bỏ lưu tuyến đường này");
         }
 
         savedRouteRepository.delete(savedRoute);

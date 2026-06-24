@@ -6,6 +6,7 @@ import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -14,6 +15,7 @@ import java.util.List;
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class HotspotRequest {
+    MultipartFile[] files;
     @NotEmpty(message = "Địa điểm phải thuộc ít nhất 1 tag")
     List<Long> tagIds;
 
@@ -36,11 +38,6 @@ public class HotspotRequest {
 
     @NotNull(message = "Kinh độ không được để trống")
     Double longitude;
-
-    @NotNull(message = "Bán kính check-in không được để trống")
-    @Positive(message = "Bán kính check-in phải là số dương")
-    @Max(value = 1000, message = "Bán kính check-in tối đa là 5000 mét")
-    Double checkInRadius;
 
     @NotNull(message = "Điểm kinh nghiệm không được để trống")
     @PositiveOrZero(message = "Điểm kinh nghiệm không được là số âm")

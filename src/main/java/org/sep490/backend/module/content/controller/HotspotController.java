@@ -11,6 +11,7 @@ import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,12 +36,13 @@ public class HotspotController {
         return ResponseEntity.ok(hotspotService.getDetail(id));
     }
 
-    @GetMapping("/{id}/nearby")
+    @GetMapping("/nearby")
     public ResponseEntity<List<HotspotResponse>> getNearbyHotspots(
-            @PathVariable("id") Long hotspotId,
+            @RequestParam(value = "latitude") Double latitude,
+            @RequestParam(value = "longitude") Double longitude,
             @RequestParam(value = "distance", defaultValue = "1000") Double distance) {
 
-        List<HotspotResponse> responses = hotspotService.getNearbyHotspots(hotspotId, distance);
+        List<HotspotResponse> responses = hotspotService.getNearbyHotspots(latitude, longitude, distance);
         return ResponseEntity.ok(responses);
     }
 
@@ -56,8 +58,8 @@ public class HotspotController {
         return ResponseEntity.ok(responses);
     }
 
-    @PostMapping
-    public ResponseEntity<HotspotResponse> createHotspot(@Valid @RequestBody HotspotRequest hotspotRequest) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<HotspotResponse> createHotspot(@Valid @ModelAttribute HotspotRequest hotspotRequest) {
         HotspotResponse response = hotspotService.create(hotspotRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

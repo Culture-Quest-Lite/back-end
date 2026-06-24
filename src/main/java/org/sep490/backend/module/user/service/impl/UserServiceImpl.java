@@ -1,7 +1,7 @@
 package org.sep490.backend.module.user.service.impl;
 
 import lombok.RequiredArgsConstructor;
-import org.sep490.backend.common.dto.BaseFilterRequest;
+import org.sep490.backend.common.filter.dto.BaseFilterRequest;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.common.utils.SecurityUtils;

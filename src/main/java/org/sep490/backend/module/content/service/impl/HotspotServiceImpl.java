@@ -3,18 +3,23 @@ package org.sep490.backend.module.content.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.locationtech.jts.geom.Location;
 import org.locationtech.jts.geom.Point;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
+import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
+import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.enums.ContentStatus;
+import org.sep490.backend.module.content.enums.MediaTargetType;
 import org.sep490.backend.module.content.mapper.HotspotMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
+import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +28,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.HashSet;
 import org.sep490.backend.module.content.entity.Tag;
@@ -38,21 +44,22 @@ public class HotspotServiceImpl implements HotspotService {
     UserService userService;
     RouteHotspotRepository routeHotspotRepository;
     TagRepository tagRepository;
+    MediaService mediaService;
 
     @Override
     @Transactional
     public HotspotResponse create(HotspotRequest request) {
 
         if(!hotspotRepository.isLocationInVietnam(request.getLongitude(), request.getLatitude())) {
-            throw new BusinessException("Hotspot location must be within Vietnam");
+            throw new BusinessException("Tọa độ của Hotspot phải thuộc lãnh thổ Việt Nam");
         }
 
         if(request.getEndTime().isBefore(request.getStartTime())) {
-            throw new BusinessException("Hotspot end time must be before start time");
+            throw new BusinessException("Thời gian kết thúc không hợp lệ");
         }
 
         if(request.getEstimatedDurationMax() < request.getEstimatedDurationMin()) {
-            throw new BusinessException("Hotspot estimated duration max must be greater than min");
+            throw new BusinessException("Thời gian tham quan dự kiến không hợp lệ");
         }
 
         Hotspot hotspot = hotspotMapper.toEntity(request);
@@ -61,7 +68,18 @@ public class HotspotServiceImpl implements HotspotService {
         hotspot.setCreatedBy(userService.getCurrentUser());
         hotspot.setStatus(ContentStatus.DRAFT);
         hotspot = hotspotRepository.save(hotspot);
-        return hotspotMapper.toResponse(hotspot);
+
+        HotspotResponse response = hotspotMapper.toResponse(hotspot);
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.HOTSPOT, hotspot.getHotspotId());
+                response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+        return response;
     }
 
     @Override
@@ -102,7 +120,7 @@ public class HotspotServiceImpl implements HotspotService {
     @Transactional(readOnly = true)
     public Hotspot getById(Long id) {
         Hotspot hotspot = hotspotRepository.findById(id).orElseThrow(
-                () -> new BusinessException("Hotspot not found")
+                () -> new BusinessException("Không tìm thấy Hotspot")
         );
         return hotspot;
     }
@@ -119,24 +137,17 @@ public class HotspotServiceImpl implements HotspotService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<HotspotResponse> getNearbyHotspots(Long hotspotId, Double distanceInMeters) {
+    public List<HotspotResponse> getNearbyHotspots(Double latitude, Double longitude, Double distanceInMeters) {
 
-        Hotspot centerHotspot = hotspotRepository.findById(hotspotId)
-                .orElseThrow(() -> new BusinessException("Không tìm thấy Hotspot với ID: " + hotspotId));
+        if(latitude == null || longitude == null) {
+            throw new BusinessException("Tung độ và hoành độ không được để trống");
+        }
 
         if(distanceInMeters <= 0) {
             throw new BusinessException("Khoảng cách phải lớn hơn 0");
         }
 
-        Point centerPoint = centerHotspot.getLocation();
-        if (centerPoint == null) {
-            throw new BusinessException("Hotspot này chưa được cấu hình tọa độ.");
-        }
-
-        double lon = centerPoint.getX();
-        double lat = centerPoint.getY();
-
-        List<Hotspot> nearbies = hotspotRepository.findNearbyHotspots(lon, lat, distanceInMeters, hotspotId);
+        List<Hotspot> nearbies = hotspotRepository.findNearbyHotspots(longitude, latitude, distanceInMeters);
 
         return nearbies.stream()
                 .map(hotspotMapper::toResponse)

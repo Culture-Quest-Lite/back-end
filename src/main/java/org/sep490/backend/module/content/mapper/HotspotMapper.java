@@ -20,6 +20,7 @@ import java.time.LocalTime;
 
 @Mapper(
         componentModel = "spring",
+        uses = {MediaMapper.class},
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface HotspotMapper {

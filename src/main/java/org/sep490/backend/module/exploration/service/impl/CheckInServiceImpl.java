@@ -34,8 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class CheckInServiceImpl implements CheckInService {
 
     CheckInRepository checkInRepository;
-    RouteHotspotRepository routeHotspotRepository;
-    UserRouteProgressRepository userRouteProgressRepository;
     HotspotService hotspotService;
     UserService userService;
     CheckInMapper checkInMapper;
@@ -52,8 +50,8 @@ public class CheckInServiceImpl implements CheckInService {
 
         double distance = SpatialUtils.calculateDistanceInMeters(hotspotLocation, userLocation);
 
-        if(distance > hotspot.getCheckInRadius()) {
-            throw new BusinessException("User is not within the check-in radius of the hotspot");
+        if(distance > 50l) {
+            throw new BusinessException("Bạn đang ở ngoài vùng check-in. Hãy di chuyển vào bán kính 50m để check-in");
         }
 
         CheckIn checkin = checkInMapper.toEntity(checkInRequest, user, hotspot, null, distance);

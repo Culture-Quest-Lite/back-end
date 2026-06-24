@@ -4,8 +4,13 @@ import org.mapstruct.*;
 import org.sep490.backend.module.partner.dto.request.VoucherRequest;
 import org.sep490.backend.module.partner.dto.response.VoucherResponse;
 import org.sep490.backend.module.partner.entity.Voucher;
+import org.sep490.backend.module.content.mapper.MediaMapper;
 
-@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
+@Mapper(
+        componentModel = "spring",
+        uses = {MediaMapper.class},
+        unmappedTargetPolicy = ReportingPolicy.IGNORE
+)
 public interface VoucherMapper {
 
     @Mapping(target = "quantityRemaining", source = "quantityTotal")

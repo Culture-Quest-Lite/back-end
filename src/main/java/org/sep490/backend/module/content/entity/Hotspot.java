@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "hotspots")
@@ -54,9 +56,6 @@ public class Hotspot implements Serializable {
     @Column(name = "history_information", columnDefinition = "TEXT")
     String historyInformation;
 
-    @Column(name = "check_in_radius", nullable = false)
-    Double checkInRadius;
-
     @Column(name = "XP", nullable = false)
     Long xp;
 
@@ -87,6 +86,10 @@ public class Hotspot implements Serializable {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     ContentStatus status;
+
+    @OneToMany(mappedBy = "hotspot", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    List<Media> medias = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

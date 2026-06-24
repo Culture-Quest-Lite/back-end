@@ -16,6 +16,6 @@ public interface HotspotService {
     void delete(Long id);
     Hotspot getById(Long id);
     Page<HotspotResponse> filterHotspots(SearchRequest request);
-    List<HotspotResponse> getNearbyHotspots(Long hotspotId, Double distanceInMeters);
+    List<HotspotResponse> getNearbyHotspots(Double latitude, Double longitude, Double distanceInMeters);
     List<HotspotResponse> getHotspotsByRouteId(Long routeId);
 }
