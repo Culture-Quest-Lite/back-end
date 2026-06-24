@@ -11,7 +11,7 @@ import org.sep490.backend.module.social.service.PostService;
 import org.sep490.backend.module.user.dto.request.UpdateUserRoleRequest;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
-import org.sep490.backend.common.dto.BaseFilterRequest;
+import org.sep490.backend.common.filter.dto.BaseFilterRequest;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.http.ResponseEntity;
