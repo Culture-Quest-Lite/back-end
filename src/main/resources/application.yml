@@ -26,6 +26,11 @@ spring:
         jwt:
           issuer-uri: ${ISSUER_URI}
 
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 220MB
+
   mail:
     host: ${SMTP_HOST}
     port: ${SMTP_PORT}
