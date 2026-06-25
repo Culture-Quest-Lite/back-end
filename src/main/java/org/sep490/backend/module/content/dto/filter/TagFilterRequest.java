@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Min;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
-import org.sep490.backend.module.content.enums.TagStatus;
+import org.sep490.backend.module.content.entity.enumeration.TagStatus;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)

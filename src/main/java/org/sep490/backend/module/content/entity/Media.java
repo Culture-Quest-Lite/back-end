@@ -5,7 +5,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.sep490.backend.module.content.enums.MediaType;
+import org.sep490.backend.module.content.entity.enumeration.MediaType;
 import org.sep490.backend.module.social.entity.Post;
 import org.sep490.backend.module.admin.entity.PartnerSubscription;
 

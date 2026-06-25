@@ -8,7 +8,7 @@ import org.sep490.backend.module.content.dto.filter.StoryFilterRequest;
 import org.sep490.backend.module.content.dto.request.StoryRequest;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
 import org.sep490.backend.module.content.entity.Story;
-import org.sep490.backend.module.content.enums.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.StoryService;
