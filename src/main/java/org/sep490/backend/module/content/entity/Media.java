@@ -62,9 +62,6 @@ public class Media {
     @Column(name = "file_size")
     Double fileSize; // MB
 
-    @Column(name = "duration")
-    Double duration; // s
-
     @Column(name = "display_order")
     Integer displayOrder;
 

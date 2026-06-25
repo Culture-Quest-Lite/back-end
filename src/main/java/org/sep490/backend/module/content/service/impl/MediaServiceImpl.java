@@ -27,11 +27,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.BufferedInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -146,6 +141,38 @@ public class MediaServiceImpl implements MediaService {
         return MediaType.OTHER;
     }
 
+    private static final double MAX_VIDEO_SIZE_MB = 200.0;
+    private static final double MAX_IMAGE_SIZE_MB = 1.0;
+    private static final double MAX_AUDIO_SIZE_MB = 20.0;
+
+    private void validateFileSize(MediaType mediaType, double fileSizeMb, String fileName) {
+        switch (mediaType) {
+            case VIDEO:
+                if (fileSizeMb > MAX_VIDEO_SIZE_MB) {
+                    throw new BusinessException(
+                            String.format("Video '%s' vượt quá dung lượng cho phép (%.1fMB). Tối đa: %.0fMB",
+                                    fileName, fileSizeMb, MAX_VIDEO_SIZE_MB));
+                }
+                break;
+            case IMAGE:
+                if (fileSizeMb > MAX_IMAGE_SIZE_MB) {
+                    throw new BusinessException(
+                            String.format("Ảnh '%s' vượt quá dung lượng cho phép (%.1fMB). Tối đa: %.0fMB",
+                                    fileName, fileSizeMb, MAX_IMAGE_SIZE_MB));
+                }
+                break;
+            case AUDIO:
+                if (fileSizeMb > MAX_AUDIO_SIZE_MB) {
+                    throw new BusinessException(
+                            String.format("Audio '%s' vượt quá dung lượng cho phép (%.1fMB). Tối đa: %.0fMB",
+                                    fileName, fileSizeMb, MAX_AUDIO_SIZE_MB));
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
     private String getSafeFileName(String originalFilename) {
         if (originalFilename == null) {
             return "file";
@@ -170,14 +197,16 @@ public class MediaServiceImpl implements MediaService {
             throw new BusinessException("File không được trống");
         }
 
+        String mimeType = file.getContentType();
+        double fileSizeMb = (double) file.getSize() / (1024 * 1024);
+        MediaType mediaType = determineMediaType(mimeType);
+
+        validateFileSize(mediaType, fileSizeMb, file.getOriginalFilename());
+
         Media media = new Media();
         String folder = determineFolderAndSetEntityRelation(entityType, entityId, media);
 
         String fileUrl = s3Service.uploadFile(file, folder);
-
-        String mimeType = file.getContentType();
-        double fileSizeMb = (double) file.getSize() / (1024 * 1024);
-        MediaType mediaType = determineMediaType(mimeType);
 
         media.setFileUrl(fileUrl);
         media.setFileName(getSafeFileName(file.getOriginalFilename()));
@@ -186,207 +215,7 @@ public class MediaServiceImpl implements MediaService {
         media.setMediaType(mediaType);
         media.setDisplayOrder(displayOrder);
 
-        if (mediaType == MediaType.AUDIO) {
-            media.setDuration(estimateAudioDuration(file));
-        }
-
         media = mediaRepository.save(media);
         return mediaMapper.toResponse(media);
-    }
-
-    private boolean skipFully(InputStream is, long n) throws IOException {
-        long totalSkipped = 0;
-        while (totalSkipped < n) {
-            long skipped = is.skip(n - totalSkipped);
-            if (skipped == 0) {
-                if (is.read() == -1) {
-                    return false;
-                }
-                totalSkipped++;
-            } else {
-                totalSkipped += skipped;
-            }
-        }
-        return true;
-    }
-
-    private Double estimateAudioDuration(MultipartFile file) {
-        String contentType = file.getContentType();
-        if (contentType == null) {
-            return null;
-        }
-        String mime = contentType.toLowerCase();
-        if (!mime.startsWith("audio/")) {
-            return null;
-        }
-
-        Double m4aDuration = parseMp4Duration(file);
-        if (m4aDuration != null) {
-            return m4aDuration;
-        }
-
-        try (InputStream is = new BufferedInputStream(file.getInputStream())) {
-            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(is);
-            AudioFormat format = audioInputStream.getFormat();
-            long frames = audioInputStream.getFrameLength();
-            if (frames > 0 && format.getFrameRate() > 0) {
-                return (double) frames / format.getFrameRate();
-            }
-        } catch (Exception e) {
-            // Ignore
-        }
-
-        try (InputStream is = new BufferedInputStream(file.getInputStream())) {
-            byte[] header = new byte[10];
-            if (is.read(header) != 10) {
-                return null;
-            }
-
-            int id3Size = 0;
-            if (header[0] == 'I' && header[1] == 'D' && header[2] == '3') {
-                int sizeByte0 = header[6] & 0x7F;
-                int sizeByte1 = header[7] & 0x7F;
-                int sizeByte2 = header[8] & 0x7F;
-                int sizeByte3 = header[9] & 0x7F;
-                id3Size = (sizeByte0 << 21) | (sizeByte1 << 14) | (sizeByte2 << 7) | sizeByte3;
-                id3Size += 10;
-            }
-
-            long fileSize = file.getSize();
-            long audioDataSize = fileSize - id3Size;
-            if (audioDataSize <= 0) {
-                return null;
-            }
-
-            try (InputStream ais = new BufferedInputStream(file.getInputStream())) {
-                if (!skipFully(ais, id3Size)) {
-                    return null;
-                }
-
-                byte[] frameHeader = new byte[4];
-                int readBytes = ais.read(frameHeader);
-                if (readBytes == 4) {
-                    if ((frameHeader[0] & 0xFF) == 0xFF && (frameHeader[1] & 0xE0) == 0xE0) {
-                        int mpegVersion = (frameHeader[1] & 0x18) >> 3;
-                        int layer = (frameHeader[1] & 0x06) >> 1;
-                        int bitrateIndex = (frameHeader[2] & 0xF0) >> 4;
-
-                        int bitrate = getMp3Bitrate(mpegVersion, layer, bitrateIndex);
-                        if (bitrate > 0) {
-                            return (double) (audioDataSize * 8) / (bitrate * 1000);
-                        }
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Ignore
-        }
-
-        return null;
-    }
-
-    private int getMp3Bitrate(int mpegVersion, int layer, int bitrateIndex) {
-        if (bitrateIndex <= 0 || bitrateIndex >= 15) {
-            return 0;
-        }
-        if (mpegVersion == 3) {
-            if (layer == 1) {
-                int[] bitrates = { 0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320 };
-                return bitrates[bitrateIndex];
-            }
-        } else if (mpegVersion == 2) {
-            if (layer == 1) {
-                int[] bitrates = { 0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160 };
-                return bitrates[bitrateIndex];
-            }
-        }
-        return 128;
-    }
-
-    private Double parseMp4Duration(MultipartFile file) {
-        try (InputStream is = new BufferedInputStream(file.getInputStream())) {
-            byte[] target = { 0x6D, 0x76, 0x68, 0x64 }; // "mvhd"
-            int targetLen = target.length;
-            int matched = 0;
-            int nextByte;
-
-            while ((nextByte = is.read()) != -1) {
-                if (nextByte == (target[matched] & 0xFF)) {
-                    matched++;
-                    if (matched == targetLen) {
-                        // Found "mvhd"!
-                        int version = is.read();
-                        if (version == -1)
-                            return null;
-
-                        if (!skipFully(is, 3))
-                            return null;
-
-                        long timescale = 0;
-                        long duration = 0;
-
-                        if (version == 0) {
-                            if (!skipFully(is, 8))
-                                return null;
-
-                            byte[] tsBuf = new byte[4];
-                            if (is.read(tsBuf) != 4)
-                                return null;
-                            timescale = ((tsBuf[0] & 0xFFL) << 24) |
-                                    ((tsBuf[1] & 0xFFL) << 16) |
-                                    ((tsBuf[2] & 0xFFL) << 8) |
-                                    (tsBuf[3] & 0xFFL);
-
-                            byte[] durBuf = new byte[4];
-                            if (is.read(durBuf) != 4)
-                                return null;
-                            duration = ((durBuf[0] & 0xFFL) << 24) |
-                                    ((durBuf[1] & 0xFFL) << 16) |
-                                    ((durBuf[2] & 0xFFL) << 8) |
-                                    (durBuf[3] & 0xFFL);
-                        } else if (version == 1) {
-                            if (!skipFully(is, 16))
-                                return null;
-
-                            byte[] tsBuf = new byte[4];
-                            if (is.read(tsBuf) != 4)
-                                return null;
-                            timescale = ((tsBuf[0] & 0xFFL) << 24) |
-                                    ((tsBuf[1] & 0xFFL) << 16) |
-                                    ((tsBuf[2] & 0xFFL) << 8) |
-                                    (tsBuf[3] & 0xFFL);
-
-                            byte[] durBuf = new byte[8];
-                            if (is.read(durBuf) != 8)
-                                return null;
-                            duration = ((durBuf[0] & 0xFFL) << 56) |
-                                    ((durBuf[1] & 0xFFL) << 48) |
-                                    ((durBuf[2] & 0xFFL) << 40) |
-                                    ((durBuf[3] & 0xFFL) << 32) |
-                                    ((durBuf[4] & 0xFFL) << 24) |
-                                    ((durBuf[5] & 0xFFL) << 16) |
-                                    ((durBuf[6] & 0xFFL) << 8) |
-                                    (durBuf[7] & 0xFFL);
-                        } else {
-                            return null;
-                        }
-
-                        if (timescale > 0) {
-                            return (double) duration / timescale;
-                        }
-                        return null;
-                    }
-                } else {
-                    if (nextByte == (target[0] & 0xFF)) {
-                        matched = 1;
-                    } else {
-                        matched = 0;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Ignore
-        }
-        return null;
     }
 }

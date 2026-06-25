@@ -15,7 +15,6 @@ public class MediaResponse {
     String fileUrl;
     String fileName;
     Double fileSize;
-    Double duration;
     Integer displayOrder;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;

@@ -258,6 +258,13 @@ public class UserServiceImpl implements UserService {
 
         return user;
     }
+
+    @Override
+    public User getUserById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+    }
+
     private UserProfileResponse enrichProfileResponse(User user) {
         UserProfileResponse response = userMapper.toProfileResponse(user);
 
