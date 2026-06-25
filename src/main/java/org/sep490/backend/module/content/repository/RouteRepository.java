@@ -11,5 +11,5 @@ import java.util.Optional;
 
 public interface RouteRepository extends JpaRepository<Route, Long>, JpaSpecificationExecutor<Route> {
     Integer countByCreatedBy(User creator);
-    Optional<Route> findByCreatedByAndRouteTypeAndRouteStatus(User creator, RouteType routeType, RouteStatus routeStatus);
+    Optional<Route> findByCreatedByAndTypeAndStatus(User creator, RouteType routeType, RouteStatus routeStatus);
 }
