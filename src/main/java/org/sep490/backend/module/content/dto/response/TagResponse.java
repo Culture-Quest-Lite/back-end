@@ -13,6 +13,7 @@ public class TagResponse {
     Long tagId;
     String tagName;
     TagStatus tagStatus;
+    Long hotspotCount;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 }

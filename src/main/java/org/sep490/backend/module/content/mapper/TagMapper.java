@@ -13,6 +13,7 @@ import org.sep490.backend.module.content.entity.Tag;
 )
 public interface TagMapper {
 
+    @Mapping(target = "hotspotCount", expression = "java((long) tag.getHotspots().size())")
     TagResponse toResponse(Tag tag);
 
     @Mapping(target = "tagId", ignore = true)
