@@ -8,19 +8,17 @@ import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
-import org.sep490.backend.module.content.entity.RouteHotspot;
-import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.exploration.dto.request.CheckInRequest;
 import org.sep490.backend.module.exploration.dto.response.CheckInResponse;
 import org.sep490.backend.module.exploration.entity.CheckIn;
-import org.sep490.backend.module.exploration.entity.UserRouteProgress;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
-import org.sep490.backend.module.exploration.event.CheckInCompletedEvent;
+import org.sep490.backend.module.exploration.event.RouteProgressUpdatedEvent;
 import org.sep490.backend.module.exploration.mapper.CheckInMapper;
 import org.sep490.backend.module.exploration.repository.CheckInRepository;
-import org.sep490.backend.module.exploration.repository.UserRouteProgressRepository;
 import org.sep490.backend.module.exploration.service.inter.CheckInService;
+import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
+import org.sep490.backend.module.gamification.entity.enumeration.XpSource;
+import org.sep490.backend.module.gamification.event.PointXpUpdatedEvent;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -57,7 +55,19 @@ public class CheckInServiceImpl implements CheckInService {
         CheckIn checkin = checkInMapper.toEntity(checkInRequest, user, hotspot, null, distance);
         checkInRepository.save(checkin);
 
-        eventPublisher.publishEvent(new CheckInCompletedEvent(user.getUserId(), hotspot.getHotspotId()));
+        // use to update UserRouteProgress
+        eventPublisher.publishEvent(new RouteProgressUpdatedEvent(user.getUserId(), hotspot.getHotspotId()));
+        // update user point, xp after check-in
+        eventPublisher.publishEvent(new PointXpUpdatedEvent(
+                user.getUserId(),
+                hotspot.getPoint(),
+                hotspot.getXp(),
+                hotspot.getHotspotId(),
+                hotspot.getHotspotId(),
+                TransactionType.HOTSPOT_CHECKIN,
+                "Check-in tại hotspot: " + hotspot.getHotspotName(),
+                XpSource.HOTSPOT_CHECKIN
+        ));
 
         return checkInMapper.toResponse(checkin);
     }

@@ -37,7 +37,11 @@ public class RouteRequest {
     @NotEmpty(message = "Tuyến đường phải thuộc ít nhất 1 tag")
     List<Long> tagIds;
 
-    @NotNull(message = "Điểm thưởng XP không được để trống")
-    @PositiveOrZero(message = "Điểm thưởng XP không được là số âm")
+    @NotNull(message = "Kinh nghiệm không được để trống")
+    @PositiveOrZero(message = "Kinh nghiệm không được là số âm")
     Long xp;
+
+    @NotNull(message = "Điểm thưởng không được để trống")
+    @PositiveOrZero(message = "Điểm thưởng không được là số âm")
+    Long point;
 }

@@ -23,4 +23,5 @@ public interface UserService {
     void unlockUser(Long id);
     void updateUserRole(Long userId, UserRole role);
     User getCurrentUser();
+    User getUserById(Long id);
 }
