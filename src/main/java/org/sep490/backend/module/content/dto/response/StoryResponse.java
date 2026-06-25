@@ -5,6 +5,8 @@ import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 
+import java.util.List;
+
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class StoryResponse {
@@ -14,6 +16,6 @@ public class StoryResponse {
     Integer orderIndex;
     String title;
     String content;
-    String audioUrl;
     ContentStatus status;
+    List<MediaResponse> medias;
 }

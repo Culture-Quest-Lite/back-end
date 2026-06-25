@@ -3,6 +3,7 @@ package org.sep490.backend.module.social.dto.response;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
 import org.sep490.backend.module.social.entity.enumeration.PostVisibility;
 
@@ -26,6 +27,7 @@ public class PostResponse {
     List<Long> hotspotIds;
     List<Long> routeIds;
     List<TagDto> tags;
+    List<MediaResponse> medias;
     LocalDateTime createdAt;
     Integer pointRemaining;
 

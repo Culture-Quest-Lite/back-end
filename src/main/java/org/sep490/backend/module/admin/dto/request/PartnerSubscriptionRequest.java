@@ -37,5 +37,7 @@ public class PartnerSubscriptionRequest {
 
     private MultipartFile documentFile;
 
+    private MultipartFile[] files;
+
     private BillingCycleEnum billingCycle;
 }

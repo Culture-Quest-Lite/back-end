@@ -23,6 +23,9 @@ import org.sep490.backend.module.partner.service.VoucherService;
 import org.sep490.backend.module.user.service.UserService;
 import org.sep490.backend.module.partner.entity.enumeration.VoucherStatus;
 import org.sep490.backend.module.partner.specification.VoucherSpecification;
+import org.sep490.backend.module.content.service.inter.MediaService;
+import org.sep490.backend.module.content.dto.response.MediaResponse;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,8 +34,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +50,7 @@ public class VoucherServiceImpl implements VoucherService {
     UserVoucherRepository userVoucherRepository;
     UserVoucherMapper userVoucherMapper;
     PointTransactionRepository pointTransactionRepository;
+    MediaService mediaService;
 
     static SecureRandom random = new SecureRandom();
     private final UserRepository userRepository;
@@ -72,7 +78,18 @@ public class VoucherServiceImpl implements VoucherService {
         voucher.setVoucherCode(generateCode);
         voucher.setStatus(VoucherStatus.PENDING);
         voucher = voucherRepository.save(voucher);
-        return voucherMapper.toResponse(voucher);
+
+        VoucherResponse response = voucherMapper.toResponse(voucher);
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.VOUCHER, voucher.getVoucherId());
+                response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+        return response;
     }
 
     @Override

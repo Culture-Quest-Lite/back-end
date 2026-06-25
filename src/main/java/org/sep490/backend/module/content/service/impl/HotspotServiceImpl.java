@@ -8,12 +8,15 @@ import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
+import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.mapper.HotspotMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
+import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -22,6 +25,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.HashSet;
 import org.sep490.backend.module.content.entity.Tag;
@@ -37,6 +41,7 @@ public class HotspotServiceImpl implements HotspotService {
     UserService userService;
     RouteHotspotRepository routeHotspotRepository;
     TagRepository tagRepository;
+    MediaService mediaService;
 
     @Override
     @Transactional
@@ -60,7 +65,18 @@ public class HotspotServiceImpl implements HotspotService {
         hotspot.setCreatedBy(userService.getCurrentUser());
         hotspot.setStatus(ContentStatus.DRAFT);
         hotspot = hotspotRepository.save(hotspot);
-        return hotspotMapper.toResponse(hotspot);
+
+        HotspotResponse response = hotspotMapper.toResponse(hotspot);
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.HOTSPOT, hotspot.getHotspotId());
+                response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+        return response;
     }
 
     @Override
