@@ -2,7 +2,7 @@ package org.sep490.backend.module.content.specification;
 
 import jakarta.persistence.criteria.Predicate;
 import org.sep490.backend.module.content.entity.Tag;
-import org.sep490.backend.module.content.enums.TagStatus;
+import org.sep490.backend.module.content.entity.enumeration.TagStatus;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 

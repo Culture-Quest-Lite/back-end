@@ -1,8 +1,7 @@
 package org.sep490.backend.module.content.service.inter;
 
 import org.sep490.backend.module.content.dto.response.MediaResponse;
-import org.sep490.backend.module.content.enums.MediaTargetType;
-import org.sep490.backend.module.content.enums.MediaType;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;

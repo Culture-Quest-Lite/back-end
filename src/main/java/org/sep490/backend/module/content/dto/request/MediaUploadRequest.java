@@ -2,7 +2,7 @@ package org.sep490.backend.module.content.dto.request;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import org.sep490.backend.module.content.enums.MediaTargetType;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.springframework.web.multipart.MultipartFile;
 
 @Data

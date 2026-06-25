@@ -25,7 +25,7 @@ import org.sep490.backend.module.partner.entity.enumeration.VoucherStatus;
 import org.sep490.backend.module.partner.specification.VoucherSpecification;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
-import org.sep490.backend.module.content.enums.MediaTargetType;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;

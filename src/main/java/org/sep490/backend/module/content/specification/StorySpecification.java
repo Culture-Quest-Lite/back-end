@@ -3,7 +3,7 @@ package org.sep490.backend.module.content.specification;
 import jakarta.persistence.criteria.Predicate;
 import org.sep490.backend.module.content.dto.filter.StoryFilterRequest;
 import org.sep490.backend.module.content.entity.Story;
-import org.sep490.backend.module.content.enums.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;

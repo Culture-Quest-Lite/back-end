@@ -7,7 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.locationtech.jts.geom.Point;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.enums.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;

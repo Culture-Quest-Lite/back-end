@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.sep490.backend.module.content.enums.TagStatus;
+import org.sep490.backend.module.content.entity.enumeration.TagStatus;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
