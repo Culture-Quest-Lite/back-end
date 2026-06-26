@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.RouteDifficulty;
+import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 
 import java.util.List;
 
@@ -44,4 +45,6 @@ public class RouteRequest {
     @NotNull(message = "Điểm thưởng không được để trống")
     @PositiveOrZero(message = "Điểm thưởng không được là số âm")
     Long point;
+
+    RouteStatus status;
 }

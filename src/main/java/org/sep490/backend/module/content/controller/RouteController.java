@@ -27,8 +27,8 @@ public class RouteController {
         return ResponseEntity.ok(routeResponse);
     }
 
-    @PostMapping("/search")
-    public ResponseEntity<Page<RouteResponse>> getById(@RequestBody SearchRequest request) {
+    @GetMapping("/search")
+    public ResponseEntity<Page<RouteResponse>> filterRoutes(@ModelAttribute SearchRequest request) {
         Page<RouteResponse> routeResponse = routeService.filterRoutes(request);
         return ResponseEntity.ok(routeResponse);
     }
