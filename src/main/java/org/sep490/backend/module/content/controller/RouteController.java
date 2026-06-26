@@ -10,6 +10,7 @@ import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,8 +34,8 @@ public class RouteController {
         return ResponseEntity.ok(routeResponse);
     }
 
-    @PostMapping
-    public ResponseEntity<RouteResponse> create(@Valid @RequestBody RouteRequest routeRequest) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RouteResponse> create(@Valid @ModelAttribute RouteRequest routeRequest) {
         RouteResponse routeResponse = routeService.create(routeRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(routeResponse);
     }

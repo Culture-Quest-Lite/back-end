@@ -24,4 +24,7 @@ public interface MediaRepository extends JpaRepository<Media, Long> {
 
     @Query("SELECT COALESCE(MAX(m.displayOrder), 0) FROM Media m WHERE m.voucher.voucherId = :voucherId")
     int findMaxDisplayOrderByVoucherId(@Param("voucherId") Long voucherId);
+
+    @Query("SELECT COALESCE(MAX(m.displayOrder), 0) FROM Media m WHERE m.route.routeId = :routeId")
+    int findMaxDisplayOrderByRouteId(@Param("routeId") Long routeId);
 }
