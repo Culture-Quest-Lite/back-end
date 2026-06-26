@@ -14,14 +14,17 @@ import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.RouteHotspot;
-import org.sep490.backend.module.content.enums.ContentStatus;
-import org.sep490.backend.module.content.enums.RouteType;
+import org.sep490.backend.module.content.entity.enumeration.RouteDifficulty;
+import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
+import org.sep490.backend.module.content.entity.enumeration.RouteType;
 import org.sep490.backend.module.content.mapper.RouteMapper;
-import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
+import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.RouteService;
+import org.sep490.backend.module.content.dto.response.MediaResponse;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +33,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashSet;
@@ -47,6 +51,7 @@ public class RouteServiceImpl implements RouteService {
     HotspotService hotspotService;
     UserService userService;
     TagRepository tagRepository;
+    MediaService mediaService;
 
     @Override
     @Transactional
@@ -62,7 +67,7 @@ public class RouteServiceImpl implements RouteService {
         User creator = userService.getCurrentUser();
 
         route.setCreatedBy(creator);
-        route.setStatus(ContentStatus.DRAFT);
+        route.setStatus(RouteStatus.DRAFT);
         route.setType(RouteType.OFFICIAL);
         route.setIsLocked(false);
         route.setTotalStops(request.getHotspots().size());
@@ -71,7 +76,17 @@ public class RouteServiceImpl implements RouteService {
 
         List<RouteHotspot> routeHotspots = processRouteHotspots(route, request.getHotspots());
 
-        return buildRouteResponse(route, routeHotspots);
+        RouteResponse response = buildRouteResponse(route, routeHotspots);
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.ROUTE, route.getRouteId());
+                response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+        return response;
     }
 
     @Override
@@ -113,7 +128,7 @@ public class RouteServiceImpl implements RouteService {
 
         Route route =  getById(id);
 
-        route.setStatus(ContentStatus.DELETED);
+        route.setStatus(RouteStatus.DELETED);
         routeRepository.save(route);
     }
 
@@ -166,6 +181,67 @@ public class RouteServiceImpl implements RouteService {
         List<RouteHotspot> newRouteHotspots = routeHotspotRepository.findByRoute_RouteId(routeId);
 
         return buildRouteResponse(route, newRouteHotspots);
+    }
+
+    @Override
+    @Transactional
+    public RouteResponse recordJourney() {
+
+        User creator = userService.getCurrentUser();
+
+        // check if user was currently recording any journey
+        if(findRecordingCustomRouteByUserId(creator.getUserId()) != null) {
+            throw new BusinessException("Người dùng đã có hành trình đang ghi lại. " +
+                    "Vui lòng hoàn thành hành trình trước khi bắt đầu hành trình mới.");
+        }
+
+        Route route = new Route();
+
+        int createdRoutes = routeRepository.countByCreatedBy(creator);
+
+        route.setRouteName("Hành trình #" + (createdRoutes + 1) + " của " + creator.getDisplayName());
+        route.setDescription("Hành trình #" + (createdRoutes + 1) + " của " + creator.getDisplayName());
+        route.setDifficulty(RouteDifficulty.EASY);
+        route.setXp(0L);
+        route.setPoint(0L);
+        route.setEstimateTime(0.0);
+        route.setTotalDistance(0.0);
+        route.setCreatedBy(creator);
+        route.setStatus(RouteStatus.RECORDING);
+        route.setType(RouteType.CUSTOM);
+        route.setIsLocked(false);
+        route.setTotalStops(0);
+
+        route = routeRepository.save(route);
+
+        List<RouteHotspot> routeHotspots = processRouteHotspots(route, new ArrayList<>());
+
+        return buildRouteResponse(route, routeHotspots);
+    }
+
+    @Override
+    @Transactional
+    public RouteResponse finishRecordJourney() {
+
+        User user  = userService.getCurrentUser();
+        Route route = findRecordingCustomRouteByUserId(user.getUserId());
+
+        route.setStatus(RouteStatus.TRIAL);
+        route = routeRepository.save(route);
+
+        List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteId(route.getRouteId());
+
+        return buildRouteResponse(route, routeHotspots);
+    }
+
+    @Override
+    public Route findRecordingCustomRouteByUserId(Long userId) {
+
+        User user = userService.getUserById(userId);
+
+        return routeRepository
+                .findByCreatedByAndTypeAndStatus(user, RouteType.CUSTOM, RouteStatus.RECORDING)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy hành trình đang ghi lại của người dùng này."));
     }
 
 
@@ -243,6 +319,9 @@ public class RouteServiceImpl implements RouteService {
 
             lastRouteHotspot.setDistanceToNext(distance);
             routeHotspotRepository.save(lastRouteHotspot);
+
+            route.setTotalDistance(route.getTotalDistance() + distance);
+            routeRepository.save(route);
         } else {
             newRouteHotspot.setIndex(0);
         }

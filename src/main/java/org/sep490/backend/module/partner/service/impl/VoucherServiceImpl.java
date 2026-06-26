@@ -25,7 +25,7 @@ import org.sep490.backend.module.partner.entity.enumeration.VoucherStatus;
 import org.sep490.backend.module.partner.specification.VoucherSpecification;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
-import org.sep490.backend.module.content.enums.MediaTargetType;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -132,12 +132,13 @@ public class VoucherServiceImpl implements VoucherService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<VoucherResponse> getVouchers(VoucherFilter filter) {
+    public Page<VoucherResponse> getVouchers(Long partnerId, VoucherFilter filter) {
         Sort sort = filter.getSortDir().equalsIgnoreCase(Sort.Direction.ASC.name())
                 ? Sort.by(filter.getSortBy()).ascending()
                 : Sort.by(filter.getSortBy()).descending();
         Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
 
+        filter.setPartnerId(partnerId);
         Specification<Voucher> spec = VoucherSpecification.filterVouchers(filter);
         return voucherRepository.findAll(spec, pageable).map(voucherMapper::toResponse);
     }

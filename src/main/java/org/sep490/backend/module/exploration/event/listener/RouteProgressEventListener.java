@@ -4,15 +4,17 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.Hotspot;
+import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.RouteHotspot;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteHotspotRepository;
+import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.exploration.entity.UserRouteProgress;
 import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
 import org.sep490.backend.module.exploration.event.RouteProgressUpdatedEvent;
 import org.sep490.backend.module.exploration.repository.UserRouteProgressRepository;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
-import org.sep490.backend.module.gamification.entity.enumeration.XpSource;
+import org.sep490.backend.module.gamification.entity.enumeration.ActionType;
 import org.sep490.backend.module.gamification.event.PointXpUpdatedEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
@@ -23,7 +25,6 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDateTime;
-import java.util.EventListener;
 import java.util.List;
 
 @Component
@@ -35,6 +36,7 @@ public class RouteProgressEventListener {
     UserRouteProgressRepository userRouteProgressRepository;
     HotspotRepository hotspotRepository;
     ApplicationEventPublisher eventPublisher;
+    RouteRepository routeRepository;
 
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -75,8 +77,12 @@ public class RouteProgressEventListener {
                         hotspot.getHotspotId(),
                         TransactionType.ROUTE_COMPLETION,
                         "Hoàn thành tuyến đường: " + progress.getRoute().getRouteName(),
-                        XpSource.ROUTE_COMPLETION
+                        ActionType.ROUTE_COMPLETION
                 ));
+
+                Route route = progress.getRoute();
+                route.setTotalCheckIns(route.getTotalCheckIns() + 1);
+                routeRepository.save(progress.getRoute());
             }
         }
 

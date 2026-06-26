@@ -12,12 +12,13 @@ import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.exploration.dto.request.CheckInRequest;
 import org.sep490.backend.module.exploration.dto.response.CheckInResponse;
 import org.sep490.backend.module.exploration.entity.CheckIn;
+import org.sep490.backend.module.exploration.event.CustomRouteUpdatedEvent;
 import org.sep490.backend.module.exploration.event.RouteProgressUpdatedEvent;
 import org.sep490.backend.module.exploration.mapper.CheckInMapper;
 import org.sep490.backend.module.exploration.repository.CheckInRepository;
 import org.sep490.backend.module.exploration.service.inter.CheckInService;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
-import org.sep490.backend.module.gamification.entity.enumeration.XpSource;
+import org.sep490.backend.module.gamification.entity.enumeration.ActionType;
 import org.sep490.backend.module.gamification.event.PointXpUpdatedEvent;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.context.ApplicationEventPublisher;
@@ -66,8 +67,10 @@ public class CheckInServiceImpl implements CheckInService {
                 hotspot.getHotspotId(),
                 TransactionType.HOTSPOT_CHECKIN,
                 "Check-in tại hotspot: " + hotspot.getHotspotName(),
-                XpSource.HOTSPOT_CHECKIN
+                ActionType.HOTSPOT_CHECKIN
         ));
+
+        eventPublisher.publishEvent(new CustomRouteUpdatedEvent(user.getUserId(), hotspot.getHotspotId()));
 
         return checkInMapper.toResponse(checkin);
     }

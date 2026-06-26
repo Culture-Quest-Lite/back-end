@@ -6,9 +6,10 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.enums.ContentStatus;
-import org.sep490.backend.module.content.enums.RouteDifficulty;
-import org.sep490.backend.module.content.enums.RouteType;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.RouteDifficulty;
+import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
+import org.sep490.backend.module.content.entity.enumeration.RouteType;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -63,11 +64,22 @@ public class Route {
     @Column(name = "total_distance", nullable = false)
     Double totalDistance;
 
+    @Builder.Default
+    @Column(name = "total_check_ins", nullable = false)
+    Integer totalCheckIns = 0;
+
     @Column(name = "is_locked")
     Boolean isLocked;
 
+    // to reduce query
     @Column(name = "total_stops", nullable = false)
     Integer totalStops;
+
+    @Column(name = "share_token")
+    String shareToken;
+
+    @Column(name = "share_expired_at")
+    LocalDateTime shareExpiredAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "type")
@@ -75,7 +87,7 @@ public class Route {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    ContentStatus status;
+    RouteStatus status;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

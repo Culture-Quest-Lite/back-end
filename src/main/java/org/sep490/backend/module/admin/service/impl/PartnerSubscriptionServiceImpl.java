@@ -21,7 +21,7 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
-import org.sep490.backend.module.content.enums.MediaTargetType;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.S3Service;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;

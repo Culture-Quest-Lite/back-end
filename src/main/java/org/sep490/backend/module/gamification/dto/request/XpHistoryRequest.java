@@ -4,7 +4,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
-import org.sep490.backend.module.gamification.entity.enumeration.XpSource;
+import org.sep490.backend.module.gamification.entity.enumeration.ActionType;
 
 @Data
 @Builder
@@ -12,7 +12,7 @@ import org.sep490.backend.module.gamification.entity.enumeration.XpSource;
 public class XpHistoryRequest {
     Long userId;
     Long xpAmount;
-    XpSource source;
+    ActionType source;
     Long referenceId;
     String description;
 }

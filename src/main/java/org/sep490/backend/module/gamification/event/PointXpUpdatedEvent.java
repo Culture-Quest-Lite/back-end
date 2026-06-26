@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
-import org.sep490.backend.module.gamification.entity.enumeration.XpSource;
+import org.sep490.backend.module.gamification.entity.enumeration.ActionType;
 
 @Getter
 @AllArgsConstructor
@@ -18,5 +18,5 @@ public class PointXpUpdatedEvent {
     Long referenceId;
     TransactionType transactionType;
     String description;
-    XpSource source;
+    ActionType source;
 }

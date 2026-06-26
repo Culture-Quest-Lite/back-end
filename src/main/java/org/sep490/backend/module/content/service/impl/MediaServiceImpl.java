@@ -10,11 +10,13 @@ import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Media;
 import org.sep490.backend.module.content.entity.Story;
-import org.sep490.backend.module.content.enums.MediaType;
-import org.sep490.backend.module.content.enums.MediaTargetType;
+import org.sep490.backend.module.content.entity.enumeration.MediaType;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.mapper.MediaMapper;
+import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.MediaRepository;
+import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.S3Service;
@@ -41,6 +43,7 @@ public class MediaServiceImpl implements MediaService {
     PostRepository postRepository;
     PartnerSubscriptionRepository partnerSubscriptionRepository;
     VoucherRepository voucherRepository;
+    RouteRepository routeRepository;
     S3Service s3Service;
     MediaMapper mediaMapper;
 
@@ -74,6 +77,8 @@ public class MediaServiceImpl implements MediaService {
                 return mediaRepository.findMaxDisplayOrderByPartnerSubscriptionId(entityId);
             case VOUCHER:
                 return mediaRepository.findMaxDisplayOrderByVoucherId(entityId);
+            case ROUTE:
+                return mediaRepository.findMaxDisplayOrderByRouteId(entityId);
             default:
                 return 0;
         }
@@ -121,6 +126,11 @@ public class MediaServiceImpl implements MediaService {
                         .orElseThrow(() -> new BusinessException("Voucher không tồn tại với ID: " + entityId));
                 media.setVoucher(voucher);
                 return "vouchers";
+            case ROUTE:
+                Route route = routeRepository.findById(entityId)
+                        .orElseThrow(() -> new BusinessException("Route không tồn tại với ID: " + entityId));
+                media.setRoute(route);
+                return "routes";
             default:
                 throw new BusinessException("Không hỗ trợ loại thực thể: " + entityType);
         }

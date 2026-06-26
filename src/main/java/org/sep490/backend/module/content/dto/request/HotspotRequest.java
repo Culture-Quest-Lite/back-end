@@ -6,6 +6,7 @@ import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
@@ -72,4 +73,6 @@ public class HotspotRequest {
     @JsonFormat(pattern = "HH:mm:ss")
     @Schema(type = "string", example = "22:00:00")
     LocalTime closingTime;
+
+    ContentStatus status;
 }
