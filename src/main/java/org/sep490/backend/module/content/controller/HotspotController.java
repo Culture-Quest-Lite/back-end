@@ -52,8 +52,8 @@ public class HotspotController {
         return ResponseEntity.ok(responses);
     }
 
-    @PostMapping("/search")
-    public ResponseEntity<Page<HotspotResponse>> filter(@RequestBody SearchRequest request) {
+    @GetMapping("/search")
+    public ResponseEntity<Page<HotspotResponse>> filter(@ModelAttribute SearchRequest request) {
         Page<HotspotResponse> responses = hotspotService.filterHotspots(request);
         return ResponseEntity.ok(responses);
     }
