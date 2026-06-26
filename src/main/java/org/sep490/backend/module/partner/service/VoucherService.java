@@ -10,7 +10,7 @@ public interface VoucherService {
     VoucherResponse createVoucher(VoucherRequest request);
     VoucherResponse updateVoucher(Long id, VoucherRequest request);
     VoucherResponse getVoucherById(Long id);
-    Page<VoucherResponse> getVouchers(VoucherFilter filter);
+    Page<VoucherResponse> getVouchers(Long partnerId, VoucherFilter filter);
     void deleteVoucher(Long id);
     Page<VoucherResponse> getAvailableVouchers(VoucherFilter filter);
     UserVoucherResponse redeemVoucher(Long voucherId);
