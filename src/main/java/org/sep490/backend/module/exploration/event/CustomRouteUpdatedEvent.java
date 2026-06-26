@@ -8,7 +8,7 @@ import lombok.experimental.FieldDefaults;
 @Getter
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class CheckInCompletedEvent {
+public class CustomRouteUpdatedEvent {
     Long userId;
     Long hotspotId;
 }

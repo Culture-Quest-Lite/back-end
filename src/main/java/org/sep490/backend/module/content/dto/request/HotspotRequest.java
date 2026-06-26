@@ -6,6 +6,7 @@ import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -14,6 +15,7 @@ import java.util.List;
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class HotspotRequest {
+    MultipartFile[] files;
     @NotEmpty(message = "Địa điểm phải thuộc ít nhất 1 tag")
     List<Long> tagIds;
 

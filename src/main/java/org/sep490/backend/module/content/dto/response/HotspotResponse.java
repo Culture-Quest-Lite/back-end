@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
-import org.sep490.backend.module.content.enums.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -48,4 +48,5 @@ public class HotspotResponse {
     LocalTime closingTime;
 
     ContentStatus status;
+    List<MediaResponse> medias;
 }

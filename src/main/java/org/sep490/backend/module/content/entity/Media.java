@@ -5,9 +5,10 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.sep490.backend.module.content.enums.MediaType;
+import org.sep490.backend.module.content.entity.enumeration.MediaType;
 import org.sep490.backend.module.social.entity.Post;
 import org.sep490.backend.module.admin.entity.PartnerSubscription;
+import org.sep490.backend.module.partner.entity.Voucher;
 
 import java.time.LocalDateTime;
 
@@ -41,6 +42,10 @@ public class Media {
     @JoinColumn(name = "partner_subscription_id")
     PartnerSubscription partnerSubscription;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "voucher_id")
+    Voucher voucher;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type")
     MediaType mediaType;
@@ -56,9 +61,6 @@ public class Media {
 
     @Column(name = "file_size")
     Double fileSize; // MB
-
-    @Column(name = "duration")
-    Double duration; // s
 
     @Column(name = "display_order")
     Integer displayOrder;

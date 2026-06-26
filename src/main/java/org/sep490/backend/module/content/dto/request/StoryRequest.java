@@ -4,10 +4,12 @@ import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class StoryRequest {
+    MultipartFile[] files;
     @NotNull(message = "Tag ID không được để trống")
     Long tagId;
 
@@ -20,8 +22,4 @@ public class StoryRequest {
 
     @NotBlank(message = "Nội dung cốt truyện không được để trống")
     String content;
-
-    // Chặn URL sai định dạng để tránh lỗi khi Mobile App load Audio
-    @Pattern(regexp = "^(http|https)://.*$", message = "URL âm thanh không hợp lệ (phải bắt đầu bằng http hoặc https)")
-    String audioUrl;
 }

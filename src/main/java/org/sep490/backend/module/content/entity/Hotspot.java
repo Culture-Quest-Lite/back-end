@@ -7,13 +7,15 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.locationtech.jts.geom.Point;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.enums.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "hotspots")
@@ -84,6 +86,10 @@ public class Hotspot implements Serializable {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     ContentStatus status;
+
+    @OneToMany(mappedBy = "hotspot", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    List<Media> medias = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

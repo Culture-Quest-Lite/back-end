@@ -4,6 +4,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
+import org.sep490.backend.module.content.dto.response.MediaResponse;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
+import org.sep490.backend.module.content.service.inter.MediaService;
 import org.springframework.beans.factory.annotation.Value;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.authentication.entity.User;
@@ -31,6 +34,7 @@ import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -46,6 +50,7 @@ public class PostServiceImpl implements PostService {
     PostMapper postMapper;
     UserService userService;
     PointTransactionRepository pointTransactionRepository;
+    MediaService mediaService;
 
     @NonFinal
     @Value("${app.points.create-post:20}")
@@ -104,7 +109,18 @@ public class PostServiceImpl implements PostService {
                 .referenceId(post.getPostId())
                 .build();
         pointTransactionRepository.save(pointTransaction);
-        return postMapper.toResponse(post);
+
+        PostResponse response = postMapper.toResponse(post);
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.POST, post.getPostId());
+                response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+        return response;
     }
 
     @Override

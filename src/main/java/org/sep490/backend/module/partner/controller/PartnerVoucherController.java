@@ -12,6 +12,7 @@ import org.sep490.backend.module.partner.service.VoucherService;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,8 +30,8 @@ public class PartnerVoucherController {
         return ResponseEntity.ok(voucherService.getVouchers(filter));
     }
 
-    @PostMapping
-    public ResponseEntity<VoucherResponse> createVoucher(@Valid @RequestBody VoucherRequest request) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<VoucherResponse> createVoucher(@Valid @ModelAttribute VoucherRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(voucherService.createVoucher(request));
     }
 
