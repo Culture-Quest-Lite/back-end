@@ -22,4 +22,5 @@ public class RouteResponse {
     Long point;
     List<TagResponse> tags;
     List<RouteHotspotResponse> hotspots;
+    List<MediaResponse> medias;
 }

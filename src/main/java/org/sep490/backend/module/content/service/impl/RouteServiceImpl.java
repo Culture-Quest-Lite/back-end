@@ -21,7 +21,10 @@ import org.sep490.backend.module.content.mapper.RouteMapper;
 import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
+import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.RouteService;
+import org.sep490.backend.module.content.dto.response.MediaResponse;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,6 +33,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashSet;
@@ -47,6 +51,7 @@ public class RouteServiceImpl implements RouteService {
     HotspotService hotspotService;
     UserService userService;
     TagRepository tagRepository;
+    MediaService mediaService;
 
     @Override
     @Transactional
@@ -71,7 +76,17 @@ public class RouteServiceImpl implements RouteService {
 
         List<RouteHotspot> routeHotspots = processRouteHotspots(route, request.getHotspots());
 
-        return buildRouteResponse(route, routeHotspots);
+        RouteResponse response = buildRouteResponse(route, routeHotspots);
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.ROUTE, route.getRouteId());
+                response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+        return response;
     }
 
     @Override

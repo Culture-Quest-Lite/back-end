@@ -7,12 +7,14 @@ import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.RouteDifficulty;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RouteRequest {
+    MultipartFile[] files;
     @NotBlank(message = "Tên tuyến đường không được để trống")
     @Size(max = 100, message = "Tên tuyến đường không được vượt quá 100 ký tự")
     String routeName;
