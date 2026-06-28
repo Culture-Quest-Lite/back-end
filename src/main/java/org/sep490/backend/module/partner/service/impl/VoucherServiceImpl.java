@@ -132,12 +132,13 @@ public class VoucherServiceImpl implements VoucherService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<VoucherResponse> getVouchers(VoucherFilter filter) {
+    public Page<VoucherResponse> getVouchers(Long partnerId, VoucherFilter filter) {
         Sort sort = filter.getSortDir().equalsIgnoreCase(Sort.Direction.ASC.name())
                 ? Sort.by(filter.getSortBy()).ascending()
                 : Sort.by(filter.getSortBy()).descending();
         Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
 
+        filter.setPartnerId(partnerId);
         Specification<Voucher> spec = VoucherSpecification.filterVouchers(filter);
         return voucherRepository.findAll(spec, pageable).map(voucherMapper::toResponse);
     }

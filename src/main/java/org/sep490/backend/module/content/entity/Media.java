@@ -46,6 +46,10 @@ public class Media {
     @JoinColumn(name = "voucher_id")
     Voucher voucher;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "route_id")
+    Route route;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type")
     MediaType mediaType;

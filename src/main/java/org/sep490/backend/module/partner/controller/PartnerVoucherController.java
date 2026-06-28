@@ -17,38 +17,39 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/partner/vouchers")
+@RequestMapping("/api/partner")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PartnerVoucherController {
 
     VoucherService voucherService;
 
-    @GetMapping
+    @GetMapping("/{id}/vouchers")
     public ResponseEntity<Page<VoucherResponse>> getVouchers(
+            @PathVariable Long id,
             @Valid @ParameterObject @ModelAttribute VoucherFilter filter) {
-        return ResponseEntity.ok(voucherService.getVouchers(filter));
+        return ResponseEntity.ok(voucherService.getVouchers(id, filter));
     }
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/vouchers", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<VoucherResponse> createVoucher(@Valid @ModelAttribute VoucherRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(voucherService.createVoucher(request));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/vouchers/{id}")
     public ResponseEntity<VoucherResponse> updateVoucher(
             @PathVariable Long id,
             @Valid @RequestBody VoucherRequest request) {
         return ResponseEntity.ok(voucherService.updateVoucher(id, request));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/vouchers/{id}")
     public ResponseEntity<Void> deleteVoucher(@PathVariable Long id) {
         voucherService.deleteVoucher(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/use")
+    @PostMapping("/vouchers/use")
     public ResponseEntity<UserVoucherResponse> useVoucher(@RequestParam String voucherCode) {
         return ResponseEntity.ok(voucherService.useVoucher(voucherCode));
     }

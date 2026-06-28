@@ -5,6 +5,7 @@ public enum MediaTargetType {
     HOTSPOT,
     POST,
     PARTNER_SUBSCRIPTION,
-    VOUCHER
+    VOUCHER,
+    ROUTE
 }
 
