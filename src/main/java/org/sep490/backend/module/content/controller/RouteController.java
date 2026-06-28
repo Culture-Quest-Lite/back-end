@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
+import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -37,8 +38,8 @@ public class RouteController {
     }
 
     @GetMapping("/hotspot/{hotspotId}")
-    public ResponseEntity<List<RouteResponse>> getByHotspotId(@PathVariable Long hotspotId) {
-        List<RouteResponse> routeResponses = routeService.getByHotspotId(hotspotId);
+    public ResponseEntity<List<RouteResponse>> getByHotspotId(@PathVariable Long hotspotId, @RequestParam RouteStatus routeStatus) {
+        List<RouteResponse> routeResponses = routeService.getByHotspotId(hotspotId, routeStatus);
         return ResponseEntity.ok(routeResponses);
     }
 

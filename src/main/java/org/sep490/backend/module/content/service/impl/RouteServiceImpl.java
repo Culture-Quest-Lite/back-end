@@ -247,9 +247,9 @@ public class RouteServiceImpl implements RouteService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<RouteResponse> getByHotspotId(Long hotspotId) {
+    public List<RouteResponse> getByHotspotId(Long hotspotId, RouteStatus routeStatus) {
         Hotspot hotspot = hotspotService.getById(hotspotId);
-        return routeRepository.findRoutesByHotspotIdAndStatus(hotspot.getHotspotId(), RouteStatus.PUBLISHED).stream()
+        return routeRepository.findRoutesByHotspotIdAndStatus(hotspot.getHotspotId(), routeStatus).stream()
                 .map(routeMapper::toResponse)
                 .toList();
     }
