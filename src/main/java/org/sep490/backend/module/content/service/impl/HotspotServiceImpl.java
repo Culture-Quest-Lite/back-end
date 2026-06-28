@@ -91,6 +91,15 @@ public class HotspotServiceImpl implements HotspotService {
     }
 
     @Override
+    @Transactional
+    public HotspotResponse updateStatus(Long id, ContentStatus status) {
+        Hotspot hotspot = getById(id);
+        hotspot.setStatus(status);
+        hotspot = hotspotRepository.save(hotspot);
+        return hotspotMapper.toResponse(hotspot);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public HotspotResponse getDetail(Long id) {
         Hotspot hotspot = getById(id);

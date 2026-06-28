@@ -4,6 +4,7 @@ import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.springframework.data.domain.Page;
 
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 public interface HotspotService {
     HotspotResponse create(HotspotRequest request);
     HotspotResponse update(Long id, HotspotRequest request);
+    HotspotResponse updateStatus(Long id, ContentStatus status);
     HotspotResponse getDetail(Long id);
     List<HotspotResponse> getAll();
     void delete(Long id);

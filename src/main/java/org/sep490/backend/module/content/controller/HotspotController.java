@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.springframework.data.domain.Page;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
@@ -67,6 +68,12 @@ public class HotspotController {
     @PutMapping("/{id}")
     public ResponseEntity<HotspotResponse> updateHotspot(@PathVariable Long id, @Valid @RequestBody HotspotRequest hotspotRequest) {
         HotspotResponse response = hotspotService.update(id, hotspotRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<HotspotResponse> updateHotspotStatus(@PathVariable Long id, @Valid @RequestParam ContentStatus status) {
+        HotspotResponse response = hotspotService.updateStatus(id, status);
         return ResponseEntity.ok(response);
     }
 
