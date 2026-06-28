@@ -14,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/routes")
 @RequiredArgsConstructor
@@ -32,6 +34,12 @@ public class RouteController {
     public ResponseEntity<Page<RouteResponse>> filterRoutes(@ModelAttribute SearchRequest request) {
         Page<RouteResponse> routeResponse = routeService.filterRoutes(request);
         return ResponseEntity.ok(routeResponse);
+    }
+
+    @GetMapping("/hotspot/{hotspotId}")
+    public ResponseEntity<List<RouteResponse>> getByHotspotId(@PathVariable Long hotspotId) {
+        List<RouteResponse> routeResponses = routeService.getByHotspotId(hotspotId);
+        return ResponseEntity.ok(routeResponses);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

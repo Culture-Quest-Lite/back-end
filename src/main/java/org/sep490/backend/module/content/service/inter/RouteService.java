@@ -6,6 +6,8 @@ import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.entity.Route;
 import org.springframework.data.domain.Page;
 
+import java.util.List;
+
 public interface RouteService {
     RouteResponse create(RouteRequest request);
     RouteResponse update(Long id, RouteRequest request);
@@ -18,4 +20,5 @@ public interface RouteService {
     RouteResponse recordJourney();
     RouteResponse finishRecordJourney();
     Route findRecordingCustomRouteByUserId(Long userId);
+    List<RouteResponse> getByHotspotId(Long hotspotId);
 }
