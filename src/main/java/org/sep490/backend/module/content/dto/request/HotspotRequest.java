@@ -74,5 +74,5 @@ public class HotspotRequest {
     @Schema(type = "string", example = "22:00:00")
     LocalTime closingTime;
 
-    ContentStatus status;
+    //ContentStatus status;
 }
