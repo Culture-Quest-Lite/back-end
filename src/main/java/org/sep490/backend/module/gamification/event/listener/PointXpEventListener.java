@@ -77,6 +77,7 @@ public class PointXpEventListener {
     public void handleRouteProgressCompleted(RouteProgressCompletedEvent event) {
         User user = userService.getUserById(event.userId());
         Long currUserPoint = Long.valueOf(user.getTotalPoints());
+        //
 
         Route route = routeService.getById(event.routeId());
         Long earnedPoint = route.getPoint();
