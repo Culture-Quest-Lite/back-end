@@ -43,6 +43,7 @@ public class XpHistoryServiceImpl implements XpHistoryService {
         userRepository.save(currUser);
 
         XpHistory xpHistory = xpHistoryMapper.toEntity(request, currUser, balanceAfter);
+        xpHistory.setUser(currUser);
 
         xpHistoryRepository.save(xpHistory);
     }
