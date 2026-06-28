@@ -12,14 +12,12 @@ import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.exploration.dto.request.CheckInRequest;
 import org.sep490.backend.module.exploration.dto.response.CheckInResponse;
 import org.sep490.backend.module.exploration.entity.CheckIn;
-import org.sep490.backend.module.exploration.event.CustomRouteUpdatedEvent;
-import org.sep490.backend.module.exploration.event.RouteProgressUpdatedEvent;
+import org.sep490.backend.module.exploration.event.CheckInCompletedEvent;
 import org.sep490.backend.module.exploration.mapper.CheckInMapper;
 import org.sep490.backend.module.exploration.repository.CheckInRepository;
 import org.sep490.backend.module.exploration.service.inter.CheckInService;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
 import org.sep490.backend.module.gamification.entity.enumeration.ActionType;
-import org.sep490.backend.module.gamification.event.PointXpUpdatedEvent;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -54,12 +52,12 @@ public class CheckInServiceImpl implements CheckInService {
         }
 
         CheckIn checkin = checkInMapper.toEntity(checkInRequest, user, hotspot, null, distance);
+        checkin.setHotspot(hotspot);
         checkInRepository.save(checkin);
 
         // use to update UserRouteProgress
-        eventPublisher.publishEvent(new RouteProgressUpdatedEvent(user.getUserId(), hotspot.getHotspotId()));
         // update user point, xp after check-in
-        eventPublisher.publishEvent(new PointXpUpdatedEvent(
+        eventPublisher.publishEvent(new CheckInCompletedEvent(
                 user.getUserId(),
                 hotspot.getPoint(),
                 hotspot.getXp(),
@@ -69,9 +67,6 @@ public class CheckInServiceImpl implements CheckInService {
                 "Check-in tại hotspot: " + hotspot.getHotspotName(),
                 ActionType.HOTSPOT_CHECKIN
         ));
-
-        eventPublisher.publishEvent(new CustomRouteUpdatedEvent(user.getUserId(), hotspot.getHotspotId()));
-
         return checkInMapper.toResponse(checkin);
     }
 }
