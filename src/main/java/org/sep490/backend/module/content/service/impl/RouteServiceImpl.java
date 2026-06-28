@@ -14,6 +14,7 @@ import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.RouteHotspot;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteDifficulty;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteType;
@@ -227,6 +228,15 @@ public class RouteServiceImpl implements RouteService {
         return routeRepository
                 .findByCreatedByAndTypeAndStatus(user, RouteType.CUSTOM, RouteStatus.RECORDING)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy hành trình đang ghi lại của người dùng này."));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RouteResponse> getByHotspotId(Long hotspotId) {
+        Hotspot hotspot = hotspotService.getById(hotspotId);
+        return routeRepository.findRoutesByHotspotIdAndStatus(hotspot.getHotspotId(), RouteStatus.PUBLISHED).stream()
+                .map(routeMapper::toResponse)
+                .toList();
     }
 
 
