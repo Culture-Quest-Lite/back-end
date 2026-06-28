@@ -42,6 +42,11 @@ public class CheckInServiceImpl implements CheckInService {
 
         User user = userService.getCurrentUser();
         Hotspot hotspot = hotspotService.getById(checkInRequest.getHotspotId());
+
+        if(checkInRepository.existsByUser_UserIdAndHotspot_HotspotId(user.getUserId(), hotspot.getHotspotId())) {
+            throw new BusinessException("Bạn đã check-in tại hotspot này trước đó");
+        }
+
         Point hotspotLocation = hotspot.getLocation();
         Point userLocation = SpatialUtils.fromCoordinates(checkInRequest.getLongitude(), checkInRequest.getLatitude());
 

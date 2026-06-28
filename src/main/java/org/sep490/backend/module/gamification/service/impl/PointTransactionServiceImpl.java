@@ -72,6 +72,7 @@ public class PointTransactionServiceImpl implements PointTransactionService {
         userRepository.save(user);
 
         PointTransaction pointTransaction = pointTransactionMapper.toEntity(request, user);
+        pointTransaction.setUser(user);
 
         pointTransactionRepository.save(pointTransaction);
     }
