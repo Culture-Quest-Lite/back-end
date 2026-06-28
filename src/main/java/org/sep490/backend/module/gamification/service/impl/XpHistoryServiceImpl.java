@@ -27,7 +27,7 @@ public class XpHistoryServiceImpl implements XpHistoryService {
     @Override
     public void create(XpHistoryRequest request) {
 
-        User currUser = userService.getCurrentUser();
+        User currUser = userService.getUserById(request.getUserId());
         XpHistory currXH = xpHistoryRepository
                 .findFirstByUser_UserIdOrderByCreatedAtDesc(currUser.getUserId()).orElse(null);
 
