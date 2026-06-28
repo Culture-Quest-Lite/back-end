@@ -21,6 +21,7 @@ public interface CheckInMapper {
     @Mapping(target = "pointEarned", source = "hotspot.point")
     @Mapping(target = "xpEarned", source = "hotspot.xp")
     @Mapping(target = "checkInLocation", expression = "java(toPoint(request.getLongitude(), request.getLatitude()))")
+    @Mapping(target = "hotspot", source = "hotspot")
     CheckIn toEntity(CheckInRequest request, User user, Hotspot hotspot, UserRouteProgress userRouteProgress, double distanceToHotspot);
 
     @Mapping(target = "hotspotId", source = "hotspot.hotspotId")

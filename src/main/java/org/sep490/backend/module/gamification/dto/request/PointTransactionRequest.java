@@ -13,7 +13,6 @@ public class PointTransactionRequest {
     Long userId;
     Long pointAmount;
     Long balanceRemaining;
-    Long hotspotId;
     Long referenceId;
     TransactionType transactionType;
     String description;

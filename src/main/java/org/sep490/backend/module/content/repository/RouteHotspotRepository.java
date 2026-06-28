@@ -44,4 +44,6 @@ public interface RouteHotspotRepository extends JpaRepository<RouteHotspot, Long
     );
 
     List<RouteHotspot> findByHotspot_HotspotId(Long hotspotId);
+
+    List<Long> findRouteIdsByHotspot_HotspotId(Long hotspotId);
 }
