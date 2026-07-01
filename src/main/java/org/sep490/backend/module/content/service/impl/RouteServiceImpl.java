@@ -155,7 +155,14 @@ public class RouteServiceImpl implements RouteService {
 
         GenericSpecification<Route> spec = new GenericSpecification<>(request);
 
-        return routeRepository.findAll(spec, pageable).map(routeMapper::toResponse);
+        Page<Route> routes = routeRepository.findAll(spec, pageable);
+
+        Page<RouteResponse> routeResponses = routes.map(route -> {
+            List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteIdOrderByIndexAsc(route.getRouteId());
+            return buildRouteResponse(route, routeHotspots);
+        });
+
+        return routeResponses;
     }
 
     @Override
@@ -252,9 +259,14 @@ public class RouteServiceImpl implements RouteService {
     @Transactional(readOnly = true)
     public List<RouteResponse> getByHotspotId(Long hotspotId, RouteStatus routeStatus) {
         Hotspot hotspot = hotspotService.getById(hotspotId);
-        return routeRepository.findRoutesByHotspotIdAndStatus(hotspot.getHotspotId(), routeStatus).stream()
-                .map(routeMapper::toResponse)
-                .toList();
+        List<Route> routes = routeRepository.findRoutesByHotspotIdAndStatus(hotspot.getHotspotId(), routeStatus);
+        List<RouteResponse> routeResponses = new ArrayList<>();
+        for (Route route : routes) {
+            RouteResponse routeResponse = new RouteResponse();
+            routeResponse = buildRouteResponse(route, routeHotspotRepository.findByRoute_RouteIdOrderByIndexAsc(route.getRouteId()));
+            routeResponses.add(routeResponse);
+        }
+        return routeResponses;
     }
 
 
