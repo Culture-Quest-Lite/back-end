@@ -54,6 +54,7 @@ public class UserRouteProgressServiceImpl implements UserRouteProgressService {
         if(userRouteProgress == null) {
             userRouteProgress = userRouteProgressMapper.toEntity(route, user, 0, 0.0);
             // update to check in hotspots.
+            userRouteProgress.setRoute(route);
             userRouteProgress = userRouteProgressRepository.save(userRouteProgress);
             result.put(201, userRouteProgressMapper.toResponse(userRouteProgress));
         } else {
