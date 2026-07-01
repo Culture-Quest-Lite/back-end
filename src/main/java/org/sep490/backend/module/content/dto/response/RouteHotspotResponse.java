@@ -4,6 +4,8 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 
+import java.util.List;
+
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RouteHotspotResponse {
@@ -15,4 +17,7 @@ public class RouteHotspotResponse {
     Long xp;
     Integer index;
     Double distanceToNext;
+    Double latitude;
+    Double longitude;
+    List<MediaResponse> medias;
 }
