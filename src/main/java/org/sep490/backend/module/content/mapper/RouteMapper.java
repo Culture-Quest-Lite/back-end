@@ -33,6 +33,8 @@ public interface RouteMapper {
     @Mapping(source = "routeHotspot.hotspot.hotspotName", target = "hotspotName")
     @Mapping(source = "routeHotspot.hotspot.address", target = "address")
     @Mapping(source = "routeHotspot.hotspot.xp", target = "xp")
+    @Mapping(target = "latitude", expression = "java(routeHotspot.getHotspot() != null && routeHotspot.getHotspot().getLocation() != null ? routeHotspot.getHotspot().getLocation().getY() : null)")
+    @Mapping(target = "longitude", expression = "java(routeHotspot.getHotspot() != null && routeHotspot.getHotspot().getLocation() != null ? routeHotspot.getHotspot().getLocation().getX() : null)")
     RouteHotspotResponse toRouteHotspotResponse(RouteHotspot routeHotspot);
 
     List<RouteHotspotResponse> toRouteHotspotResponseList(List<RouteHotspot> routeHotspots);

@@ -10,6 +10,7 @@ import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.dto.request.RouteHotspotRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
+import org.sep490.backend.module.content.dto.response.RouteHotspotResponse;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
@@ -18,6 +19,7 @@ import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteDifficulty;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteType;
+import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.content.mapper.RouteMapper;
 import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
@@ -53,6 +55,7 @@ public class RouteServiceImpl implements RouteService {
     UserService userService;
     TagRepository tagRepository;
     MediaService mediaService;
+    MediaMapper mediaMapper;
 
     @Override
     @Transactional
@@ -298,7 +301,17 @@ public class RouteServiceImpl implements RouteService {
 
         RouteResponse response = routeMapper.toResponse(route);
 
-        response.setHotspots(routeMapper.toRouteHotspotResponseList(routeHotspots));
+        List<RouteHotspotResponse>  routeHotspotResponses = new ArrayList<>();
+
+        for(RouteHotspot rhs : routeHotspots) {
+            RouteHotspotResponse rhrs = routeMapper.toRouteHotspotResponse(rhs);
+            rhrs.setMedias(rhs.getHotspot().getMedias().stream()
+                    .map(mediaMapper::toResponse)
+                    .toList());
+            routeHotspotResponses.add(rhrs);
+        }
+
+        response.setHotspots(routeHotspotResponses);
 
         return response;
     }
