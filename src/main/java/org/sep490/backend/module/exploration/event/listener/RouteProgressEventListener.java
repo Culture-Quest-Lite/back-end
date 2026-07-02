@@ -56,10 +56,10 @@ public class RouteProgressEventListener {
                 .findByUser_UserIdAndRoute_RouteIdInAndStatusNot(event.userId(), routeIds, ProgressStatus.COMPLETED);
 
         for (UserRouteProgress progress : unfinishedProgresses) {
-            int newCompletedStops = progress.getCompletedStops() + 1;
+            int newCompletedStops = progress.getCompletedStops().intValue() + 1;
             progress.setCompletedStops(newCompletedStops);
 
-            double newPercentage = ((double) newCompletedStops / progress.getTotalStops()) * 100;
+            double newPercentage = ((double) newCompletedStops / progress.getTotalStops().doubleValue()) * 100;
             progress.setProgressPercentage(Math.min(newPercentage, 100.0));
 
             if (newCompletedStops >= progress.getTotalStops()) {
