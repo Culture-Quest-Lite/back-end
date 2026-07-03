@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
+import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
@@ -158,19 +159,24 @@ public class HotspotServiceImpl implements HotspotService {
             throw new BusinessException("Khoảng cách phải lớn hơn 0");
         }
 
-        User user = userService.getCurrentUser();
-
         List<Hotspot> nearbies = hotspotRepository.findNearbyHotspots(longitude, latitude, distanceInMeters);
         List<HotspotResponse> responses = nearbies.stream()
                 .map(hotspotMapper::toResponse)
                 .toList();
 
-        for(HotspotResponse response : responses) {
-            Boolean check = checkInRepository.existsByUser_UserIdAndHotspot_HotspotId(user.getUserId(), response.getHotspotId());
-            if(check != null && check) {
-                response.setIsCheckedIn(Boolean.TRUE);
-            } else  {
-                response.setIsCheckedIn(Boolean.FALSE);
+        boolean isLoggedIn = SecurityUtils.getCurrentUserKeyCloakId().isPresent();
+
+        if(isLoggedIn) {
+
+            User user = userService.getCurrentUser();
+
+            for(HotspotResponse response : responses) {
+                Boolean check = checkInRepository.existsByUser_UserIdAndHotspot_HotspotId(user.getUserId(), response.getHotspotId());
+                if(check != null && check) {
+                    response.setIsCheckedIn(Boolean.TRUE);
+                } else  {
+                    response.setIsCheckedIn(Boolean.FALSE);
+                }
             }
         }
 
