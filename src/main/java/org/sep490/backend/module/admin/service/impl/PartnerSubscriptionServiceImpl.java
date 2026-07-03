@@ -197,7 +197,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
 
     @Override
     @Transactional
-    public MomoPaymentInitResponse initiatePayment(Long subscriptionId) {
+    public MomoPaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl) {
         User currentUser = userService.getCurrentUser();
         PartnerSubscription subscription = partnerSubscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new BusinessException("Subscription không tồn tại"));
@@ -224,7 +224,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
 
         MomoPaymentResponse momoResp;
         try {
-            momoResp = momoClient.createPayment(amount, momoOrderId, momoRequestId, orderInfo);
+            momoResp = momoClient.createPayment(amount, momoOrderId, momoRequestId, orderInfo, redirectUrl);
         } catch (Exception e) {
             throw new BusinessException("Không thể kết nối cổng thanh toán MoMo. Vui lòng thử lại.");
         }
@@ -239,6 +239,8 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         return MomoPaymentInitResponse.builder()
                 .subscriptionId(subscriptionId)
                 .payUrl(momoResp.getPayUrl())
+                .deeplink(momoResp.getDeeplink())
+                .qrCodeUrl(momoResp.getQrCodeUrl())
                 .amount(amount)
                 .orderInfo(orderInfo)
                 .build();

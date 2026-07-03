@@ -18,7 +18,12 @@ public class MomoClient {
     private final RestTemplate restTemplate = new RestTemplate();
 
     public MomoPaymentResponse createPayment(long amount, String orderId,
-                                             String requestId, String orderInfo) throws Exception {
+                                             String requestId, String orderInfo,
+                                             String redirectUrl) throws Exception {
+        String effectiveRedirectUrl = (redirectUrl != null && !redirectUrl.isBlank())
+                ? redirectUrl
+                : properties.getRedirectUrl();
+
         String rawSig = "accessKey=" + properties.getAccessKey()
                 + "&amount=" + amount
                 + "&extraData="
@@ -26,9 +31,9 @@ public class MomoClient {
                 + "&orderId=" + orderId
                 + "&orderInfo=" + orderInfo
                 + "&partnerCode=" + properties.getPartnerCode()
-                + "&redirectUrl=" + properties.getRedirectUrl()
+                + "&redirectUrl=" + effectiveRedirectUrl
                 + "&requestId=" + requestId
-                + "&requestType=payWithMethod";
+                + "&requestType=captureWallet";
 
         String signature = MomoSignatureUtil.hmacSHA256(rawSig, properties.getSecretKey());
 
@@ -38,9 +43,9 @@ public class MomoClient {
                 .amount(amount)
                 .orderId(orderId)
                 .orderInfo(orderInfo)
-                .redirectUrl(properties.getRedirectUrl())
+                .redirectUrl(effectiveRedirectUrl)
                 .ipnUrl(properties.getIpnUrl())
-                .requestType("payWithMethod")
+                .requestType("captureWallet")
                 .extraData("")
                 .autoCapture(true)
                 .lang("vi")

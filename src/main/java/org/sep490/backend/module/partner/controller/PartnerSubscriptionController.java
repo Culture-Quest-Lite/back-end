@@ -44,7 +44,9 @@ public class PartnerSubscriptionController {
     }
 
     @PostMapping("/subscriptions/{id}/initiate-payment")
-    public ResponseEntity<MomoPaymentInitResponse> initiatePayment(@PathVariable Long id) {
-        return ResponseEntity.ok(subscriptionService.initiatePayment(id));
+    public ResponseEntity<MomoPaymentInitResponse> initiatePayment(
+            @PathVariable Long id,
+            @RequestParam(required = false) String redirectUrl) {
+        return ResponseEntity.ok(subscriptionService.initiatePayment(id, redirectUrl));
     }
 }
