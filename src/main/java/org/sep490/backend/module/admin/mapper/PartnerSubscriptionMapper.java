@@ -21,6 +21,14 @@ public interface PartnerSubscriptionMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "startDate", ignore = true)
     @Mapping(target = "endDate", ignore = true)
+    @Mapping(target = "momoOrderId",   ignore = true)
+    @Mapping(target = "momoRequestId", ignore = true)
+    @Mapping(target = "momoTransId",   ignore = true)
+    @Mapping(target = "paidAmount",    ignore = true)
+    @Mapping(target = "paymentStatus", ignore = true)
+    @Mapping(target = "paidAt",        ignore = true)
+    @Mapping(target = "refundedAt",    ignore = true)
+    @Mapping(target = "refundOrderId", ignore = true)
     PartnerSubscription toEntity(PartnerSubscriptionRequest request);
 
     @Mapping(source = "partner.userId", target = "partnerId")

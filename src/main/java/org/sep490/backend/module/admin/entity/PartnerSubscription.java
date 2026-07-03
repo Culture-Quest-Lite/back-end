@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
 import org.sep490.backend.module.admin.entity.enumeration.BillingCycleEnum;
+import org.sep490.backend.module.admin.entity.enumeration.MomoPaymentStatus;
 import org.sep490.backend.module.admin.entity.enumeration.PartnerSubscriptionStatus;
 import org.sep490.backend.module.authentication.entity.User;
 
@@ -74,6 +75,31 @@ public class PartnerSubscription {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "momo_order_id", unique = true)
+    private String momoOrderId;
+
+    @Column(name = "momo_request_id")
+    private String momoRequestId;
+
+    @Column(name = "momo_trans_id")
+    private String momoTransId;
+
+    @Column(name = "paid_amount")
+    private Long paidAmount;
+
+    @Column(name = "payment_status")
+    @Enumerated(EnumType.STRING)
+    private MomoPaymentStatus paymentStatus;
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
+
+    @Column(name = "refunded_at")
+    private LocalDateTime refundedAt;
+
+    @Column(name = "refund_order_id")
+    private String refundOrderId;
 
     @PrePersist
     protected void onCreate() {
