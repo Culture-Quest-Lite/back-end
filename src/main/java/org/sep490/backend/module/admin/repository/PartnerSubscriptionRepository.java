@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PartnerSubscriptionRepository extends JpaRepository<PartnerSubscription, Long> {
     List<PartnerSubscription> findByPartner_UserId(Long partnerId);
@@ -21,4 +22,7 @@ public interface PartnerSubscriptionRepository extends JpaRepository<PartnerSubs
             "  )" +
             ")", nativeQuery = true)
     boolean isLocationInVietnam(@Param("longitude") Double longitude, @Param("latitude") Double latitude);
+
+    Optional<PartnerSubscription> findByMomoOrderId(String momoOrderId);
+
 }
