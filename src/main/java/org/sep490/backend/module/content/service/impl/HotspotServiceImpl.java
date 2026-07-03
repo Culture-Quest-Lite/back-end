@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
+import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
@@ -17,6 +18,8 @@ import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.MediaService;
+import org.sep490.backend.module.exploration.entity.CheckIn;
+import org.sep490.backend.module.exploration.repository.CheckInRepository;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.HashSet;
 import org.sep490.backend.module.content.entity.Tag;
@@ -41,6 +45,7 @@ public class HotspotServiceImpl implements HotspotService {
     UserService userService;
     RouteHotspotRepository routeHotspotRepository;
     TagRepository tagRepository;
+    CheckInRepository checkInRepository;
     MediaService mediaService;
 
     @Override
@@ -153,11 +158,23 @@ public class HotspotServiceImpl implements HotspotService {
             throw new BusinessException("Khoảng cách phải lớn hơn 0");
         }
 
-        List<Hotspot> nearbies = hotspotRepository.findNearbyHotspots(longitude, latitude, distanceInMeters);
+        User user = userService.getCurrentUser();
 
-        return nearbies.stream()
+        List<Hotspot> nearbies = hotspotRepository.findNearbyHotspots(longitude, latitude, distanceInMeters);
+        List<HotspotResponse> responses = nearbies.stream()
                 .map(hotspotMapper::toResponse)
                 .toList();
+
+        for(HotspotResponse response : responses) {
+            Boolean check = checkInRepository.existsByUser_UserIdAndHotspot_HotspotId(user.getUserId(), response.getHotspotId());
+            if(check != null && check) {
+                response.setIsCheckedIn(Boolean.TRUE);
+            } else  {
+                response.setIsCheckedIn(Boolean.FALSE);
+            }
+        }
+
+        return responses;
     }
 
     @Override
