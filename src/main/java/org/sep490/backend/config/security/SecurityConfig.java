@@ -51,6 +51,7 @@ public class SecurityConfig {
             "/api/v1/stories/**",
             "/api/v1/routes/**",
             "/api/tags/**",
+            "/api/payment/momo/ipn"
     };
 
     @Bean
