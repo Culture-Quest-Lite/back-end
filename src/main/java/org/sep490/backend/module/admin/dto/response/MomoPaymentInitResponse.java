@@ -7,7 +7,9 @@ import lombok.Data;
 @Builder
 public class MomoPaymentInitResponse {
     private Long subscriptionId;
-    private String payUrl;
+    private String payUrl;       
+    private String deeplink;    
+    private String qrCodeUrl;
     private Long amount;
     private String orderInfo;
 }

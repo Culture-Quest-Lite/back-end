@@ -13,6 +13,6 @@ public interface PartnerSubscriptionService {
     List<PartnerSubscriptionResponse> getMySubscriptions();
     List<PartnerSubscriptionResponse> getSubscriptionsByPartnerId(Long partnerId);
 
-    MomoPaymentInitResponse initiatePayment(Long subscriptionId);
+    MomoPaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl);
     void handleMomoIpn(MomoIpnRequest request);
 }
