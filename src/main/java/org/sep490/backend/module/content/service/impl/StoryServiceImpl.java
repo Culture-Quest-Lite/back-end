@@ -137,9 +137,12 @@ public class StoryServiceImpl implements StoryService {
     @Override
     @Transactional
     public StoryResponse updateStatus(Long id, ContentStatus status) {
+
         Story story = getById(id);
         story.setStatus(status);
+
         storyRepository.save(story);
+
         return storyMapper.toResponse(story);
     }
 }
