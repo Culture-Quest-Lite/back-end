@@ -83,4 +83,14 @@ public class PostController {
         Slice<PostResponse> responses = postService.getMyPosts(pageable);
         return ResponseEntity.ok(responses);
     }
+
+    @GetMapping("/hotspot/{hotspotId}")
+    public ResponseEntity<Slice<PostResponse>> getPostsByHotspotId(
+            @PathVariable Long hotspotId,
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt",
+            direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        Slice<PostResponse> responses = postService.getPostsByHotspotId(hotspotId, pageable);
+        return ResponseEntity.ok(responses);
+    }
 }

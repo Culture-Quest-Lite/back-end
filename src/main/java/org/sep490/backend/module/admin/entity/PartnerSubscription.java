@@ -9,6 +9,7 @@ import org.locationtech.jts.geom.Point;
 import org.sep490.backend.module.admin.entity.enumeration.BillingCycleEnum;
 import org.sep490.backend.module.admin.entity.enumeration.MomoPaymentStatus;
 import org.sep490.backend.module.admin.entity.enumeration.PartnerSubscriptionStatus;
+import org.sep490.backend.module.admin.entity.enumeration.PaymentGateway;
 import org.sep490.backend.module.authentication.entity.User;
 
 import java.time.LocalDateTime;
@@ -100,6 +101,19 @@ public class PartnerSubscription {
 
     @Column(name = "refund_order_id")
     private String refundOrderId;
+
+    @Column(name = "payos_order_code")
+    private Long payosOrderCode;
+
+    @Column(name = "payos_payment_link_id")
+    private String payosPaymentLinkId;
+
+    @Column(name = "payos_transaction_id")
+    private String payosTransactionId;
+
+    @Column(name = "payment_gateway")
+    @Enumerated(EnumType.STRING)
+    private PaymentGateway paymentGateway;
 
     @PrePersist
     protected void onCreate() {

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
 import org.sep490.backend.module.admin.dto.response.MomoPaymentInitResponse;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
+import org.sep490.backend.module.admin.dto.response.PaymentInitResponse;
 import org.sep490.backend.module.admin.dto.response.SubscriptionPlanResponse;
 import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
 import org.sep490.backend.module.admin.service.SubscriptionPlanService;
@@ -44,9 +45,10 @@ public class PartnerSubscriptionController {
     }
 
     @PostMapping("/subscriptions/{id}/initiate-payment")
-    public ResponseEntity<MomoPaymentInitResponse> initiatePayment(
+    public ResponseEntity<PaymentInitResponse> initiatePayment(
             @PathVariable Long id,
-            @RequestParam(required = false) String redirectUrl) {
-        return ResponseEntity.ok(subscriptionService.initiatePayment(id, redirectUrl));
+            @RequestParam(required = false) String redirectUrl,
+            @RequestParam(defaultValue = "PAYOS") String gateway) {
+        return ResponseEntity.ok(subscriptionService.initiatePayment(id, redirectUrl, gateway));
     }
 }

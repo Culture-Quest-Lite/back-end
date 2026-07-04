@@ -24,4 +24,5 @@ public interface PostService {
     PostResponse banPostByAdmin(Long id, DeletePostRequest request);
     Slice<PostResponse> getMyPosts(Pageable pageable);
     Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable);
+    Slice<PostResponse> getPostsByHotspotId(Long hotspotId, Pageable pageable);
 }
