@@ -9,17 +9,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.config.momo.MomoClient;
+import org.sep490.backend.config.payos.PayOsProperties;
 import org.sep490.backend.module.admin.dto.request.MomoIpnRequest;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
-import org.sep490.backend.module.admin.dto.response.MomoPaymentInitResponse;
-import org.sep490.backend.module.admin.dto.response.MomoPaymentResponse;
-import org.sep490.backend.module.admin.dto.response.MomoRefundResponse;
-import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
+import org.sep490.backend.module.admin.dto.response.*;
 import org.sep490.backend.module.admin.entity.PartnerSubscription;
 import org.sep490.backend.module.admin.entity.SubscriptionPlan;
 import org.sep490.backend.module.admin.entity.enumeration.BillingCycleEnum;
 import org.sep490.backend.module.admin.entity.enumeration.MomoPaymentStatus;
 import org.sep490.backend.module.admin.entity.enumeration.PartnerSubscriptionStatus;
+import org.sep490.backend.module.admin.entity.enumeration.PaymentGateway;
 import org.sep490.backend.module.admin.mapper.PartnerSubscriptionMapper;
 import org.sep490.backend.module.admin.repository.PartnerSubscriptionRepository;
 import org.sep490.backend.module.admin.repository.SubscriptionPlanRepository;
@@ -40,11 +39,17 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StreamUtils;
+import vn.payos.PayOS;
+import vn.payos.exception.PayOSException;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkRequest;
+import vn.payos.model.v2.paymentRequests.CreatePaymentLinkResponse;
+import vn.payos.model.webhooks.WebhookData;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -63,6 +68,8 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     MomoClient momoClient;
 
     private final JavaMailSender mailSender;
+    private final PayOsProperties payOsProperties;
+    private final PayOS payOS;
     @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
     @NonFinal
     String frontendUrl;
@@ -195,54 +202,19 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                 .toList();
     }
 
+
     @Override
+    @Deprecated
     @Transactional
     public MomoPaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl) {
-        User currentUser = userService.getCurrentUser();
-        PartnerSubscription subscription = partnerSubscriptionRepository.findById(subscriptionId)
-                .orElseThrow(() -> new BusinessException("Subscription không tồn tại"));
-
-        if (!subscription.getPartner().getUserId().equals(currentUser.getUserId())) {
-            throw new BusinessException("Bạn không có quyền thực hiện thao tác này.");
-        }
-
-        if (!PartnerSubscriptionStatus.PAYMENT_PENDING.equals(subscription.getStatus())
-                && !PartnerSubscriptionStatus.PAYMENT_FAILED.equals(subscription.getStatus())) {
-            throw new BusinessException("Đơn đăng ký này không thể thanh toán lúc này.");
-        }
-
-        if (subscription.getDocumentUrl() == null) {
-            throw new BusinessException("Vui lòng upload đầy đủ giấy tờ trước khi thanh toán.");
-        }
-
-        long amount = subscription.getPaidAmount();
-        String momoOrderId = "SUB_" + subscriptionId + "_" + System.currentTimeMillis();
-        String momoRequestId = UUID.randomUUID().toString();
-        String orderInfo = "Thanh toan goi "
-                + subscription.getSubscriptionPlan().getSubscriptionPlanName()
-                + " - " + subscription.getShopName();
-
-        MomoPaymentResponse momoResp;
-        try {
-            momoResp = momoClient.createPayment(amount, momoOrderId, momoRequestId, orderInfo, redirectUrl);
-        } catch (Exception e) {
-            throw new BusinessException("Không thể kết nối cổng thanh toán MoMo. Vui lòng thử lại.");
-        }
-        if (momoResp == null || momoResp.getResultCode() != 0) {
-            String errMsg = momoResp != null ? momoResp.getMessage() : "Không có phản hồi";
-            throw new BusinessException("Tạo giao dịch MoMo thất bại: " + errMsg);
-        }
-
-        subscription.setMomoOrderId(momoOrderId);
-        subscription.setMomoRequestId(momoRequestId);
-        partnerSubscriptionRepository.save(subscription);
+        PaymentInitResponse resp = initiatePayment(subscriptionId, redirectUrl, "MOMO");
         return MomoPaymentInitResponse.builder()
-                .subscriptionId(subscriptionId)
-                .payUrl(momoResp.getPayUrl())
-                .deeplink(momoResp.getDeeplink())
-                .qrCodeUrl(momoResp.getQrCodeUrl())
-                .amount(amount)
-                .orderInfo(orderInfo)
+                .subscriptionId(resp.getSubscriptionId())
+                .payUrl(resp.getPayUrl())
+                .deeplink(resp.getDeeplink())
+                .qrCodeUrl(resp.getQrCodeUrl())
+                .amount(resp.getAmount())
+                .orderInfo(resp.getOrderInfo())
                 .build();
     }
 
@@ -275,6 +247,134 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
             partnerSubscriptionRepository.save(subscription);
         }
 
+    }
+
+    @Override
+    @Transactional
+    public PaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl, String gateway) {
+        User currentUser = userService.getCurrentUser();
+        PartnerSubscription subscription = partnerSubscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new BusinessException("Subscription không tồn tại"));
+
+        if (!subscription.getPartner().getUserId().equals(currentUser.getUserId())) {
+            throw new BusinessException("Bạn không có quyền thực hiện thao tác này.");
+        }
+        if (!PartnerSubscriptionStatus.PAYMENT_PENDING.equals(subscription.getStatus())
+                && !PartnerSubscriptionStatus.PAYMENT_FAILED.equals(subscription.getStatus())) {
+            throw new BusinessException("Đơn đăng ký này không thể thanh toán lúc này.");
+        }
+        if (subscription.getDocumentUrl() == null) {
+            throw new BusinessException("Vui lòng upload đầy đủ giấy tờ trước khi thanh toán.");
+        }
+
+        if ("PAYOS".equalsIgnoreCase(gateway)) {
+            return initiatePayOsPayment(subscription, redirectUrl);
+        } else {
+            return initiateMomoPayment(subscription, redirectUrl);
+        }
+    }
+
+    @Override
+    public void handlePayOsWebhook(Map<String, Object> body) {
+        try {
+            WebhookData data = payOS.webhooks().verify(body);
+
+            long orderCode = data.getOrderCode();
+            PartnerSubscription subscription = partnerSubscriptionRepository.findByPayosOrderCode(orderCode)
+                    .orElse(null);
+            if (subscription == null) {
+                log.error("[PayOS Webhook] Không tìm thấy subscription với orderCode={}", orderCode);
+                return;
+            }
+            if (MomoPaymentStatus.PAID.equals(subscription.getPaymentStatus())) {
+                log.warn("[PayOS Webhook] Đã xử lý rồi, bỏ qua. orderCode={}", orderCode);
+                return;
+            }
+
+            if ("00".equals(data.getCode())) {
+                subscription.setPaymentStatus(MomoPaymentStatus.PAID);
+                subscription.setPayosTransactionId(data.getReference());
+                subscription.setPaidAt(LocalDateTime.now());
+                subscription.setStatus(PartnerSubscriptionStatus.PENDING);
+                partnerSubscriptionRepository.save(subscription);
+            } else {
+                subscription.setPaymentStatus(MomoPaymentStatus.FAILED);
+                subscription.setStatus(PartnerSubscriptionStatus.PAYMENT_FAILED);
+            }
+            partnerSubscriptionRepository.save(subscription);
+        } catch (Exception e) {
+            log.error("[PayOS Webhook] Lỗi xác thực webhook: {}", e.getMessage());
+        }
+    }
+
+    private PaymentInitResponse initiateMomoPayment(PartnerSubscription subscription, String redirectUrl) {
+        long amount = subscription.getPaidAmount();
+        String momoOrderId = "SUB_" + subscription.getId() + "_" + System.currentTimeMillis();
+        String momoRequestId = UUID.randomUUID().toString();
+        String orderInfo = "Thanh toan goi "
+                + subscription.getSubscriptionPlan().getSubscriptionPlanName()
+                + " - " + subscription.getShopName();
+
+        MomoPaymentResponse momoResp;
+        try {
+            momoResp = momoClient.createPayment(amount, momoOrderId, momoRequestId, orderInfo, redirectUrl);
+        } catch (Exception e) {
+            throw new BusinessException("Không thể kết nối cổng thanh toán MoMo. Vui lòng thử lại.");
+        }
+        if (momoResp == null || momoResp.getResultCode() != 0) {
+            String errMsg = momoResp != null ? momoResp.getMessage() : "Không có phản hồi";
+            throw new BusinessException("Tạo giao dịch MoMo thất bại: " + errMsg);
+        }
+
+        subscription.setMomoOrderId(momoOrderId);
+        subscription.setMomoRequestId(momoRequestId);
+        subscription.setPaymentGateway(PaymentGateway.MOMO);
+        partnerSubscriptionRepository.save(subscription);
+
+        return PaymentInitResponse.builder()
+                .subscriptionId(subscription.getId())
+                .gateway(PaymentGateway.MOMO)
+                .payUrl(momoResp.getPayUrl())
+                .deeplink(momoResp.getDeeplink())
+                .qrCodeUrl(momoResp.getQrCodeUrl())
+                .amount(amount)
+                .orderInfo(orderInfo)
+                .build();
+    }
+
+    private PaymentInitResponse initiatePayOsPayment(PartnerSubscription subscription, String redirectUrl) {
+        long orderCode = System.currentTimeMillis() / 1000;
+        String description = "SUB" + subscription.getId();
+        String effectiveReturnUrl = (redirectUrl != null && !redirectUrl.isBlank())
+                ? redirectUrl : payOsProperties.getReturnUrl();
+
+        CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
+                .orderCode(orderCode)
+                .amount(subscription.getPaidAmount())
+                .description(description)
+                .returnUrl(effectiveReturnUrl)
+                .cancelUrl(payOsProperties.getCancelUrl())
+                .build();
+
+        try {
+            CreatePaymentLinkResponse response = payOS.paymentRequests().create(paymentData);
+            subscription.setPayosOrderCode(orderCode);
+            subscription.setPayosPaymentLinkId(response.getPaymentLinkId());
+            subscription.setPaymentGateway(PaymentGateway.PAYOS);
+            partnerSubscriptionRepository.save(subscription);
+
+            return PaymentInitResponse.builder()
+                    .subscriptionId(subscription.getId())
+                    .gateway(PaymentGateway.PAYOS)
+                    .checkoutUrl(response.getCheckoutUrl())
+                    .qrCode(response.getQrCode())
+                    .amount(subscription.getPaidAmount())
+                    .orderInfo(description)
+                    .build();
+        } catch (PayOSException e) {
+            log.error("[PayOS] Tạo link thanh toán thất bại: {}", e.getMessage());
+            throw new BusinessException("Không thể tạo link thanh toán PayOS: " + e.getMessage());
+        }
     }
 
     private void doMomoRefund(PartnerSubscription subscription) {
