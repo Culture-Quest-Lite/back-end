@@ -23,5 +23,12 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     Slice<Post> findByUser_UserIdAndStatus(Long userId, PostStatus status, Pageable pageable);
 
+    @Query("SELECT DISTINCT p FROM Post p JOIN p.taggedHotspots h " +
+            "WHERE h.hotspotId = :hotspotId AND p.status = :status " +
+            "ORDER BY p.createdAt DESC")
+    Slice<Post> findByHotspotIdAndStatus(@Param("hotspotId") Long hotspotId,
+                                         @Param("status") PostStatus status,
+                                         Pageable pageable);
+
     long countByUser(User user);
 }

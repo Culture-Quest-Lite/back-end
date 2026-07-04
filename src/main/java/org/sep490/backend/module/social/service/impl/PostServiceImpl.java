@@ -270,4 +270,14 @@ public class PostServiceImpl implements PostService {
         Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(userId, PostStatus.APPROVED, pageable);
         return posts.map(postMapper::toResponse);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Slice<PostResponse> getPostsByHotspotId(Long hotspotId, Pageable pageable) {
+        if (!hotspotRepository.existsById(hotspotId)) {
+            throw new BusinessException("Địa điểm không tồn tại với ID: " + hotspotId);
+        }
+        Slice<Post> posts = postRepository.findByHotspotIdAndStatus(hotspotId, PostStatus.APPROVED, pageable);
+        return posts.map(postMapper::toResponse);
+    }
 }

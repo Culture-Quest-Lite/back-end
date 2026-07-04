@@ -24,5 +24,6 @@ public interface PartnerSubscriptionRepository extends JpaRepository<PartnerSubs
     boolean isLocationInVietnam(@Param("longitude") Double longitude, @Param("latitude") Double latitude);
 
     Optional<PartnerSubscription> findByMomoOrderId(String momoOrderId);
+    Optional<PartnerSubscription> findByPayosOrderCode(Long payosOrderCode);
 
 }
