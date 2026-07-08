@@ -11,12 +11,14 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class PointTransactionResponse {
-    Long id;
-    Integer pointAmount;
+public class RewardTransactionResponse {
+    Long transactionId;
+    Long pointsAmount;
+    Long xpAmount;
     TransactionType transactionType;
     String description;
-    Long balanceRemaining;
+    Long pointsBalance;
+    Long xpBalance;
     Long referenceId;
     LocalDateTime createdAt;
 }

@@ -27,17 +27,22 @@ public class Level {
     @Column(name = "level_id")
     private Long levelId;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(name = "level_name", nullable = false, unique = true, length = 100)
     private String name;
 
-    @Column(name = "req_xp", nullable = false)
+    @Column(name = "required_xp", nullable = false)
     private Integer requiredXp;
 
     @Column(length = 255)
     private String description;
 
     @OneToMany(mappedBy = "level", fetch = FetchType.LAZY)
+    @Builder.Default
     private List<User> users = new ArrayList<>();
+
+    @OneToMany(mappedBy = "level", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<LevelProgress> levelProgresses = new ArrayList<>();
     
     @Enumerated(EnumType.STRING)
     private LevelStatus status;

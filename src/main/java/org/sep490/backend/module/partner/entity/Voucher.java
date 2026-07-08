@@ -19,13 +19,7 @@ import java.util.ArrayList;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Table(name = "vouchers", indexes = {
-        // Chỉ giữ lại index thông thường cho khóa ngoại
-        @Index(name = "idx_voucher_partner", columnList = "partner_id")
-}, uniqueConstraints = {
-        // Đưa ràng buộc duy nhất ra đúng phân vùng của nó
-        @UniqueConstraint(name = "uk_voucher_code", columnNames = { "code" })
-})
+@Table(name = "vouchers")
 public class Voucher {
 
     @Id
