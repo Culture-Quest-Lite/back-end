@@ -17,7 +17,6 @@ import org.sep490.backend.module.exploration.mapper.CheckInMapper;
 import org.sep490.backend.module.exploration.repository.CheckInRepository;
 import org.sep490.backend.module.exploration.service.inter.CheckInService;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
-import org.sep490.backend.module.gamification.entity.enumeration.ActionType;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -69,8 +68,7 @@ public class CheckInServiceImpl implements CheckInService {
                 hotspot.getHotspotId(),
                 hotspot.getHotspotId(),
                 TransactionType.HOTSPOT_CHECKIN,
-                "Check-in tại hotspot: " + hotspot.getHotspotName(),
-                ActionType.HOTSPOT_CHECKIN
+                "Check-in tại hotspot: " + hotspot.getHotspotName()
         ));
         return checkInMapper.toResponse(checkin);
     }

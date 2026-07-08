@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserVoucherResponse {
-    Long userVoucherId;
+public class VoucherUsageResponse {
+    Long voucherUsageId;
     Long voucherId;
     String voucherCode;
     String voucherName;

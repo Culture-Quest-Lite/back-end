@@ -16,9 +16,9 @@ import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
-import org.sep490.backend.module.gamification.entity.PointTransaction;
+import org.sep490.backend.module.gamification.entity.RewardTransaction;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
-import org.sep490.backend.module.gamification.repository.PointTransactionRepository;
+import org.sep490.backend.module.gamification.repository.RewardTransactionRepository;
 import org.sep490.backend.module.social.dto.request.DeletePostRequest;
 import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.request.RejectPostRequest;
@@ -49,7 +49,7 @@ public class PostServiceImpl implements PostService {
     TagRepository tagRepository;
     PostMapper postMapper;
     UserService userService;
-    PointTransactionRepository pointTransactionRepository;
+    RewardTransactionRepository rewardTransactionRepository;
     MediaService mediaService;
 
     @NonFinal
@@ -100,15 +100,17 @@ public class PostServiceImpl implements PostService {
         long balanceRemaining = user.getTotalPoints() + createPostPoints;
         user.setTotalPoints((int) balanceRemaining);
 
-        PointTransaction pointTransaction = PointTransaction.builder()
+        RewardTransaction rewardTransaction = RewardTransaction.builder()
                 .user(user)
-                .pointAmount(createPostPoints)
-                .transactionType(TransactionType.EARN)
+                .pointsAmount(createPostPoints)
+                .xpAmount(0L)
+                .pointsBalance(balanceRemaining)
+                .xpBalance((long) user.getTotalXp())
+                .transactionType(TransactionType.POST_CREATION)
                 .description("Bài viết của " + user.getUsername() + " đã được duyệt")
-                .balanceRemaining(balanceRemaining)
                 .referenceId(post.getPostId())
                 .build();
-        pointTransactionRepository.save(pointTransaction);
+        rewardTransactionRepository.save(rewardTransaction);
 
         PostResponse response = postMapper.toResponse(post);
         if (request.getFiles() != null && request.getFiles().length > 0) {

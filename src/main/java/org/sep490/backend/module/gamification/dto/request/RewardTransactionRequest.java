@@ -9,10 +9,12 @@ import org.sep490.backend.module.gamification.entity.enumeration.TransactionType
 @Data
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class PointTransactionRequest {
+public class RewardTransactionRequest {
     Long userId;
-    Long pointAmount;
-    Long balanceRemaining;
+    Long pointsAmount;
+    Long xpAmount;
+    Long pointsBalance;
+    Long xpBalance;
     Long referenceId;
     TransactionType transactionType;
     String description;

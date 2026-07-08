@@ -8,17 +8,18 @@ import org.sep490.backend.module.authentication.entity.User;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_vouchers")
+@Table(name = "voucher_usages")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserVoucher {
+public class VoucherUsage {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long userVoucherId;
+    @Column(name = "voucher_usage_id")
+    Long voucherUsageId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

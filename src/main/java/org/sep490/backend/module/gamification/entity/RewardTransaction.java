@@ -16,14 +16,14 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Table(name = "point_transaction", indexes = {
-        //Lấy lịch sử giao dịch điểm của 1 User, bản ghi mới nhất xếp trước
-        @Index(name = "idx_point_trans_history", columnList = "user_id, created_at")
+@Table(name = "reward_transaction", indexes = {
+        @Index(name = "idx_reward_trans_user_created", columnList = "user_id, created_at")
 })
-public class PointTransaction {
+public class RewardTransaction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "reward_transaction_id")
     private Long transactionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -34,19 +34,25 @@ public class PointTransaction {
     @Enumerated(EnumType.STRING)
     private TransactionType transactionType;
 
-    @Column(name = "point_amount")
-    private Long pointAmount;
+    @Column(name = "points_amount")
+    private Long pointsAmount;
+
+    @Column(name = "xp_amount")
+    private Long xpAmount;
+
+    @Column(name = "points_balance")
+    private Long pointsBalance;
+
+    @Column(name = "xp_balance")
+    private Long xpBalance;
+
+    @Column(name = "reference_id")
+    private Long referenceId;
 
     @Column(name = "description")
     private String description;
 
-    @Column(name = "balance_remaining")
-    private Long balanceRemaining;
-
-    private Long referenceId;
-
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-
 }

@@ -15,7 +15,6 @@ import org.sep490.backend.module.exploration.event.CheckInCompletedEvent;
 import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
 import org.sep490.backend.module.exploration.repository.UserRouteProgressRepository;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
-import org.sep490.backend.module.gamification.entity.enumeration.ActionType;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
