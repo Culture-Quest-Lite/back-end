@@ -10,8 +10,11 @@ import org.sep490.backend.module.social.entity.enumeration.PostVisibility;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class PostResponse {
 
     Long postId;
@@ -30,6 +33,10 @@ public class PostResponse {
     List<MediaResponse> medias;
     LocalDateTime createdAt;
     Integer pointRemaining;
+    Long likeCount;
+    Long commentCount;
+    Long shareCount;
+    PostResponse sharedPost;
 
     @Data
     public static class TagDto {
