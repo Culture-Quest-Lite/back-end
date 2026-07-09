@@ -95,7 +95,8 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         // Nam");
         // }
 
-        if (partnerInfoRepository.existsByShopEmail(request.getShopEmail()) || userRepository.existsByEmail(request.getShopEmail())) {
+        if (partnerInfoRepository.existsByShopEmail(request.getShopEmail())
+                || userRepository.existsByEmail(request.getShopEmail())) {
             throw new BusinessException("Email quản lý shop này đã được đăng ký cho một tài khoản khác.");
         }
 
@@ -189,7 +190,8 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                     .build();
             partnerApprovalRepository.save(approval);
 
-            List<PlanRule> rules = planRuleRepository.findBySubscriptionPlan_SubscriptionPlanId(invoice.getSubscriptionPlan().getSubscriptionPlanId());
+            List<PlanRule> rules = planRuleRepository
+                    .findBySubscriptionPlan_SubscriptionPlanId(invoice.getSubscriptionPlan().getSubscriptionPlanId());
             for (PlanRule rule : rules) {
                 try {
                     int maxVal = Integer.parseInt(rule.getRuleValue());
@@ -202,7 +204,8 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                             .build();
                     subscriptionUsageRepository.save(usage);
                 } catch (NumberFormatException e) {
-                    log.error("Lỗi parse cấu hình giới hạn gói: key={}, value={}", rule.getRuleKey(), rule.getRuleValue());
+                    log.error("Lỗi parse cấu hình giới hạn gói: key={}, value={}", rule.getRuleKey(),
+                            rule.getRuleValue());
                 }
             }
 
@@ -250,7 +253,6 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                 .map(subscriptionMapper::toResponse)
                 .toList();
     }
-
 
     @Override
     @Deprecated
@@ -432,7 +434,8 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         long orderCode = System.currentTimeMillis() / 1000;
         String description = "SUB" + invoice.getInvoiceId();
         String effectiveReturnUrl = (redirectUrl != null && !redirectUrl.isBlank())
-                ? redirectUrl : payOsProperties.getReturnUrl();
+                ? redirectUrl
+                : payOsProperties.getReturnUrl();
 
         CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
                 .orderCode(orderCode)

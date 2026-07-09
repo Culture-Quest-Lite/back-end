@@ -2,7 +2,9 @@ package org.sep490.backend.module.social.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.sep490.backend.module.social.dto.request.CommentRequest;
 import org.sep490.backend.module.social.dto.request.PostRequest;
+import org.sep490.backend.module.social.dto.request.ShareRequest;
 import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
@@ -14,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.sep490.backend.module.social.dto.response.CommentResponse;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -91,6 +94,40 @@ public class PostController {
             direction = Sort.Direction.DESC) Pageable pageable
     ) {
         Slice<PostResponse> responses = postService.getPostsByHotspotId(hotspotId, pageable);
+        return ResponseEntity.ok(responses);
+    }
+
+    @PostMapping("/{id}/like")
+    public ResponseEntity<String> toggleLikePost(@PathVariable Long id) {
+        postService.toggleLikePost(id);
+        return ResponseEntity.ok("Toggled like successfully");
+    }
+
+    @PostMapping("/{id}/comment")
+    public ResponseEntity<PostResponse> commentPost(
+            @PathVariable Long id,
+            @Valid @RequestBody CommentRequest request
+    ) {
+        PostResponse response = postService.commentPost(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{id}/share")
+    public ResponseEntity<PostResponse> sharePost(
+            @PathVariable Long id,
+            @RequestBody @Valid ShareRequest request
+    ) {
+        PostResponse response = postService.sharePost(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{id}/comments")
+    public ResponseEntity<Slice<CommentResponse>> getCommentsByPostId(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Slice<CommentResponse> responses = postService.getCommentsByPostId(id, page, size);
         return ResponseEntity.ok(responses);
     }
 }

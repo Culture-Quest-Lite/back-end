@@ -5,11 +5,15 @@ import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.request.RejectPostRequest;
 import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
 import org.sep490.backend.module.social.dto.response.PostResponse;
-import org.sep490.backend.module.social.entity.Post;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
+
+import org.sep490.backend.module.social.dto.request.CommentRequest;
+
+import org.sep490.backend.module.social.dto.response.CommentResponse;
+
+import org.sep490.backend.module.social.dto.request.ShareRequest;
 
 public interface PostService {
     PostResponse createPost(PostRequest postRequest);
@@ -25,4 +29,8 @@ public interface PostService {
     Slice<PostResponse> getMyPosts(Pageable pageable);
     Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable);
     Slice<PostResponse> getPostsByHotspotId(Long hotspotId, Pageable pageable);
+    void toggleLikePost(Long id);
+    PostResponse commentPost(Long id, CommentRequest request);
+    PostResponse sharePost(Long id, ShareRequest request);
+    Slice<CommentResponse> getCommentsByPostId(Long id, int page, int size);
 }

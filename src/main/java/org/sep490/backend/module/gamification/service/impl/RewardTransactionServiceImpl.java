@@ -92,8 +92,8 @@ public class RewardTransactionServiceImpl implements RewardTransactionService {
 
         userRepository.save(user);
 
-        // Save transaction record
         RewardTransaction transaction = rewardTransactionMapper.toEntity(request, user);
+        transaction.setUser(user);
         transaction.setPointsAmount(pointsChange);
         transaction.setXpAmount(xpChange);
         transaction.setPointsBalance(newPoints);

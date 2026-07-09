@@ -16,14 +16,21 @@ import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
-import org.sep490.backend.module.gamification.entity.RewardTransaction;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
-import org.sep490.backend.module.gamification.repository.RewardTransactionRepository;
+import org.sep490.backend.module.gamification.service.RewardTransactionService;
+import org.sep490.backend.module.gamification.dto.request.RewardTransactionRequest;
+import org.sep490.backend.module.social.dto.request.CommentRequest;
 import org.sep490.backend.module.social.dto.request.DeletePostRequest;
 import org.sep490.backend.module.social.dto.request.PostRequest;
+import org.sep490.backend.module.social.dto.request.ShareRequest;
+import org.sep490.backend.module.social.entity.enumeration.PostVisibility;
 import org.sep490.backend.module.social.dto.request.RejectPostRequest;
 import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
+import org.sep490.backend.module.social.dto.response.CommentResponse;
 import org.sep490.backend.module.social.dto.response.PostResponse;
+import org.sep490.backend.module.social.entity.PostAction;
+import org.sep490.backend.module.social.entity.enumeration.PostActionType;
+import org.sep490.backend.module.social.repository.PostActionRepository;
 import org.sep490.backend.module.social.entity.Post;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
 import org.sep490.backend.module.social.mapper.PostMapper;
@@ -38,18 +45,20 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostServiceImpl implements PostService {
     PostRepository postRepository;
+    PostActionRepository postActionRepository;
     HotspotRepository hotspotRepository;
     RouteRepository routeRepository;
     TagRepository tagRepository;
     PostMapper postMapper;
     UserService userService;
-    RewardTransactionRepository rewardTransactionRepository;
+    RewardTransactionService rewardTransactionService;
     MediaService mediaService;
 
     @NonFinal
@@ -96,21 +105,6 @@ public class PostServiceImpl implements PostService {
         }
 
         post = postRepository.saveAndFlush(post);
-
-        long balanceRemaining = user.getTotalPoints() + createPostPoints;
-        user.setTotalPoints((int) balanceRemaining);
-
-        RewardTransaction rewardTransaction = RewardTransaction.builder()
-                .user(user)
-                .pointsAmount(createPostPoints)
-                .xpAmount(0L)
-                .pointsBalance(balanceRemaining)
-                .xpBalance((long) user.getTotalXp())
-                .transactionType(TransactionType.POST_CREATION)
-                .description("Bài viết của " + user.getUsername() + " đã được duyệt")
-                .referenceId(post.getPostId())
-                .build();
-        rewardTransactionRepository.save(rewardTransaction);
 
         PostResponse response = postMapper.toResponse(post);
         if (request.getFiles() != null && request.getFiles().length > 0) {
@@ -216,7 +210,15 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException("Bài viết không ở trạng thại chờ phê duyệt");
         }
 
-        // bổ sung logic cộng XP/điểm
+        RewardTransactionRequest rewardRequest = RewardTransactionRequest.builder()
+                .userId(post.getUser().getUserId())
+                .pointsAmount(createPostPoints)
+                .xpAmount(0L)
+                .transactionType(TransactionType.POST_CREATION)
+                .description("Bài viết của " + post.getUser().getUsername() + " đã được duyệt")
+                .referenceId(post.getPostId())
+                .build();
+        rewardTransactionService.createRewardTransaction(rewardRequest);
 
         User currentUser = userService.getCurrentUser();
         post.setModerateBy(currentUser.getUserId());
@@ -281,5 +283,120 @@ public class PostServiceImpl implements PostService {
         }
         Slice<Post> posts = postRepository.findByHotspotIdAndStatus(hotspotId, PostStatus.APPROVED, pageable);
         return posts.map(postMapper::toResponse);
+    }
+
+    @Override
+    @Transactional
+    public void toggleLikePost(Long id) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+        User currentUser = userService.getCurrentUser();
+
+        Optional<PostAction> existingLike = postActionRepository.findByPost_PostIdAndUser_UserIdAndActionType(
+                id, currentUser.getUserId(), PostActionType.LIKE);
+
+        if (existingLike.isPresent()) {
+            postActionRepository.delete(existingLike.get());
+        } else {
+            PostAction likeAction = PostAction.builder()
+                    .post(post)
+                    .user(currentUser)
+                    .actionType(PostActionType.LIKE)
+                    .build();
+            postActionRepository.save(likeAction);
+        }
+    }
+
+    @Override
+    @Transactional
+    public PostResponse commentPost(Long id, CommentRequest request) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+        User currentUser = userService.getCurrentUser();
+
+        PostAction.PostActionBuilder commentActionBuilder = PostAction.builder()
+                .post(post)
+                .user(currentUser)
+                .actionType(PostActionType.COMMENT)
+                .comment(request.getComment());
+
+        if (request.getParentActionId() != null) {
+            PostAction parentAction = postActionRepository.findById(request.getParentActionId())
+                    .orElseThrow(() -> new BusinessException("Bình luận gốc không tồn tại"));
+            if (parentAction.getActionType() != PostActionType.COMMENT) {
+                throw new BusinessException("Chỉ có thể phản hồi lại một bình luận");
+            }
+            commentActionBuilder.parentAction(parentAction);
+        }
+
+        postActionRepository.save(commentActionBuilder.build());
+        post = postRepository.findById(id).orElse(post);
+        return postMapper.toResponse(post);
+    }
+
+    @Override
+    @Transactional
+    public PostResponse sharePost(Long id, ShareRequest request) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+        if (post.getStatus() != PostStatus.APPROVED) {
+            throw new BusinessException("Chỉ có thể chia sẻ bài viết đã được phê duyệt");
+        }
+
+        User currentUser = userService.getCurrentUser();
+
+        PostAction shareAction = PostAction.builder()
+                .post(post)
+                .user(currentUser)
+                .actionType(PostActionType.SHARE)
+                .build();
+        postActionRepository.save(shareAction);
+
+        Post sharedPost = Post.builder()
+                .user(currentUser)
+                .content(request.getContent())
+                .visibility(request.getVisibility() != null ? request.getVisibility() : PostVisibility.PUBLIC)
+                .sharedPost(post)
+                .status(PostStatus.APPROVED)
+                .build();
+
+        Post savedPost = postRepository.save(sharedPost);
+        return postMapper.toResponse(savedPost);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Slice<CommentResponse> getCommentsByPostId(Long id, int page, int size) {
+        if (!postRepository.existsById(id)) {
+            throw new BusinessException("Bài viết không tồn tại");
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+        Slice<PostAction> rootComments = postActionRepository
+                .findByPost_PostIdAndActionTypeAndParentActionIsNullOrderByCreatedAtAsc(id, PostActionType.COMMENT, pageable);
+
+        return rootComments.map(this::mapToCommentResponse);
+    }
+
+    private CommentResponse mapToCommentResponse(PostAction action) {
+        if (action == null) return null;
+
+        List<CommentResponse> childReplies = List.of();
+        if (action.getReplies() != null) {
+            childReplies = action.getReplies().stream()
+                    .map(this::mapToCommentResponse)
+                    .toList();
+        }
+
+        return CommentResponse.builder()
+                .postActionId(action.getPostActionId())
+                .postId(action.getPost().getPostId())
+                .userId(action.getUser().getUserId())
+                .username(action.getUser().getUsername())
+                .displayName(action.getUser().getDisplayName())
+                .comment(action.getComment())
+                .createdAt(action.getCreatedAt())
+                .replies(childReplies)
+                .build();
     }
 }
