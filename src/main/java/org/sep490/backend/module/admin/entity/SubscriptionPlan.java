@@ -57,5 +57,5 @@ public class SubscriptionPlan {
 
     @OneToMany(mappedBy = "subscriptionPlan", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
-    private List<PartnerSubscription> shopSubscriptions = new ArrayList<>();
+    private List<Invoice> shopSubscriptions = new ArrayList<>();
 }

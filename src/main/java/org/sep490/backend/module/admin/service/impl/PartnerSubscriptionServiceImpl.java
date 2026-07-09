@@ -13,15 +13,15 @@ import org.sep490.backend.config.payos.PayOsProperties;
 import org.sep490.backend.module.admin.dto.request.MomoIpnRequest;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
 import org.sep490.backend.module.admin.dto.response.*;
-import org.sep490.backend.module.admin.entity.PartnerSubscription;
-import org.sep490.backend.module.admin.entity.SubscriptionPlan;
+import org.sep490.backend.module.admin.entity.*;
 import org.sep490.backend.module.admin.entity.enumeration.BillingCycleEnum;
-import org.sep490.backend.module.admin.entity.enumeration.MomoPaymentStatus;
-import org.sep490.backend.module.admin.entity.enumeration.PartnerSubscriptionStatus;
+import org.sep490.backend.module.admin.entity.enumeration.InvoicePaymentStatus;
+import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
+import org.sep490.backend.module.admin.entity.enumeration.PartnerInfoStatus;
+import org.sep490.backend.module.admin.entity.enumeration.PartnerApprovalStatus;
 import org.sep490.backend.module.admin.entity.enumeration.PaymentGateway;
 import org.sep490.backend.module.admin.mapper.PartnerSubscriptionMapper;
-import org.sep490.backend.module.admin.repository.PartnerSubscriptionRepository;
-import org.sep490.backend.module.admin.repository.SubscriptionPlanRepository;
+import org.sep490.backend.module.admin.repository.*;
 import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
@@ -58,7 +58,10 @@ import java.util.UUID;
 @Slf4j
 public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionService {
     SubscriptionPlanRepository planRepository;
-    PartnerSubscriptionRepository partnerSubscriptionRepository;
+    PartnerInfoRepository partnerInfoRepository;
+    InvoiceRepository invoiceRepository;
+    PartnerApprovalRepository partnerApprovalRepository;
+    SubscriptionUsageRepository subscriptionUsageRepository;
     PartnerSubscriptionMapper subscriptionMapper;
     UserService userService;
     KeyCloakAuthClient keyCloakAuthClient;
@@ -70,6 +73,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     private final JavaMailSender mailSender;
     private final PayOsProperties payOsProperties;
     private final PayOS payOS;
+    private final PlanRuleRepository planRuleRepository;
     @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
     @NonFinal
     String frontendUrl;
@@ -82,13 +86,13 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                 .orElseThrow(() -> new BusinessException("Gói đăng ký không tồn tại"));
 
         // if
-        // (!partnerSubscriptionRepository.isLocationInVietnam(request.getLongitude(),
+        // (!partnerInfoRepository.isLocationInVietnam(request.getLongitude(),
         // request.getLatitude())) {
         // throw new BusinessException("Vị trí của shop phải nằm trong lãnh thổ Việt
         // Nam");
         // }
 
-        if (userRepository.existsByEmail(request.getShopEmail())) {
+        if (partnerInfoRepository.existsByShopEmail(request.getShopEmail()) || userRepository.existsByEmail(request.getShopEmail())) {
             throw new BusinessException("Email quản lý shop này đã được đăng ký cho một tài khoản khác.");
         }
 
@@ -98,33 +102,38 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         if (amount <= 0)
             throw new BusinessException("Giá gói không hợp lệ.");
 
-        PartnerSubscription subscription = subscriptionMapper.toEntity(request);
-        subscription.setPartner(currentPartner);
-        subscription.setSubscriptionPlan(plan);
-        subscription.setIsVerified(false);
-        subscription.setStatus(PartnerSubscriptionStatus.PAYMENT_PENDING);
-        subscription.setPaymentStatus(MomoPaymentStatus.PENDING);
-        subscription.setPaidAmount(amount);
-        subscription.setStartDate(null);
-        subscription.setEndDate(null);
+        PartnerInfo partnerInfo = subscriptionMapper.toPartnerInfo(request);
+        partnerInfo.setUser(currentPartner);
+        partnerInfo.setStatus(PartnerInfoStatus.INACTIVE);
 
         if (request.getDocumentFile() != null && !request.getDocumentFile().isEmpty()) {
             try {
                 String docUrl = s3Service.uploadFile(request.getDocumentFile(), "partner_subscriptions/documents");
-                subscription.setDocumentUrl(docUrl);
+                partnerInfo.setDocumentUrl(docUrl);
             } catch (IOException e) {
                 throw new BusinessException("Lỗi xảy ra khi tải lên tài liệu xác minh lên S3: " + e.getMessage());
             }
         } else {
             throw new BusinessException("Giấy tờ xác minh là bắt buộc đối với đối tác");
         }
-        subscription = partnerSubscriptionRepository.save(subscription);
+        partnerInfo = partnerInfoRepository.save(partnerInfo);
 
-        PartnerSubscriptionResponse response = subscriptionMapper.toResponse(subscription);
+        Invoice invoice = Invoice.builder()
+                .partnerInfo(partnerInfo)
+                .subscriptionPlan(plan)
+                .billingCycle(request.getBillingCycle())
+                .status(InvoiceStatus.PENDING)
+                .paymentStatus(InvoicePaymentStatus.PENDING)
+                .paidAmount(amount)
+                .invoiceCode("INV" + System.currentTimeMillis())
+                .build();
+        invoice = invoiceRepository.save(invoice);
+
+        PartnerSubscriptionResponse response = subscriptionMapper.toResponse(invoice);
         if (request.getFiles() != null && request.getFiles().length > 0) {
             try {
                 List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.PARTNER_SUBSCRIPTION, subscription.getId());
+                        request.getFiles(), MediaTargetType.PARTNER_SUBSCRIPTION, partnerInfo.getPartnerInfoId());
                 List<PartnerSubscriptionResponse.MediaDto> mediaDtos = mediaResponses.stream().map(m -> {
                     PartnerSubscriptionResponse.MediaDto dto = new PartnerSubscriptionResponse.MediaDto();
                     dto.setMediaId(m.getMediaId());
@@ -144,49 +153,86 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     @Override
     @Transactional
     public PartnerSubscriptionResponse verifiedSubscription(Long subscriptionId, boolean isApproved) {
-        PartnerSubscription subscription = partnerSubscriptionRepository.findById(subscriptionId)
-                .orElseThrow(() -> new BusinessException("Yêu cầu đăng ký gói không tồn tại"));
+        Invoice invoice = invoiceRepository.findById(subscriptionId)
+                .orElseThrow(() -> new BusinessException("Hóa đơn đăng ký gói không tồn tại"));
 
-        if (!PartnerSubscriptionStatus.PENDING.equals(subscription.getStatus())) {
-            throw new BusinessException("Chỉ có thể duyệt gói dịch vụ đang ở trạng thái chờ duyệt");
+        if (!InvoiceStatus.PENDING.equals(invoice.getStatus())) {
+            throw new BusinessException("Chỉ có thể duyệt hóa đơn dịch vụ đang ở trạng thái chờ duyệt");
         }
 
+        PartnerInfo partnerInfo = invoice.getPartnerInfo();
+
         if (isApproved) {
-            if (userRepository.existsByEmail(subscription.getShopEmail())) {
+            if (userRepository.existsByEmail(partnerInfo.getShopEmail())) {
                 throw new BusinessException(
                         "Không thể duyệt: Email shop cung cấp đã bị trùng lặp với người dùng khác trong hệ thống.");
             }
-            subscription.setStatus(PartnerSubscriptionStatus.ACTIVE);
-            subscription.setIsVerified(true);
+            invoice.setStatus(InvoiceStatus.ACTIVE);
+            partnerInfo.setStatus(PartnerInfoStatus.ACTIVE);
             LocalDateTime now = LocalDateTime.now();
-            subscription.setStartDate(now);
+            invoice.setStartDate(now);
 
-            if (BillingCycleEnum.MONTHLY.equals(subscription.getBillingCycle())) {
-                subscription.setEndDate(now.plusMonths(1));
-            } else if (BillingCycleEnum.YEARLY.equals(subscription.getBillingCycle())) {
-                subscription.setEndDate(now.plusYears(1));
+            if (BillingCycleEnum.MONTHLY.equals(invoice.getBillingCycle())) {
+                invoice.setEndDate(now.plusMonths(1));
+            } else if (BillingCycleEnum.YEARLY.equals(invoice.getBillingCycle())) {
+                invoice.setEndDate(now.plusYears(1));
             }
-            createPartnerSubAccount(subscription);
-        } else {
-            subscription.setStatus(PartnerSubscriptionStatus.REJECTED);
-            subscription.setIsVerified(false);
 
-            if (MomoPaymentStatus.PAID.equals(subscription.getPaymentStatus())
-                    && subscription.getMomoTransId() != null) {
-                doMomoRefund(subscription);
+            PartnerApproval approval = PartnerApproval.builder()
+                    .partnerInfo(partnerInfo)
+                    .reviewer(userService.getCurrentUser())
+                    .approvalStatus(PartnerApprovalStatus.APPROVED)
+                    .reviewedAt(now)
+                    .build();
+            partnerApprovalRepository.save(approval);
+
+            List<PlanRule> rules = planRuleRepository.findBySubscriptionPlan_SubscriptionPlanId(invoice.getSubscriptionPlan().getSubscriptionPlanId());
+            for (PlanRule rule : rules) {
+                try {
+                    int maxVal = Integer.parseInt(rule.getRuleValue());
+                    SubscriptionUsage usage = SubscriptionUsage.builder()
+                            .invoice(invoice)
+                            .usageKey(rule.getRuleKey())
+                            .currentUsage(0)
+                            .maxAllowed(maxVal)
+                            .resetAt(invoice.getEndDate())
+                            .build();
+                    subscriptionUsageRepository.save(usage);
+                } catch (NumberFormatException e) {
+                    log.error("Lỗi parse cấu hình giới hạn gói: key={}, value={}", rule.getRuleKey(), rule.getRuleValue());
+                }
+            }
+
+            createPartnerSubAccount(invoice);
+        } else {
+            invoice.setStatus(InvoiceStatus.CANCELLED);
+            partnerInfo.setStatus(PartnerInfoStatus.INACTIVE);
+
+            PartnerApproval approval = PartnerApproval.builder()
+                    .partnerInfo(partnerInfo)
+                    .reviewer(userService.getCurrentUser())
+                    .approvalStatus(PartnerApprovalStatus.REJECTED)
+                    .reviewedAt(LocalDateTime.now())
+                    .build();
+            partnerApprovalRepository.save(approval);
+
+            if (InvoicePaymentStatus.PAID.equals(invoice.getPaymentStatus())
+                    && invoice.getMomoTransId() != null) {
+                doMomoRefund(invoice);
             }
         }
-        subscription = partnerSubscriptionRepository.save(subscription);
-        return subscriptionMapper.toResponse(subscription);
+        partnerInfoRepository.save(partnerInfo);
+        invoice = invoiceRepository.save(invoice);
+        return subscriptionMapper.toResponse(invoice);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<PartnerSubscriptionResponse> getMySubscriptions() {
         User currentPartner = userService.getCurrentUser();
-        List<PartnerSubscription> subscriptions = partnerSubscriptionRepository
-                .findByPartner_UserIdOrderByCreatedAtDesc(currentPartner.getUserId());
-        return subscriptions.stream()
+        List<Invoice> invoices = invoiceRepository
+                .findByPartnerInfo_User_UserIdOrderByCreatedAtDesc(currentPartner.getUserId());
+        return invoices.stream()
                 .map(subscriptionMapper::toResponse)
                 .toList();
     }
@@ -195,9 +241,9 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     @Transactional(readOnly = true)
     public List<PartnerSubscriptionResponse> getSubscriptionsByPartnerId(Long partnerId) {
         userService.getProfile(partnerId);
-        List<PartnerSubscription> subscriptions = partnerSubscriptionRepository
-                .findByPartner_UserIdOrderByCreatedAtDesc(partnerId);
-        return subscriptions.stream()
+        List<Invoice> invoices = invoiceRepository
+                .findByPartnerInfo_User_UserIdOrderByCreatedAtDesc(partnerId);
+        return invoices.stream()
                 .map(subscriptionMapper::toResponse)
                 .toList();
     }
@@ -221,99 +267,94 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     @Override
     @Transactional
     public void handleMomoIpn(MomoIpnRequest request) {
-        PartnerSubscription subscription = partnerSubscriptionRepository
+        Invoice invoice = invoiceRepository
                 .findByMomoOrderId(request.getOrderId())
                 .orElse(null);
 
-        if (subscription == null) {
-            log.error("[MoMo IPN] Không tìm thấy subscription với orderId={}", request.getOrderId());
+        if (invoice == null) {
+            log.error("[MoMo IPN] Không tìm thấy hóa đơn với orderId={}", request.getOrderId());
             return;
         }
 
-        if (MomoPaymentStatus.PAID.equals(subscription.getPaymentStatus())) {
+        if (InvoicePaymentStatus.PAID.equals(invoice.getPaymentStatus())) {
             log.warn("[MoMo IPN] Đã xử lý rồi, bỏ qua. orderId={}", request.getOrderId());
             return;
         }
 
         if (request.getResultCode() == 0) {
-            subscription.setPaymentStatus(MomoPaymentStatus.PAID);
-            subscription.setMomoTransId(String.valueOf(request.getTransId()));
-            subscription.setPaidAt(LocalDateTime.now());
-            subscription.setStatus(PartnerSubscriptionStatus.PENDING);
-            partnerSubscriptionRepository.save(subscription);
+            invoice.setPaymentStatus(InvoicePaymentStatus.PAID);
+            invoice.setMomoTransId(String.valueOf(request.getTransId()));
+            invoice.setPaidAt(LocalDateTime.now());
+            invoice.setStatus(InvoiceStatus.PENDING);
+            invoiceRepository.save(invoice);
         } else {
-            subscription.setPaymentStatus(MomoPaymentStatus.FAILED);
-            subscription.setStatus(PartnerSubscriptionStatus.PAYMENT_FAILED);
-            partnerSubscriptionRepository.save(subscription);
+            invoice.setPaymentStatus(InvoicePaymentStatus.FAILED);
+            invoiceRepository.save(invoice);
         }
-
     }
 
     @Override
     @Transactional
     public PaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl, String gateway) {
         User currentUser = userService.getCurrentUser();
-        PartnerSubscription subscription = partnerSubscriptionRepository.findById(subscriptionId)
-                .orElseThrow(() -> new BusinessException("Subscription không tồn tại"));
+        Invoice invoice = invoiceRepository.findById(subscriptionId)
+                .orElseThrow(() -> new BusinessException("Hóa đơn không tồn tại"));
 
-        if (!subscription.getPartner().getUserId().equals(currentUser.getUserId())) {
+        if (!invoice.getPartnerInfo().getUser().getUserId().equals(currentUser.getUserId())) {
             throw new BusinessException("Bạn không có quyền thực hiện thao tác này.");
         }
-        if (!PartnerSubscriptionStatus.PAYMENT_PENDING.equals(subscription.getStatus())
-                && !PartnerSubscriptionStatus.PAYMENT_FAILED.equals(subscription.getStatus())) {
-            throw new BusinessException("Đơn đăng ký này không thể thanh toán lúc này.");
+        if (InvoicePaymentStatus.PAID.equals(invoice.getPaymentStatus())) {
+            throw new BusinessException("Hóa đơn này đã được thanh toán.");
         }
-        if (subscription.getDocumentUrl() == null) {
+        if (invoice.getPartnerInfo().getDocumentUrl() == null) {
             throw new BusinessException("Vui lòng upload đầy đủ giấy tờ trước khi thanh toán.");
         }
 
         if ("PAYOS".equalsIgnoreCase(gateway)) {
-            return initiatePayOsPayment(subscription, redirectUrl);
+            return initiatePayOsPayment(invoice, redirectUrl);
         } else {
-            return initiateMomoPayment(subscription, redirectUrl);
+            return initiateMomoPayment(invoice, redirectUrl);
         }
     }
 
     @Override
+    @Transactional
     public void handlePayOsWebhook(Map<String, Object> body) {
         try {
             WebhookData data = payOS.webhooks().verify(body);
 
             long orderCode = data.getOrderCode();
-            PartnerSubscription subscription = partnerSubscriptionRepository.findByPayosOrderCode(orderCode)
+            Invoice invoice = invoiceRepository.findByPayosOrderCode(orderCode)
                     .orElse(null);
-            if (subscription == null) {
-                log.error("[PayOS Webhook] Không tìm thấy subscription với orderCode={}", orderCode);
+            if (invoice == null) {
+                log.error("[PayOS Webhook] Không tìm thấy hóa đơn với orderCode={}", orderCode);
                 return;
             }
-            if (MomoPaymentStatus.PAID.equals(subscription.getPaymentStatus())) {
+            if (InvoicePaymentStatus.PAID.equals(invoice.getPaymentStatus())) {
                 log.warn("[PayOS Webhook] Đã xử lý rồi, bỏ qua. orderCode={}", orderCode);
                 return;
             }
 
             if ("00".equals(data.getCode())) {
-                subscription.setPaymentStatus(MomoPaymentStatus.PAID);
-                subscription.setPayosTransactionId(data.getReference());
-                subscription.setPaidAt(LocalDateTime.now());
-                subscription.setStatus(PartnerSubscriptionStatus.PENDING);
-                partnerSubscriptionRepository.save(subscription);
+                invoice.setPaymentStatus(InvoicePaymentStatus.PAID);
+                invoice.setPayosTransactionId(data.getReference());
+                invoice.setPaidAt(LocalDateTime.now());
+                invoice.setStatus(InvoiceStatus.PENDING);
+                invoiceRepository.save(invoice);
             } else {
-                subscription.setPaymentStatus(MomoPaymentStatus.FAILED);
-                subscription.setStatus(PartnerSubscriptionStatus.PAYMENT_FAILED);
+                invoice.setPaymentStatus(InvoicePaymentStatus.FAILED);
             }
-            partnerSubscriptionRepository.save(subscription);
+            invoiceRepository.save(invoice);
         } catch (Exception e) {
             log.error("[PayOS Webhook] Lỗi xác thực webhook: {}", e.getMessage());
         }
     }
 
-    private PaymentInitResponse initiateMomoPayment(PartnerSubscription subscription, String redirectUrl) {
-        long amount = subscription.getPaidAmount();
-        String momoOrderId = "SUB_" + subscription.getId() + "_" + System.currentTimeMillis();
+    private PaymentInitResponse initiateMomoPayment(Invoice invoice, String redirectUrl) {
+        long amount = invoice.getPaidAmount();
+        String momoOrderId = "SUB_" + invoice.getInvoiceId() + "_" + System.currentTimeMillis();
         String momoRequestId = UUID.randomUUID().toString();
-        String orderInfo = "Thanh toan goi "
-                + subscription.getSubscriptionPlan().getSubscriptionPlanName()
-                + " - " + subscription.getShopName();
+        String orderInfo = "Thanh toan dang ky goi dich vu Culture Quest cho hoa don SUB" + invoice.getInvoiceId();
 
         MomoPaymentResponse momoResp;
         try {
@@ -326,13 +367,13 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
             throw new BusinessException("Tạo giao dịch MoMo thất bại: " + errMsg);
         }
 
-        subscription.setMomoOrderId(momoOrderId);
-        subscription.setMomoRequestId(momoRequestId);
-        subscription.setPaymentGateway(PaymentGateway.MOMO);
-        partnerSubscriptionRepository.save(subscription);
+        invoice.setMomoOrderId(momoOrderId);
+        invoice.setMomoRequestId(momoRequestId);
+        invoice.setPaymentGateway(PaymentGateway.MOMO);
+        invoiceRepository.save(invoice);
 
         return PaymentInitResponse.builder()
-                .subscriptionId(subscription.getId())
+                .subscriptionId(invoice.getInvoiceId())
                 .gateway(PaymentGateway.MOMO)
                 .payUrl(momoResp.getPayUrl())
                 .deeplink(momoResp.getDeeplink())
@@ -342,15 +383,15 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                 .build();
     }
 
-    private PaymentInitResponse initiatePayOsPayment(PartnerSubscription subscription, String redirectUrl) {
+    private PaymentInitResponse initiatePayOsPayment(Invoice invoice, String redirectUrl) {
         long orderCode = System.currentTimeMillis() / 1000;
-        String description = "SUB" + subscription.getId();
+        String description = "SUB" + invoice.getInvoiceId();
         String effectiveReturnUrl = (redirectUrl != null && !redirectUrl.isBlank())
                 ? redirectUrl : payOsProperties.getReturnUrl();
 
         CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
                 .orderCode(orderCode)
-                .amount(subscription.getPaidAmount())
+                .amount(invoice.getPaidAmount())
                 .description(description)
                 .returnUrl(effectiveReturnUrl)
                 .cancelUrl(payOsProperties.getCancelUrl())
@@ -358,17 +399,17 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
 
         try {
             CreatePaymentLinkResponse response = payOS.paymentRequests().create(paymentData);
-            subscription.setPayosOrderCode(orderCode);
-            subscription.setPayosPaymentLinkId(response.getPaymentLinkId());
-            subscription.setPaymentGateway(PaymentGateway.PAYOS);
-            partnerSubscriptionRepository.save(subscription);
+            invoice.setPayosOrderCode(orderCode);
+            invoice.setPayosPaymentLinkId(response.getPaymentLinkId());
+            invoice.setPaymentGateway(PaymentGateway.PAYOS);
+            invoiceRepository.save(invoice);
 
             return PaymentInitResponse.builder()
-                    .subscriptionId(subscription.getId())
+                    .subscriptionId(invoice.getInvoiceId())
                     .gateway(PaymentGateway.PAYOS)
                     .checkoutUrl(response.getCheckoutUrl())
                     .qrCode(response.getQrCode())
-                    .amount(subscription.getPaidAmount())
+                    .amount(invoice.getPaidAmount())
                     .orderInfo(description)
                     .build();
         } catch (PayOSException e) {
@@ -377,36 +418,36 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         }
     }
 
-    private void doMomoRefund(PartnerSubscription subscription) {
-        String refundOrderId = "REFUND_" + subscription.getId() + "_" + System.currentTimeMillis();
+    private void doMomoRefund(Invoice invoice) {
+        String refundOrderId = "REFUND_" + invoice.getInvoiceId() + "_" + System.currentTimeMillis();
         String requestId = UUID.randomUUID().toString();
 
         try {
             MomoRefundResponse resp = momoClient.refund(
-                    subscription.getPaidAmount(),
+                    invoice.getPaidAmount(),
                     refundOrderId,
                     requestId,
-                    Long.parseLong(subscription.getMomoTransId()),
+                    Long.parseLong(invoice.getMomoTransId()),
                     "Hoàn tiền đơn đăng ký bị từ chối");
             if (resp != null && resp.getResultCode() == 0) {
-                subscription.setPaymentStatus(MomoPaymentStatus.REFUNDED);
-                subscription.setStatus(PartnerSubscriptionStatus.PENDING);
-                subscription.setRefundOrderId(refundOrderId);
-                subscription.setRefundedAt(LocalDateTime.now());
+                invoice.setPaymentStatus(InvoicePaymentStatus.REFUNDED);
+                invoice.setStatus(InvoiceStatus.CANCELLED);
+                invoice.setRefundOrderId(refundOrderId);
+                invoice.setRefundedAt(LocalDateTime.now());
             } else {
                 String msg = resp != null ? resp.getMessage() : "null response";
-                log.error("[MoMo] Refund FAILED: subscriptionId={}, msg={}",
-                        subscription.getId(), msg);
+                log.error("[MoMo] Refund FAILED: invoiceId={}, msg={}",
+                        invoice.getInvoiceId(), msg);
             }
         } catch (Exception e) {
-            log.error("[MoMo] Exception khi refund subscriptionId={}: {}",
-                    subscription.getId(), e.getMessage(), e);
+            log.error("[MoMo] Exception khi refund invoiceId={}: {}",
+                    invoice.getInvoiceId(), e.getMessage(), e);
         }
     }
 
-    private void createPartnerSubAccount(PartnerSubscription subscription) {
-        User owner = subscription.getPartner();
-        String shopEmail = subscription.getShopEmail();
+    private void createPartnerSubAccount(Invoice invoice) {
+        User owner = invoice.getPartnerInfo().getUser();
+        String shopEmail = invoice.getPartnerInfo().getShopEmail();
 
         String rawPassword = UUID.randomUUID().toString().substring(0, 8);
         String partnerUsername = "shop_" + owner.getUsername();
