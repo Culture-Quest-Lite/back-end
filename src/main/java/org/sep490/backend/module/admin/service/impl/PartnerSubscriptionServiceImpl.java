@@ -20,6 +20,8 @@ import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
 import org.sep490.backend.module.admin.entity.enumeration.PartnerInfoStatus;
 import org.sep490.backend.module.admin.entity.enumeration.PartnerApprovalStatus;
 import org.sep490.backend.module.admin.entity.enumeration.PaymentGateway;
+import org.sep490.backend.module.admin.entity.enumeration.SystemTransactionStatus;
+import org.sep490.backend.module.admin.entity.enumeration.SystemTransactionType;
 import org.sep490.backend.module.admin.mapper.PartnerSubscriptionMapper;
 import org.sep490.backend.module.admin.repository.*;
 import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
@@ -62,6 +64,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     InvoiceRepository invoiceRepository;
     PartnerApprovalRepository partnerApprovalRepository;
     SubscriptionUsageRepository subscriptionUsageRepository;
+    SystemTransactionRepository systemTransactionRepository;
     PartnerSubscriptionMapper subscriptionMapper;
     UserService userService;
     KeyCloakAuthClient keyCloakAuthClient;
@@ -281,15 +284,31 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
             return;
         }
 
+        SystemTransaction transaction = systemTransactionRepository
+                .findFirstByGatewayRefOrderByCreatedAtDesc(request.getOrderId())
+                .orElse(null);
+
         if (request.getResultCode() == 0) {
             invoice.setPaymentStatus(InvoicePaymentStatus.PAID);
             invoice.setMomoTransId(String.valueOf(request.getTransId()));
             invoice.setPaidAt(LocalDateTime.now());
             invoice.setStatus(InvoiceStatus.PENDING);
             invoiceRepository.save(invoice);
+
+            if (transaction != null) {
+                transaction.setStatus(SystemTransactionStatus.SUCCESSED);
+                transaction.setNotes("Thanh toán thành công qua MoMo. Mã GD: " + request.getTransId());
+                systemTransactionRepository.save(transaction);
+            }
         } else {
             invoice.setPaymentStatus(InvoicePaymentStatus.FAILED);
             invoiceRepository.save(invoice);
+
+            if (transaction != null) {
+                transaction.setStatus(SystemTransactionStatus.FAILED);
+                transaction.setNotes("Thanh toán thất bại qua MoMo. Lỗi: " + request.getMessage());
+                systemTransactionRepository.save(transaction);
+            }
         }
     }
 
@@ -335,16 +354,32 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                 return;
             }
 
+            SystemTransaction transaction = systemTransactionRepository
+                    .findFirstByGatewayRefOrderByCreatedAtDesc(String.valueOf(orderCode))
+                    .orElse(null);
+
             if ("00".equals(data.getCode())) {
                 invoice.setPaymentStatus(InvoicePaymentStatus.PAID);
                 invoice.setPayosTransactionId(data.getReference());
                 invoice.setPaidAt(LocalDateTime.now());
                 invoice.setStatus(InvoiceStatus.PENDING);
                 invoiceRepository.save(invoice);
+
+                if (transaction != null) {
+                    transaction.setStatus(SystemTransactionStatus.SUCCESSED);
+                    transaction.setNotes("Thanh toán thành công qua PayOS. Ref: " + data.getReference());
+                    systemTransactionRepository.save(transaction);
+                }
             } else {
                 invoice.setPaymentStatus(InvoicePaymentStatus.FAILED);
+                invoiceRepository.save(invoice);
+
+                if (transaction != null) {
+                    transaction.setStatus(SystemTransactionStatus.FAILED);
+                    transaction.setNotes("Thanh toán thất bại qua PayOS.");
+                    systemTransactionRepository.save(transaction);
+                }
             }
-            invoiceRepository.save(invoice);
         } catch (Exception e) {
             log.error("[PayOS Webhook] Lỗi xác thực webhook: {}", e.getMessage());
         }
@@ -371,6 +406,16 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         invoice.setMomoRequestId(momoRequestId);
         invoice.setPaymentGateway(PaymentGateway.MOMO);
         invoiceRepository.save(invoice);
+
+        SystemTransaction paymentTrans = SystemTransaction.builder()
+                .invoice(invoice)
+                .transactionType(SystemTransactionType.PAYMENT)
+                .amount(amount)
+                .status(SystemTransactionStatus.PENDING)
+                .gatewayRef(momoOrderId)
+                .notes("Khởi tạo thanh toán qua MoMo")
+                .build();
+        systemTransactionRepository.save(paymentTrans);
 
         return PaymentInitResponse.builder()
                 .subscriptionId(invoice.getInvoiceId())
@@ -404,6 +449,16 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
             invoice.setPaymentGateway(PaymentGateway.PAYOS);
             invoiceRepository.save(invoice);
 
+            SystemTransaction paymentTrans = SystemTransaction.builder()
+                    .invoice(invoice)
+                    .transactionType(SystemTransactionType.PAYMENT)
+                    .amount(invoice.getPaidAmount())
+                    .status(SystemTransactionStatus.PENDING)
+                    .gatewayRef(String.valueOf(orderCode))
+                    .notes("Khởi tạo thanh toán qua PayOS")
+                    .build();
+            systemTransactionRepository.save(paymentTrans);
+
             return PaymentInitResponse.builder()
                     .subscriptionId(invoice.getInvoiceId())
                     .gateway(PaymentGateway.PAYOS)
@@ -428,16 +483,36 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                     refundOrderId,
                     requestId,
                     Long.parseLong(invoice.getMomoTransId()),
-                    "Hoàn tiền đơn đăng ký bị từ chối");
+                    "Hoan tien don dang ky bi tu choi");
             if (resp != null && resp.getResultCode() == 0) {
                 invoice.setPaymentStatus(InvoicePaymentStatus.REFUNDED);
                 invoice.setStatus(InvoiceStatus.CANCELLED);
                 invoice.setRefundOrderId(refundOrderId);
                 invoice.setRefundedAt(LocalDateTime.now());
+
+                SystemTransaction refundTrans = SystemTransaction.builder()
+                        .invoice(invoice)
+                        .transactionType(SystemTransactionType.REFUND)
+                        .amount(invoice.getPaidAmount())
+                        .status(SystemTransactionStatus.SUCCESSED)
+                        .gatewayRef(refundOrderId)
+                        .notes("Hoàn tiền thành công qua MoMo.")
+                        .build();
+                systemTransactionRepository.save(refundTrans);
             } else {
                 String msg = resp != null ? resp.getMessage() : "null response";
                 log.error("[MoMo] Refund FAILED: invoiceId={}, msg={}",
                         invoice.getInvoiceId(), msg);
+
+                SystemTransaction refundTrans = SystemTransaction.builder()
+                        .invoice(invoice)
+                        .transactionType(SystemTransactionType.REFUND)
+                        .amount(invoice.getPaidAmount())
+                        .status(SystemTransactionStatus.FAILED)
+                        .gatewayRef(refundOrderId)
+                        .notes("Hoàn tiền thất bại qua MoMo. Lỗi: " + msg)
+                        .build();
+                systemTransactionRepository.save(refundTrans);
             }
         } catch (Exception e) {
             log.error("[MoMo] Exception khi refund invoiceId={}: {}",
