@@ -1,17 +1,17 @@
 package org.sep490.backend.module.admin.repository;
 
-import org.sep490.backend.module.admin.entity.PartnerSubscription;
+import org.sep490.backend.module.admin.entity.PartnerInfo;
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 
-public interface PartnerSubscriptionRepository extends JpaRepository<PartnerSubscription, Long> {
-    List<PartnerSubscription> findByPartner_UserId(Long partnerId);
-    List<PartnerSubscription> findByPartner_UserIdOrderByCreatedAtDesc(Long partnerId);
+@Repository
+public interface PartnerInfoRepository extends JpaRepository<PartnerInfo, Long> {
+    Optional<PartnerInfo> findByUser_UserId(Long userId);
+    boolean existsByShopEmail(String shopEmail);
 
     @Query(value = "SELECT EXISTS (" +
             "  SELECT 1 FROM country_boundaries cb " +
@@ -22,8 +22,4 @@ public interface PartnerSubscriptionRepository extends JpaRepository<PartnerSubs
             "  )" +
             ")", nativeQuery = true)
     boolean isLocationInVietnam(@Param("longitude") Double longitude, @Param("latitude") Double latitude);
-
-    Optional<PartnerSubscription> findByMomoOrderId(String momoOrderId);
-    Optional<PartnerSubscription> findByPayosOrderCode(Long payosOrderCode);
-
 }
