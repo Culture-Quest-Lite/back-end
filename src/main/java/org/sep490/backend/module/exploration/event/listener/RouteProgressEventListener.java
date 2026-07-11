@@ -5,16 +5,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
-import org.sep490.backend.module.content.entity.RouteHotspot;
 import org.sep490.backend.module.content.repository.HotspotRepository;
-import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
-import org.sep490.backend.module.exploration.entity.UserRouteProgress;
+import org.sep490.backend.module.content.repository.StoryRepository;
+import org.sep490.backend.module.exploration.entity.RouteParticipant;
 import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
 import org.sep490.backend.module.exploration.event.CheckInCompletedEvent;
 import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
-import org.sep490.backend.module.exploration.repository.UserRouteProgressRepository;
-import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
+import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -31,8 +29,8 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class RouteProgressEventListener {
 
-    RouteHotspotRepository routeHotspotRepository;
-    UserRouteProgressRepository userRouteProgressRepository;
+    StoryRepository storyRepository;
+    RouteParticipantRepository routeParticipantRepository;
     HotspotRepository hotspotRepository;
     ApplicationEventPublisher eventPublisher;
     RouteRepository routeRepository;
@@ -42,46 +40,41 @@ public class RouteProgressEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleCheckInCompleted(CheckInCompletedEvent event) {
 
-        try {
+        Hotspot hotspot = hotspotRepository.findById(event.hotspotId())
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy hotspot với ID: " + event.hotspotId()));
 
-            Hotspot hotspot = hotspotRepository.findById(event.hotspotId())
-                    .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy hotspot với ID: " + event.hotspotId()));
+        List<Long> routeIds = storyRepository.findRouteIdsByHotspot_HotspotId(event.hotspotId());
 
-            List<Long> routeIds = routeHotspotRepository.findRouteIdsByHotspot_HotspotId(event.hotspotId());
+        if (routeIds.isEmpty()) {
+            return;
+        }
 
-            if (routeIds.isEmpty()) {
-                return;
+        List<RouteParticipant> unfinishedProgresses = routeParticipantRepository
+                .findByUser_UserIdAndRoute_RouteIdInAndStatusNot(event.userId(), routeIds, ProgressStatus.COMPLETED);
+
+        for (RouteParticipant progress : unfinishedProgresses) {
+            int newCompletedStops = progress.getCompletedStops() + 1;
+            progress.setCompletedStops(newCompletedStops);
+
+            double newPercentage = ((double) newCompletedStops / progress.getTotalStops()) * 100;
+            progress.setProgressPercentage(Math.min(newPercentage, 100.0));
+
+            if (newCompletedStops >= progress.getTotalStops()) {
+                progress.setStatus(ProgressStatus.COMPLETED);
+                progress.setCompletedAt(LocalDateTime.now());
+                eventPublisher.publishEvent(new RouteProgressCompletedEvent(
+                        event.userId(),
+                        progress.getRoute().getRouteId()
+                ));
+
+                Route route = progress.getRoute();
+                route.setTotalCheckIns(route.getTotalCheckIns() + 1);
+                routeRepository.save(progress.getRoute());
             }
+        }
 
-            List<UserRouteProgress> unfinishedProgresses = userRouteProgressRepository
-                    .findByUser_UserIdAndRoute_RouteIdInAndStatusNot(event.userId(), routeIds, ProgressStatus.COMPLETED);
-
-            for (UserRouteProgress progress : unfinishedProgresses) {
-                int newCompletedStops = progress.getCompletedStops().intValue() + 1;
-                progress.setCompletedStops(newCompletedStops);
-
-                double newPercentage = ((double) newCompletedStops / progress.getTotalStops().doubleValue()) * 100;
-                progress.setProgressPercentage(Math.min(newPercentage, 100.0));
-
-                if (newCompletedStops >= progress.getTotalStops()) {
-                    progress.setStatus(ProgressStatus.COMPLETED);
-                    progress.setCompletedAt(LocalDateTime.now());
-                    eventPublisher.publishEvent(new RouteProgressCompletedEvent(
-                            event.userId(),
-                            progress.getRoute().getRouteId()
-                    ));
-
-                    Route route = progress.getRoute();
-                    route.setTotalCheckIns(route.getTotalCheckIns() + 1);
-                    routeRepository.save(progress.getRoute());
-                }
-            }
-
-            if (!unfinishedProgresses.isEmpty()) {
-                userRouteProgressRepository.saveAll(unfinishedProgresses);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (!unfinishedProgresses.isEmpty()) {
+            routeParticipantRepository.saveAll(unfinishedProgresses);
         }
     }
 }

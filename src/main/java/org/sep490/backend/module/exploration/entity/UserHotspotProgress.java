@@ -11,19 +11,20 @@ import org.sep490.backend.module.content.entity.Hotspot;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "check_ins")
+@Table(name = "user_hotspot_progress",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"user_id", "hotspot_id"}))
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class CheckIn {
+public class UserHotspotProgress {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "check_in_id")
-    Long checkInId;
+    @Column(name = "user_progress_id")
+    Long userProgressId;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
@@ -33,23 +34,16 @@ public class CheckIn {
     @JoinColumn(name = "hotspot_id", nullable = false)
     Hotspot hotspot;
 
-    @ManyToOne
-    @JoinColumn(name = "user_route_progress_id")
-    UserRouteProgress userRouteProgress;
+    @Column(name = "location")
+    Point location;
 
-    @Column(name = "location", nullable = false)
-    Point checkInLocation;
+    @Column(name = "total_point_earned")
+    Integer totalPointEarned;
 
-    @Column(name = "distance_to_hotspot", nullable = false)
-    Double distanceToHotspot; // meter
-
-    @Column(name = "point_earned", nullable = false)
-    Long pointEarned;
-
-    @Column(name = "xp_earned", nullable = false)
-    Long xpEarned;
+    @Column(name = "total_xp_earned")
+    Integer totalXpEarned;
 
     @CreationTimestamp
-    @Column(name = "check_in_at", updatable = false)
-    LocalDateTime checkInAt;
+    @Column(name = "first_visited_at", updatable = false)
+    LocalDateTime firstVisitedAt;
 }

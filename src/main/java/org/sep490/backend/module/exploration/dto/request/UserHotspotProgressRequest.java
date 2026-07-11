@@ -7,8 +7,10 @@ import lombok.experimental.FieldDefaults;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class CheckInRequest {
+public class UserHotspotProgressRequest {
+    @NotNull(message = "Hotspot ID không được để trống")
     Long hotspotId;
+
     @NotNull(message = "Vĩ độ không được để trống")
     Double latitude;
 

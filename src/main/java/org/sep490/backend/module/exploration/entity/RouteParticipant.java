@@ -6,26 +6,25 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "user_route_progresses")
+@Table(name = "route_participants")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserRouteProgress {
+public class RouteParticipant {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_route_progress_id")
-    Long userRouteProgressId;
+    @Column(name = "route_participant_id")
+    Long routeParticipantId;
 
     @ManyToOne
     @JoinColumn(name = "route_id", nullable = false)
@@ -49,7 +48,7 @@ public class UserRouteProgress {
     ProgressStatus status;
 
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "started_at", updatable = false)
     LocalDateTime startedAt;
 
     @Column(name = "completed_at")

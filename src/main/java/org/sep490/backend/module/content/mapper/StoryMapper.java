@@ -17,18 +17,18 @@ import org.sep490.backend.module.content.entity.Tag;
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface StoryMapper {
-
-    @Mapping(source = "hotspot.hotspotId", target = "hotspotId")
     StoryResponse toResponse(Story story);
 
     TagResponse toTagResponse(Tag tag);
 
     @Mapping(source = "tagId", target = "tag")
-    @Mapping(source = "hotspotId", target = "hotspot")
+    @Mapping(target = "hotspot", ignore = true)
+    @Mapping(target = "route", ignore = true)
     void updateFromRequest(@MappingTarget Story story, StoryRequest storyRequest);
 
     @Mapping(source = "tagId", target = "tag")
-    @Mapping(source = "hotspotId", target = "hotspot")
+    @Mapping(target = "hotspot", ignore = true)
+    @Mapping(target = "route", ignore = true)
     @Mapping(target = "orderIndex", ignore = true)
     Story toEntity(StoryRequest storyRequest);
 
@@ -49,6 +49,4 @@ public interface StoryMapper {
         hotspot.setHotspotId(id);
         return hotspot;
     }
-
-
 }

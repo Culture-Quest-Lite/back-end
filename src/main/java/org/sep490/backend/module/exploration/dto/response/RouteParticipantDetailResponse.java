@@ -6,15 +6,18 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserRouteProgressResponse {
-    Long userRouteProgressId;
+public class RouteParticipantDetailResponse {
+    Long routeParticipantId;
     Long routeId;
-    Long totalStops;
-    Long completedStops;
+    String routeName;
+    Integer totalStops;
+    Integer completedStops;
     Double progressPercentage;
     ProgressStatus status;
     LocalDateTime startedAt;
+    List<UserHotspotProgressResponse> hotspotProgressList;
 }

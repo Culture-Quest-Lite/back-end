@@ -2,16 +2,16 @@ package org.sep490.backend.module.exploration.specification;
 
 import jakarta.persistence.criteria.Predicate;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.exploration.dto.filter.UserRouteProgressFilter;
-import org.sep490.backend.module.exploration.entity.UserRouteProgress;
+import org.sep490.backend.module.exploration.dto.filter.RouteParticipantFilter;
+import org.sep490.backend.module.exploration.entity.RouteParticipant;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class UserRouteProgressSpecification {
+public class RouteParticipantSpecification {
 
-    public static Specification<UserRouteProgress> filterProgress(UserRouteProgressFilter filter, User user) {
+    public static Specification<RouteParticipant> filterProgress(RouteParticipantFilter filter, User user) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
