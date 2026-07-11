@@ -65,7 +65,6 @@ public class UserHotspotProgressServiceImpl implements UserHotspotProgressServic
 
         userHotspotProgressRepository.save(progress);
 
-        // Publish event to update route progress and create reward transaction
         eventPublisher.publishEvent(new CheckInCompletedEvent(
                 user.getUserId(),
                 hotspot.getPoint(),
@@ -80,6 +79,7 @@ public class UserHotspotProgressServiceImpl implements UserHotspotProgressServic
                 .userProgressId(progress.getUserProgressId())
                 .userId(user.getUserId())
                 .hotspotId(hotspot.getHotspotId())
+                .isCheckedIn(true)
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
                 .totalPointEarned(progress.getTotalPointEarned())

@@ -10,7 +10,7 @@ import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.exploration.dto.filter.RouteParticipantFilter;
-import org.sep490.backend.module.exploration.dto.response.UserHotspotProgressResponse;
+import org.sep490.backend.module.exploration.dto.response.HotspotProgressInRouteResponse;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantDetailResponse;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantResponse;
 import org.sep490.backend.module.exploration.entity.RouteParticipant;
@@ -58,7 +58,6 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
         HashMap<Integer, RouteParticipantResponse> result = new HashMap<>();
 
         if (participant == null) {
-            // Count already checked-in hotspots for this user in this route
             List<Hotspot> routeHotspots = storyRepository.findHotspotsByRouteIdOrderByIndexAsc(route.getRouteId());
             int completedStops = 0;
             for (Hotspot h : routeHotspots) {
@@ -176,8 +175,23 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
             throw new BusinessException("Bạn chưa bắt đầu tuyến đường này");
         }
 
-        List<UserHotspotProgressResponse> hotspots = storyRepository
-                .getHotspotCheckInStatusByRouteAndUser(route.getRouteId(), currentUser.getUserId());
+        List<HotspotProgressInRouteResponse> hotspots = storyRepository
+                .getHotspotCheckInStatusByRouteAndUserNative(route.getRouteId(), currentUser.getUserId())
+                .stream()
+                .map(p -> HotspotProgressInRouteResponse.builder()
+                        .userProgressId(p.getUserProgressId())
+                        .userId(p.getUserId())
+                        .hotspotId(p.getHotspotId())
+                        .isCheckedIn(p.getIsCheckedIn())
+                        .index(p.getIndex())
+                        .latitude(p.getLatitude())
+                        .longitude(p.getLongitude())
+                        .totalPointEarned(p.getTotalPointEarned())
+                        .totalXpEarned(p.getTotalXpEarned())
+                        .firstVisitedAt(p.getFirstVisitedAt())
+                        .build()
+                )
+                .toList();
 
         RouteParticipantDetailResponse detailResponse = routeParticipantMapper.toDetailResponse(participant);
         detailResponse.setHotspotProgressList(hotspots);

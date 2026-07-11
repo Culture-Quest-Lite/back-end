@@ -10,15 +10,15 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserHotspotProgressResponse {
+public class HotspotProgressInRouteResponse {
     Long userProgressId;
     Long userId;
     Long hotspotId;
     Boolean isCheckedIn;
+    Integer index;
     Double latitude;
     Double longitude;
     Integer totalPointEarned;
     Integer totalXpEarned;
     LocalDateTime firstVisitedAt;
 }
-

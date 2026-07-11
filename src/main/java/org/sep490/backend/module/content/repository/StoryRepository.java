@@ -2,7 +2,7 @@ package org.sep490.backend.module.content.repository;
 
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
-import org.sep490.backend.module.exploration.dto.response.UserHotspotProgressResponse;
+import org.sep490.backend.module.exploration.dto.projection.HotspotCheckInProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -33,22 +33,26 @@ public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecific
             "AND s.route IS NOT NULL")
     List<Long> findRouteIdsByHotspot_HotspotId(@Param("hotspotId") Long hotspotId);
 
-    @Query("""
-        SELECT new org.sep490.backend.module.exploration.dto.response.UserHotspotProgressResponse(
-            uhp.userProgressId,
-            uhp.user.userId,
-            h.hotspotId,
-            (CASE WHEN uhp.userProgressId IS NOT NULL THEN true ELSE false END),
-            s.orderIndex
-        )
-        FROM Story s
-        JOIN s.hotspot h
-        LEFT JOIN UserHotspotProgress uhp
-            ON uhp.hotspot.hotspotId = h.hotspotId AND uhp.user.userId = :userId
-        WHERE s.route.routeId = :routeId
-        ORDER BY s.orderIndex ASC
-    """)
-    List<UserHotspotProgressResponse> getHotspotCheckInStatusByRouteAndUser(
+    @Query(value = """
+        SELECT
+            uhp.user_progress_id AS userProgressId,
+            uhp.user_id AS userId,
+            h.hotspot_id AS hotspotId,
+            CASE WHEN uhp.user_progress_id IS NOT NULL THEN true ELSE false END AS isCheckedIn,
+            s.order_index AS index,
+            ST_X(uhp.location) AS longitude,
+            ST_Y(uhp.location) AS latitude,
+            uhp.total_point_earned AS totalPointEarned,
+            uhp.total_xp_earned AS totalXpEarned,
+            uhp.first_visited_at AS firstVisitedAt
+        FROM stories s
+        JOIN hotspots h ON s.hotspot_id = h.hotspot_id
+        LEFT JOIN user_hotspot_progress uhp
+            ON uhp.hotspot_id = h.hotspot_id AND uhp.user_id = :userId
+        WHERE s.route_id = :routeId
+        ORDER BY s.order_index ASC
+    """, nativeQuery = true)
+    List<HotspotCheckInProjection> getHotspotCheckInStatusByRouteAndUserNative(
             @Param("routeId") Long routeId,
             @Param("userId") Long userId
     );
