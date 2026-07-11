@@ -17,4 +17,5 @@ public interface LevelRepository extends JpaRepository<Level, Long> {
     boolean existsByNameAndLevelIdNotAndStatusNot(String name, Long levelId, LevelStatus status);
     boolean existsByRequiredXpAndStatusNot(Integer requiredXp, LevelStatus status);
     boolean existsByRequiredXpAndLevelIdNotAndStatusNot(Integer requiredXp, Long levelId, LevelStatus status);
+    Optional<Level> findFirstByStatusAndRequiredXpLessThanEqualOrderByRequiredXpDesc(LevelStatus status, Integer xp);
 }

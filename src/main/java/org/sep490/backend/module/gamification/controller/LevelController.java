@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.sep490.backend.module.user.dto.request.LevelRequest;
 import org.sep490.backend.module.user.dto.response.LevelResponse;
+import org.sep490.backend.module.user.dto.response.LevelProgressResponse;
 import org.sep490.backend.module.user.service.LevelService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,5 +49,15 @@ public class LevelController {
     public ResponseEntity<LevelResponse> getLevelById(@PathVariable("id") Long levelId) {
         LevelResponse response = levelService.getLevelById(levelId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/progress/me")
+    public ResponseEntity<List<LevelProgressResponse>> getMyLevelProgress() {
+        return ResponseEntity.ok(levelService.getMyLevelProgress());
+    }
+
+    @GetMapping("/progress/user/{userId}")
+    public ResponseEntity<List<LevelProgressResponse>> getLevelProgressByUserId(@PathVariable("userId") Long userId) {
+        return ResponseEntity.ok(levelService.getLevelProgressByUserId(userId));
     }
 }

@@ -10,6 +10,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.partner.entity.Voucher;
 import org.sep490.backend.module.user.entity.Level;
+import org.sep490.backend.module.user.entity.LevelProgress;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 
 import java.time.LocalDateTime;
@@ -46,6 +47,10 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<AuditLog> auditLogs = new ArrayList<>();
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<LevelProgress> levelProgresses = new ArrayList<>();
 
     @Column(nullable = false, unique = true, length = 50)
     private String username;

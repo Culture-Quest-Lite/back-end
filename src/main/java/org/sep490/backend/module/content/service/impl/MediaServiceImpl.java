@@ -4,8 +4,8 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
-import org.sep490.backend.module.admin.entity.PartnerSubscription;
-import org.sep490.backend.module.admin.repository.PartnerSubscriptionRepository;
+import org.sep490.backend.module.admin.entity.PartnerInfo;
+import org.sep490.backend.module.admin.repository.PartnerInfoRepository;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Media;
@@ -41,7 +41,7 @@ public class MediaServiceImpl implements MediaService {
     StoryRepository storyRepository;
     HotspotRepository hotspotRepository;
     PostRepository postRepository;
-    PartnerSubscriptionRepository partnerSubscriptionRepository;
+    PartnerInfoRepository partnerInfoRepository;
     VoucherRepository voucherRepository;
     RouteRepository routeRepository;
     S3Service s3Service;
@@ -74,7 +74,7 @@ public class MediaServiceImpl implements MediaService {
             case POST:
                 return mediaRepository.findMaxDisplayOrderByPostId(entityId);
             case PARTNER_SUBSCRIPTION:
-                return mediaRepository.findMaxDisplayOrderByPartnerSubscriptionId(entityId);
+                return mediaRepository.findMaxDisplayOrderByPartnerInfoId(entityId);
             case VOUCHER:
                 return mediaRepository.findMaxDisplayOrderByVoucherId(entityId);
             case ROUTE:
@@ -116,10 +116,10 @@ public class MediaServiceImpl implements MediaService {
                 media.setPost(post);
                 return "posts";
             case PARTNER_SUBSCRIPTION:
-                PartnerSubscription subscription = partnerSubscriptionRepository.findById(entityId)
+                PartnerInfo partnerInfo = partnerInfoRepository.findById(entityId)
                         .orElseThrow(
-                                () -> new BusinessException("Gói đăng ký đối tác không tồn tại với ID: " + entityId));
-                media.setPartnerSubscription(subscription);
+                                () -> new BusinessException("Thông tin đối tác không tồn tại với ID: " + entityId));
+                media.setPartnerInfo(partnerInfo);
                 return "partner_subscriptions";
             case VOUCHER:
                 Voucher voucher = voucherRepository.findById(entityId)

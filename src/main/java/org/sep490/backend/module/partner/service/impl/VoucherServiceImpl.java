@@ -6,18 +6,18 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.repository.UserRepository;
-import org.sep490.backend.module.gamification.entity.PointTransaction;
+import org.sep490.backend.module.gamification.entity.RewardTransaction;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
-import org.sep490.backend.module.gamification.repository.PointTransactionRepository;
+import org.sep490.backend.module.gamification.repository.RewardTransactionRepository;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
 import org.sep490.backend.module.partner.dto.request.VoucherRequest;
-import org.sep490.backend.module.partner.dto.response.UserVoucherResponse;
+import org.sep490.backend.module.partner.dto.response.VoucherUsageResponse;
 import org.sep490.backend.module.partner.dto.response.VoucherResponse;
-import org.sep490.backend.module.partner.entity.UserVoucher;
+import org.sep490.backend.module.partner.entity.VoucherUsage;
 import org.sep490.backend.module.partner.entity.Voucher;
-import org.sep490.backend.module.partner.mapper.UserVoucherMapper;
+import org.sep490.backend.module.partner.mapper.VoucherUsageMapper;
 import org.sep490.backend.module.partner.mapper.VoucherMapper;
-import org.sep490.backend.module.partner.repository.UserVoucherRepository;
+import org.sep490.backend.module.partner.repository.VoucherUsageRepository;
 import org.sep490.backend.module.partner.repository.VoucherRepository;
 import org.sep490.backend.module.partner.service.VoucherService;
 import org.sep490.backend.module.user.service.UserService;
@@ -47,9 +47,9 @@ public class VoucherServiceImpl implements VoucherService {
     VoucherRepository voucherRepository;
     VoucherMapper voucherMapper;
     UserService userService;
-    UserVoucherRepository userVoucherRepository;
-    UserVoucherMapper userVoucherMapper;
-    PointTransactionRepository pointTransactionRepository;
+    VoucherUsageRepository voucherUsageRepository;
+    VoucherUsageMapper voucherUsageMapper;
+    RewardTransactionRepository rewardTransactionRepository;
     MediaService mediaService;
 
     static SecureRandom random = new SecureRandom();
@@ -177,7 +177,7 @@ public class VoucherServiceImpl implements VoucherService {
 
     @Override
     @Transactional
-    public UserVoucherResponse redeemVoucher(Long voucherId) {
+    public VoucherUsageResponse redeemVoucher(Long voucherId) {
         Voucher voucher = voucherRepository.findById(voucherId)
                 .orElseThrow(() -> new BusinessException("Voucher không tồn tại"));
 
@@ -193,7 +193,7 @@ public class VoucherServiceImpl implements VoucherService {
             throw new BusinessException("Bạn không đủ số điểm tích lũy để đổi voucher này");
         }
 
-        if (userVoucherRepository.existsByUserUserIdAndVoucherVoucherId(currentUser.getUserId(), voucherId)) {
+        if (voucherUsageRepository.existsByUserUserIdAndVoucherVoucherId(currentUser.getUserId(), voucherId)) {
             throw new BusinessException("Bạn đã đổi voucher này trước đó");
         }
         int updatedUsers = userRepository.deductPoints(currentUser.getUserId(), voucher.getPointsRequired().intValue());
@@ -206,7 +206,7 @@ public class VoucherServiceImpl implements VoucherService {
             throw new BusinessException("Rất tiếc, voucher vừa mới hết số lượng!");
         }
 
-        UserVoucher userVoucher = UserVoucher.builder()
+        VoucherUsage voucherUsage = VoucherUsage.builder()
                 .user(currentUser)
                 .voucher(voucher)
                 .voucherCode(voucher.getVoucherCode())
@@ -216,27 +216,29 @@ public class VoucherServiceImpl implements VoucherService {
                 .expiredAt(voucher.getEndDate())
                 .build();
 
-        userVoucher = userVoucherRepository.save(userVoucher);
+        voucherUsage = voucherUsageRepository.save(voucherUsage);
 
         long balanceRemaining = currentUser.getTotalPoints() - voucher.getPointsRequired();
         currentUser.setTotalPoints((int) balanceRemaining);
 
-        PointTransaction pointHistory = PointTransaction.builder()
+        RewardTransaction rewardTransaction = RewardTransaction.builder()
                 .user(currentUser)
-                .pointAmount(-voucher.getPointsRequired())
+                .pointsAmount(-(long) voucher.getPointsRequired())
+                .xpAmount(0L)
+                .pointsBalance(balanceRemaining)
+                .xpBalance((long) currentUser.getTotalXp())
                 .transactionType(TransactionType.REDEEM_VOUCHER)
                 .description(voucher.getDescription())
-                .balanceRemaining(balanceRemaining)
-                .referenceId(userVoucher.getUserVoucherId())
+                .referenceId(voucherUsage.getVoucherUsageId())
                 .build();
-        pointTransactionRepository.save(pointHistory);
+        rewardTransactionRepository.save(rewardTransaction);
 
-        return userVoucherMapper.toResponse(userVoucher);
+        return voucherUsageMapper.toResponse(voucherUsage);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserVoucherResponse> getMyRedeemedVouchers(VoucherFilter filter) {
+    public Page<VoucherUsageResponse> getMyRedeemedVouchers(VoucherFilter filter) {
         User currentUser = userService.getCurrentUser();
 
         String sortBy = filter.getSortBy();
@@ -249,29 +251,29 @@ public class VoucherServiceImpl implements VoucherService {
                 : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
 
-        Page<UserVoucher> userVouchers = userVoucherRepository.findByUser_UserId(currentUser.getUserId(), pageable);
-        return userVouchers.map(userVoucherMapper::toResponse);
+        Page<VoucherUsage> voucherUsages = voucherUsageRepository.findByUser_UserId(currentUser.getUserId(), pageable);
+        return voucherUsages.map(voucherUsageMapper::toResponse);
     }
 
     @Override
     @Transactional
-    public UserVoucherResponse useVoucher(String voucherCode) {
-        UserVoucher userVoucher = userVoucherRepository.findByVoucherCode(voucherCode)
+    public VoucherUsageResponse useVoucher(String voucherCode) {
+        VoucherUsage voucherUsage = voucherUsageRepository.findByVoucherCode(voucherCode)
                 .orElseThrow(() -> new BusinessException("Mã voucher không tồn tại hoặc không hợp lệ"));
 
-        if (Boolean.TRUE.equals(userVoucher.getIsUsed())) {
+        if (Boolean.TRUE.equals(voucherUsage.getIsUsed())) {
             throw new BusinessException("Voucher này đã được sử dụng trước đó");
         }
 
-        if (userVoucher.getExpiredAt() != null && LocalDateTime.now().isAfter(userVoucher.getExpiredAt())) {
+        if (voucherUsage.getExpiredAt() != null && LocalDateTime.now().isAfter(voucherUsage.getExpiredAt())) {
             throw new BusinessException("Voucher này đã hết hạn sử dụng");
         }
 
-        userVoucher.setIsUsed(true);
-        userVoucher.setUsedAt(LocalDateTime.now());
-        userVoucher = userVoucherRepository.save(userVoucher);
+        voucherUsage.setIsUsed(true);
+        voucherUsage.setUsedAt(LocalDateTime.now());
+        voucherUsage = voucherUsageRepository.save(voucherUsage);
 
-        return userVoucherMapper.toResponse(userVoucher);
+        return voucherUsageMapper.toResponse(voucherUsage);
     }
 
     private String generateRandomHexCode(int length) {

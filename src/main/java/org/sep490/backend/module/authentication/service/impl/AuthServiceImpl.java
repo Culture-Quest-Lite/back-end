@@ -17,7 +17,9 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.EmailOtpRepository;
+import org.sep490.backend.module.user.entity.LevelProgress;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
+import org.sep490.backend.module.user.repository.LevelProgressRepository;
 import org.sep490.backend.module.user.repository.LevelRepository;
 import org.sep490.backend.module.authentication.repository.PasswordResetTokenRepository;
 import org.sep490.backend.module.authentication.repository.UserRepository;
@@ -50,6 +52,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailOtpRepository emailOtpRepository;
     private final LevelRepository levelRepository;
     private final PasswordResetTokenRepository tokenRepository;
+    private final LevelProgressRepository levelProgressRepository;
 
     @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
     private String frontendUrl;
@@ -77,6 +80,7 @@ public class AuthServiceImpl implements AuthService {
             User user = buildCustomer(request, keycloakUserId);
             user.setStatus(UserStatus.PENDING);
             user = userRepository.save(user);
+            createInitialLevelProgress(user);
             return userMapper.toProfileResponse(user);
         } catch (Exception e) {
             rollbackKeycloakUser(keycloakUserId);
@@ -314,6 +318,7 @@ public class AuthServiceImpl implements AuthService {
                     .ifPresent(newUser::setLevel);
 
             userRepository.save(newUser);
+            createInitialLevelProgress(newUser);
         } else {
             User existingUser = userOpt.get();
             if (existingUser.getStatus() != UserStatus.ACTIVE) {
@@ -370,6 +375,7 @@ public class AuthServiceImpl implements AuthService {
                     .ifPresent(newUser::setLevel);
 
             userRepository.save(newUser);
+            createInitialLevelProgress(newUser);
         } else {
             User existingUser = userOpt.get();
             if (existingUser.getStatus() != UserStatus.ACTIVE) {
@@ -443,6 +449,18 @@ public class AuthServiceImpl implements AuthService {
             log.info("Đã rollback Keycloak user: {}", keycloakUserId);
         } catch (Exception e) {
             log.error("Không thể rollback Keycloak user: {}", keycloakUserId, e);
+        }
+    }
+
+    private void createInitialLevelProgress(User user) {
+        if (user.getLevel() != null) {
+            LevelProgress lp = LevelProgress.builder()
+                    .user(user)
+                    .level(user.getLevel())
+                    .xpAtUnlock(0)
+                    .unlockedAt(LocalDateTime.now())
+                    .build();
+            levelProgressRepository.save(lp);
         }
     }
 }

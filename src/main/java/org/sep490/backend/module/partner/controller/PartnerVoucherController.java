@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
 import org.sep490.backend.module.partner.dto.request.VoucherRequest;
-import org.sep490.backend.module.partner.dto.response.UserVoucherResponse;
+import org.sep490.backend.module.partner.dto.response.VoucherUsageResponse;
 import org.sep490.backend.module.partner.dto.response.VoucherResponse;
 import org.sep490.backend.module.partner.service.VoucherService;
 import org.springdoc.core.annotations.ParameterObject;
@@ -50,7 +50,7 @@ public class PartnerVoucherController {
     }
 
     @PostMapping("/vouchers/use")
-    public ResponseEntity<UserVoucherResponse> useVoucher(@RequestParam String voucherCode) {
+    public ResponseEntity<VoucherUsageResponse> useVoucher(@RequestParam String voucherCode) {
         return ResponseEntity.ok(voucherService.useVoucher(voucherCode));
     }
 }

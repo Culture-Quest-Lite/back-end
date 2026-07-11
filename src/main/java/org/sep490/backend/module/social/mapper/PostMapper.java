@@ -10,12 +10,13 @@ import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.social.dto.request.PostRequest;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.entity.Post;
-import org.springframework.stereotype.Component;
+import org.sep490.backend.module.social.entity.PostAction;
+import org.sep490.backend.module.social.entity.enumeration.PostActionType;
 
 import java.util.List;
 import java.util.Set;
 
-@Mapper(componentModel = "spring", uses = {MediaMapper.class}, unmappedTargetPolicy = ReportingPolicy.IGNORE)
+@Mapper(componentModel = "spring", uses = {MediaMapper.class}, unmappedTargetPolicy = ReportingPolicy.IGNORE, imports = {PostActionType.class})
 public interface PostMapper {
 
     @Mapping(target = "taggedHotspots", ignore = true)
@@ -30,7 +31,15 @@ public interface PostMapper {
     @Mapping(target = "hotspotIds", expression = "java(mapHotspotsToIds(post.getTaggedHotspots()))")
     @Mapping(target = "routeIds", expression = "java(mapRoutesToIds(post.getTaggedRoutes()))")
     @Mapping(target = "tags", expression = "java(mapTagsToDtos(post.getTags()))")
+    @Mapping(target = "likeCount", expression = "java(countActions(post.getPostActions(), PostActionType.LIKE))")
+    @Mapping(target = "commentCount", expression = "java(countActions(post.getPostActions(), PostActionType.COMMENT))")
+    @Mapping(target = "shareCount", expression = "java(countActions(post.getPostActions(), PostActionType.SHARE))")
     PostResponse toResponse(Post post);
+
+    default long countActions(List<PostAction> actions, PostActionType type) {
+        if (actions == null) return 0;
+        return actions.stream().filter(a -> a.getActionType() == type).count();
+    }
 
     default List<Long> mapHotspotsToIds(Set<Hotspot> hotspots) {
         if (hotspots == null) return List.of();

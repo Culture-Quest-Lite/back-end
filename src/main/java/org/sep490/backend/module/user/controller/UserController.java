@@ -2,15 +2,14 @@ package org.sep490.backend.module.user.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.sep490.backend.module.gamification.dto.response.PointTransactionResponse;
-import org.sep490.backend.module.gamification.service.PointTransactionService;
+import org.sep490.backend.module.gamification.dto.response.RewardTransactionResponse;
+import org.sep490.backend.module.gamification.service.RewardTransactionService;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
-import org.sep490.backend.module.partner.dto.response.UserVoucherResponse;
+import org.sep490.backend.module.partner.dto.response.VoucherUsageResponse;
 import org.sep490.backend.module.partner.service.VoucherService;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.service.PostService;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
-import org.sep490.backend.module.user.dto.request.UpdateUserRoleRequest;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.service.UserService;
@@ -37,7 +36,7 @@ public class UserController {
     private final UserService userService;
     private final PostService postService;
     private final VoucherService voucherService;
-    private final PointTransactionService pointTransactionService;;
+    private final RewardTransactionService rewardTransactionService;
 
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> getMyProfile(
@@ -115,14 +114,14 @@ public class UserController {
     }
 
     @GetMapping("/my-vouchers")
-    public ResponseEntity<Page<UserVoucherResponse>> getMyRedeemedVouchers(
+    public ResponseEntity<Page<VoucherUsageResponse>> getMyRedeemedVouchers(
             @Valid @ParameterObject @ModelAttribute VoucherFilter filter) {
         return ResponseEntity.ok(voucherService.getMyRedeemedVouchers(filter));
     }
 
     @GetMapping("/history")
-    public ResponseEntity<Page<PointTransactionResponse>> getMyPointHistory(
+    public ResponseEntity<Page<RewardTransactionResponse>> getMyPointHistory(
             @Valid @ParameterObject @ModelAttribute VoucherFilter filter) {
-        return ResponseEntity.ok(pointTransactionService.getMyPointHistory(filter));
+        return ResponseEntity.ok(rewardTransactionService.getMyRewardHistory(filter));
     }
 }
