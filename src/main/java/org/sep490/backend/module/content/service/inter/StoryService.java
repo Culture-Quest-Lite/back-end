@@ -12,7 +12,7 @@ public interface StoryService {
     StoryResponse create(StoryRequest storyRequest);
     StoryResponse update(Long id, StoryRequest storyRequest);
     StoryResponse getDetail(Long id);
-    List<StoryResponse> getByHotspot(Long hotspotId);
+    List<StoryResponse> getByHotspot(Long hotspotId, Long routeId);
     void delete(Long id);
     Story getById(Long id);
     Page<StoryResponse> getAll(StoryFilterRequest filter);

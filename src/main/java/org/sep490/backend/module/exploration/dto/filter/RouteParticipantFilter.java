@@ -9,7 +9,7 @@ import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserRouteProgressFilter {
+public class RouteParticipantFilter {
     ProgressStatus status;
 
     @Min(value = 0, message = "Page không được nhỏ hơn 0")

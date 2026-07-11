@@ -17,6 +17,6 @@ public interface RouteRepository extends JpaRepository<Route, Long>, JpaSpecific
     Integer countByCreatedBy(User creator);
     Optional<Route> findByCreatedByAndTypeAndStatus(User creator, RouteType routeType, RouteStatus routeStatus);
 
-    @Query("SELECT rh.route FROM RouteHotspot rh WHERE rh.hotspot.hotspotId = :hotspotId AND rh.route.status = :status")
+    @Query("SELECT DISTINCT s.route FROM Story s WHERE s.hotspot.hotspotId = :hotspotId AND s.route.status = :status AND s.route IS NOT NULL")
     List<Route> findRoutesByHotspotIdAndStatus(@Param("hotspotId") Long hotspotId, @Param("status") RouteStatus status);
 }

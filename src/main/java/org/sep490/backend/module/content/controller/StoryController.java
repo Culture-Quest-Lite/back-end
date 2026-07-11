@@ -14,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/stories")
 @RequiredArgsConstructor
@@ -50,5 +52,13 @@ public class StoryController {
     public ResponseEntity<String> delete(@PathVariable Long id) {
         storyService.delete(id);
         return ResponseEntity.ok("Deleted");
+    }
+
+    @GetMapping("/hotspot/{hotspotId}")
+    public ResponseEntity<List<StoryResponse>> getByHotspot(
+            @PathVariable Long hotspotId,
+            @RequestParam(required = false) Long routeId) {
+        List<StoryResponse> response = storyService.getByHotspot(hotspotId, routeId);
+        return ResponseEntity.ok(response);
     }
 }

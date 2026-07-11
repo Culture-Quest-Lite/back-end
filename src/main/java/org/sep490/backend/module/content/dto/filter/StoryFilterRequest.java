@@ -14,6 +14,7 @@ public class StoryFilterRequest {
     Long tagId;
     Long hotspotId;
     ContentStatus status;
+    Long routeId;
 
     @Min(value = 0, message = "Page không được nhỏ hơn 0")
     int page = 0;
