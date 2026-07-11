@@ -19,5 +19,5 @@ public class RouteParticipantDetailResponse {
     Double progressPercentage;
     ProgressStatus status;
     LocalDateTime startedAt;
-    List<UserHotspotProgressResponse> hotspotProgressList;
+    List<HotspotProgressInRouteResponse> hotspotProgressList;
 }
