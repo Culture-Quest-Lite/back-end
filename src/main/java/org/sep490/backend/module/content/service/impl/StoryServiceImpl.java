@@ -80,7 +80,18 @@ public class StoryServiceImpl implements StoryService {
         story.setTag(tag);
 
         story = storyRepository.save(story);
-        return storyMapper.toResponse(story);
+        StoryResponse response = storyMapper.toResponse(story);
+
+        if (storyRequest.getFiles() != null && storyRequest.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        storyRequest.getFiles(), MediaTargetType.STORY, story.getStoryId());
+                response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+        return response;
     }
 
     @Override
