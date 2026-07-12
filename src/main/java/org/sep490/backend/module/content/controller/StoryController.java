@@ -43,8 +43,8 @@ public class StoryController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<StoryResponse> update(@PathVariable Long id, @Valid @RequestBody StoryRequest storyRequest) {
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<StoryResponse> update(@PathVariable Long id, @Valid @ModelAttribute StoryRequest storyRequest) {
         StoryResponse response = storyService.update(id, storyRequest);
         return ResponseEntity.ok(response);
     }
