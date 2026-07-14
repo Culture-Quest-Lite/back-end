@@ -55,17 +55,17 @@ public class RouteController {
         return ResponseEntity.ok(routeResponse);
     }
 
-    @PostMapping("/{routeId}/add/{hotspotId}")
-    public ResponseEntity<RouteResponse> add(@PathVariable Long routeId, @PathVariable Long hotspotId) {
-        RouteResponse routeResponse = routeService.addHotspotToEndOfRoute(routeId, hotspotId);
-        return ResponseEntity.ok(routeResponse);
-    }
-
-    @DeleteMapping("/{routeId}/remove/{hotspotId}")
-    public ResponseEntity<RouteResponse> remove(@PathVariable Long routeId, @PathVariable Long hotspotId) {
-        RouteResponse routeResponse = routeService.removeHotspotFromRoute(routeId, hotspotId);
-        return ResponseEntity.ok(routeResponse);
-    }
+//    @PostMapping("/{routeId}/add/{hotspotId}")
+//    public ResponseEntity<RouteResponse> add(@PathVariable Long routeId, @PathVariable Long hotspotId) {
+//        RouteResponse routeResponse = routeService.addHotspotToEndOfRoute(routeId, hotspotId);
+//        return ResponseEntity.ok(routeResponse);
+//    }
+//
+//    @DeleteMapping("/{routeId}/remove/{hotspotId}")
+//    public ResponseEntity<RouteResponse> remove(@PathVariable Long routeId, @PathVariable Long hotspotId) {
+//        RouteResponse routeResponse = routeService.removeHotspotFromRoute(routeId, hotspotId);
+//        return ResponseEntity.ok(routeResponse);
+//    }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> delete(@PathVariable Long id) {
