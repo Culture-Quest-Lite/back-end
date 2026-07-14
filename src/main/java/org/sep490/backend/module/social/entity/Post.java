@@ -49,6 +49,10 @@ public class Post {
     @Column(name = "visibility")
     PostVisibility visibility;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shared_post_id", nullable = true)
+    Post sharedPost;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     PostStatus status;
@@ -98,9 +102,16 @@ public class Post {
     @Builder.Default
     Set<Tag> tags = new HashSet<>();
 
-    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "post",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY)
     @Builder.Default
     List<Media> medias = new ArrayList<>();
+
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    List<PostAction> postActions = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

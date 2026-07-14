@@ -6,14 +6,13 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteDifficulty;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteType;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "routes")
@@ -34,14 +33,6 @@ public class Route {
     @JoinColumn(name = "created_by", nullable = false)
     User createdBy;
 
-    @ManyToMany
-    @JoinTable(
-            name = "route_tags",
-            joinColumns = @JoinColumn(name = "route_id"),
-            inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
-    Set<Tag> tags = new HashSet<>();
-
     @Column(name = "route_name", nullable = false, length = 100)
     String routeName;
 
@@ -52,7 +43,7 @@ public class Route {
     @Column(name = "difficulty", nullable = false)
     RouteDifficulty difficulty;
 
-    @Column(name = "XP", nullable = false)
+    @Column(name = "xp", nullable = false)
     Long xp;
 
     @Column(name = "point", nullable = false)
@@ -62,7 +53,7 @@ public class Route {
     Double estimateTime; // minutes
 
     @Column(name = "total_distance", nullable = false)
-    Double totalDistance;
+    Double totalDistance; // km
 
     @Builder.Default
     @Column(name = "total_check_ins", nullable = false)
@@ -71,7 +62,6 @@ public class Route {
     @Column(name = "is_locked")
     Boolean isLocked;
 
-    // to reduce query
     @Column(name = "total_stops", nullable = false)
     Integer totalStops;
 
@@ -99,4 +89,12 @@ public class Route {
 
     @Column(name = "published_at")
     LocalDateTime publishedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tag_id", nullable = true)
+    Tag tag;
+
+    @OneToMany(mappedBy = "route", fetch = FetchType.LAZY)
+    @Builder.Default
+    List<Story> stories = new ArrayList<>();
 }

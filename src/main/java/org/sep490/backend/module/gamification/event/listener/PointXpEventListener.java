@@ -5,13 +5,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
+import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.service.inter.HotspotService;
-import org.sep490.backend.module.gamification.dto.request.PointTransactionRequest;
-import org.sep490.backend.module.gamification.dto.request.XpHistoryRequest;
-import org.sep490.backend.module.gamification.entity.XpHistory;
-import org.sep490.backend.module.gamification.event.PointXpUpdatedEvent;
-import org.sep490.backend.module.gamification.service.PointTransactionService;
-import org.sep490.backend.module.gamification.service.XpHistoryService;
+import org.sep490.backend.module.content.service.inter.RouteService;
+import org.sep490.backend.module.exploration.event.CheckInCompletedEvent;
+import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
+import org.sep490.backend.module.gamification.dto.request.RewardTransactionRequest;
+import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
+import org.sep490.backend.module.gamification.service.RewardTransactionService;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -27,43 +28,52 @@ public class PointXpEventListener {
 
     UserService userService;
     HotspotService hotspotService;
-    PointTransactionService pointTransactionService;
-    XpHistoryService xpHistoryService;
+    RewardTransactionService rewardTransactionService;
+    RouteService routeService;
 
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleCheckInCompleted(PointXpUpdatedEvent event) {
+    public void handleCheckInCompleted(CheckInCompletedEvent event) {
 
-        User user = userService.getUserById(event.getUserId());
+        User user = userService.getUserById(event.userId());
         Long currUserPoint = Long.valueOf(user.getTotalPoints());
 
-        Hotspot hotspot = hotspotService.getById(event.getHotspotId());
+        Hotspot hotspot = hotspotService.getById(event.hotspotId());
         Long earnedPoint = hotspot.getPoint();
         Long earnedXp =  hotspot.getXp();
 
-        Long newUserPoint = currUserPoint + earnedPoint;
-
-        // Point Transaction
-        PointTransactionRequest pointTransactionRequest = PointTransactionRequest.builder()
-                .userId(event.getUserId())
-                .pointAmount(earnedPoint)
-                .hotspotId(event.getHotspotId())
-                .transactionType(event.getTransactionType())
-                .description(event.getDescription())
-                .referenceId(event.getReferenceId())
-                .balanceRemaining(newUserPoint)
-                .build();
-        pointTransactionService.createPointTransaction(pointTransactionRequest);
-
-        // XP Transaction
-        XpHistoryRequest request = XpHistoryRequest.builder()
-                .userId(event.getUserId())
+        // Reward Transaction
+        RewardTransactionRequest rewardRequest = RewardTransactionRequest.builder()
+                .userId(event.userId())
+                .pointsAmount(earnedPoint)
                 .xpAmount(earnedXp)
-                .source(event.getSource())
-                .referenceId(event.getReferenceId())
-                .description(event.getDescription())
+                .transactionType(event.transactionType())
+                .description(event.description())
+                .referenceId(event.referenceId())
                 .build();
-        xpHistoryService.create(request);
+        rewardTransactionService.createRewardTransaction(rewardRequest);
+    }
+
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleRouteProgressCompleted(RouteProgressCompletedEvent event) {
+        User user = userService.getUserById(event.userId());
+
+        Route route = routeService.getById(event.routeId());
+        Long earnedPoint = route.getPoint();
+        Long earnedXp =  route.getXp();
+
+        // Reward Transaction
+        RewardTransactionRequest rewardRequest = RewardTransactionRequest.builder()
+                .userId(event.userId())
+                .pointsAmount(earnedPoint)
+                .xpAmount(earnedXp)
+                .transactionType(TransactionType.ROUTE_COMPLETION)
+                .description("User #" + user.getUserId() + " completed route #" + route.getRouteId() + " and earned " + earnedPoint + " points.")
+                .referenceId(route.getRouteId())
+                .build();
+        rewardTransactionService.createRewardTransaction(rewardRequest);
     }
 }

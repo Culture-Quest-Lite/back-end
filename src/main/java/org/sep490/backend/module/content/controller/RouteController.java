@@ -7,11 +7,15 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
+import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/routes")
@@ -27,14 +31,20 @@ public class RouteController {
         return ResponseEntity.ok(routeResponse);
     }
 
-    @PostMapping("/search")
-    public ResponseEntity<Page<RouteResponse>> getById(@RequestBody SearchRequest request) {
+    @GetMapping("/search")
+    public ResponseEntity<Page<RouteResponse>> filterRoutes(@ModelAttribute SearchRequest request) {
         Page<RouteResponse> routeResponse = routeService.filterRoutes(request);
         return ResponseEntity.ok(routeResponse);
     }
 
-    @PostMapping
-    public ResponseEntity<RouteResponse> create(@Valid @RequestBody RouteRequest routeRequest) {
+    @GetMapping("/hotspot/{hotspotId}")
+    public ResponseEntity<List<RouteResponse>> getByHotspotId(@PathVariable Long hotspotId, @RequestParam RouteStatus routeStatus) {
+        List<RouteResponse> routeResponses = routeService.getByHotspotId(hotspotId, routeStatus);
+        return ResponseEntity.ok(routeResponses);
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RouteResponse> create(@Valid @ModelAttribute RouteRequest routeRequest) {
         RouteResponse routeResponse = routeService.create(routeRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(routeResponse);
     }

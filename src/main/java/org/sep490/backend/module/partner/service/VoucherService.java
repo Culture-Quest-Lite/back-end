@@ -2,7 +2,7 @@ package org.sep490.backend.module.partner.service;
 
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
 import org.sep490.backend.module.partner.dto.request.VoucherRequest;
-import org.sep490.backend.module.partner.dto.response.UserVoucherResponse;
+import org.sep490.backend.module.partner.dto.response.VoucherUsageResponse;
 import org.sep490.backend.module.partner.dto.response.VoucherResponse;
 import org.springframework.data.domain.Page;
 
@@ -10,10 +10,10 @@ public interface VoucherService {
     VoucherResponse createVoucher(VoucherRequest request);
     VoucherResponse updateVoucher(Long id, VoucherRequest request);
     VoucherResponse getVoucherById(Long id);
-    Page<VoucherResponse> getVouchers(VoucherFilter filter);
+    Page<VoucherResponse> getVouchers(Long partnerId, VoucherFilter filter);
     void deleteVoucher(Long id);
     Page<VoucherResponse> getAvailableVouchers(VoucherFilter filter);
-    UserVoucherResponse redeemVoucher(Long voucherId);
-    Page<UserVoucherResponse> getMyRedeemedVouchers(VoucherFilter filter);
-    UserVoucherResponse useVoucher(String voucherCode);
+    VoucherUsageResponse redeemVoucher(Long voucherId);
+    Page<VoucherUsageResponse> getMyRedeemedVouchers(VoucherFilter filter);
+    VoucherUsageResponse useVoucher(String voucherCode);
 }

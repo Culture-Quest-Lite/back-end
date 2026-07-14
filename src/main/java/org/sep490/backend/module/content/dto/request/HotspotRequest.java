@@ -8,7 +8,6 @@ import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -16,8 +15,9 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class HotspotRequest {
     MultipartFile[] files;
-    @NotEmpty(message = "Địa điểm phải thuộc ít nhất 1 tag")
-    List<Long> tagIds;
+
+    @NotEmpty(message = "Hotspot phải gắn với ít nhất 1 story")
+    List<Long> storyIds;
 
     @NotBlank(message = "Tên địa điểm không được để trống")
     @Size(max = 100, message = "Tên địa điểm không được vượt quá 100 ký tự")
@@ -72,4 +72,6 @@ public class HotspotRequest {
     @JsonFormat(pattern = "HH:mm:ss")
     @Schema(type = "string", example = "22:00:00")
     LocalTime closingTime;
+
+    //ContentStatus status;
 }

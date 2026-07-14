@@ -110,11 +110,18 @@ jobs:
               export IMAGE_TAG="latest"
             fi
 
+            echo "==> Injecting IMAGE_FULL and IMAGE_TAG into .env..."
+            # Remove old IMAGE_FULL/IMAGE_TAG lines if present, then append new values
+            sed -i '/^IMAGE_FULL=/d' .env
+            sed -i '/^IMAGE_TAG=/d' .env
+            echo "IMAGE_FULL=$IMAGE_FULL" >> .env
+            echo "IMAGE_TAG=$IMAGE_TAG" >> .env
+
             echo "==> Pulling new Docker image: $IMAGE_FULL:$IMAGE_TAG"
             docker pull "$IMAGE_FULL:$IMAGE_TAG"
 
             echo "==> Recreating backend container..."
-            docker compose up -d --no-deps --pull always backend
+            docker compose up -d --no-deps --no-build backend
 
             echo "==> Cleaning up unused images..."
             docker image prune -f

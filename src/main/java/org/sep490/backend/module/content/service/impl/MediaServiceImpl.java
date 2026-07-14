@@ -4,8 +4,8 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
-import org.sep490.backend.module.admin.entity.PartnerSubscription;
-import org.sep490.backend.module.admin.repository.PartnerSubscriptionRepository;
+import org.sep490.backend.module.admin.entity.PartnerInfo;
+import org.sep490.backend.module.admin.repository.PartnerInfoRepository;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Media;
@@ -13,8 +13,10 @@ import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.MediaType;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.mapper.MediaMapper;
+import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.MediaRepository;
+import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.S3Service;
@@ -39,8 +41,9 @@ public class MediaServiceImpl implements MediaService {
     StoryRepository storyRepository;
     HotspotRepository hotspotRepository;
     PostRepository postRepository;
-    PartnerSubscriptionRepository partnerSubscriptionRepository;
+    PartnerInfoRepository partnerInfoRepository;
     VoucherRepository voucherRepository;
+    RouteRepository routeRepository;
     S3Service s3Service;
     MediaMapper mediaMapper;
 
@@ -71,9 +74,11 @@ public class MediaServiceImpl implements MediaService {
             case POST:
                 return mediaRepository.findMaxDisplayOrderByPostId(entityId);
             case PARTNER_SUBSCRIPTION:
-                return mediaRepository.findMaxDisplayOrderByPartnerSubscriptionId(entityId);
+                return mediaRepository.findMaxDisplayOrderByPartnerInfoId(entityId);
             case VOUCHER:
                 return mediaRepository.findMaxDisplayOrderByVoucherId(entityId);
+            case ROUTE:
+                return mediaRepository.findMaxDisplayOrderByRouteId(entityId);
             default:
                 return 0;
         }
@@ -111,16 +116,21 @@ public class MediaServiceImpl implements MediaService {
                 media.setPost(post);
                 return "posts";
             case PARTNER_SUBSCRIPTION:
-                PartnerSubscription subscription = partnerSubscriptionRepository.findById(entityId)
+                PartnerInfo partnerInfo = partnerInfoRepository.findById(entityId)
                         .orElseThrow(
-                                () -> new BusinessException("Gói đăng ký đối tác không tồn tại với ID: " + entityId));
-                media.setPartnerSubscription(subscription);
+                                () -> new BusinessException("Thông tin đối tác không tồn tại với ID: " + entityId));
+                media.setPartnerInfo(partnerInfo);
                 return "partner_subscriptions";
             case VOUCHER:
                 Voucher voucher = voucherRepository.findById(entityId)
                         .orElseThrow(() -> new BusinessException("Voucher không tồn tại với ID: " + entityId));
                 media.setVoucher(voucher);
                 return "vouchers";
+            case ROUTE:
+                Route route = routeRepository.findById(entityId)
+                        .orElseThrow(() -> new BusinessException("Route không tồn tại với ID: " + entityId));
+                media.setRoute(route);
+                return "routes";
             default:
                 throw new BusinessException("Không hỗ trợ loại thực thể: " + entityType);
         }

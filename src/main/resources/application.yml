@@ -65,3 +65,19 @@ aws:
   credentials:
     access-key: ${AWS_ACCESS_KEY_ID}
     secret-key: ${AWS_SECRET_ACCESS_KEY}
+
+momo:
+  partner-code: ${MOMO_PARTNER_CODE}
+  access-key: ${MOMO_ACCESS_KEY}
+  secret-key: ${MOMO_SECRET_KEY}
+  endpoint: ${MOMO_ENDPOINT}
+  redirect-url: ${MOMO_REDIRECT_URL}
+  ipn-url: ${MOMO_IPN_URL}
+
+payos:
+  client-id: ${PAYOS_CLIENT_ID}
+  api-key: ${PAYOS_API_KEY}
+  checksum-key: ${PAYOS_CHECKSUM_KEY}
+  return-url: ${PAYOS_RETURN_URL:http://localhost:3000/payment/result}
+  cancel-url: ${PAYOS_CANCEL_URL:http://localhost:3000/payment/cancel}
+  webhook-url: ${PAYOS_WEBHOOK_URL:https://your-ngrok.ngrok-free.app/api/payment/payos/webhook}

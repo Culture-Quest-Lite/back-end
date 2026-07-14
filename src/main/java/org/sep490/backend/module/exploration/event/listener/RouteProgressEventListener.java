@@ -5,17 +5,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
-import org.sep490.backend.module.content.entity.RouteHotspot;
 import org.sep490.backend.module.content.repository.HotspotRepository;
-import org.sep490.backend.module.content.repository.RouteHotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
-import org.sep490.backend.module.exploration.entity.UserRouteProgress;
+import org.sep490.backend.module.content.repository.StoryRepository;
+import org.sep490.backend.module.exploration.entity.RouteParticipant;
 import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
-import org.sep490.backend.module.exploration.event.RouteProgressUpdatedEvent;
-import org.sep490.backend.module.exploration.repository.UserRouteProgressRepository;
-import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
-import org.sep490.backend.module.gamification.entity.enumeration.ActionType;
-import org.sep490.backend.module.gamification.event.PointXpUpdatedEvent;
+import org.sep490.backend.module.exploration.event.CheckInCompletedEvent;
+import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
+import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -32,8 +29,8 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class RouteProgressEventListener {
 
-    RouteHotspotRepository routeHotspotRepository;
-    UserRouteProgressRepository userRouteProgressRepository;
+    StoryRepository storyRepository;
+    RouteParticipantRepository routeParticipantRepository;
     HotspotRepository hotspotRepository;
     ApplicationEventPublisher eventPublisher;
     RouteRepository routeRepository;
@@ -41,24 +38,21 @@ public class RouteProgressEventListener {
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
-    public void handleCheckInCompleted(RouteProgressUpdatedEvent event) {
+    public void handleCheckInCompleted(CheckInCompletedEvent event) {
 
-        Hotspot hotspot = hotspotRepository.findById(event.getHotspotId())
-                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy hotspot với ID: " + event.getHotspotId()));
+        Hotspot hotspot = hotspotRepository.findById(event.hotspotId())
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy hotspot với ID: " + event.hotspotId()));
 
-        List<RouteHotspot> routeHotspots = routeHotspotRepository.findByHotspot_HotspotId(event.getHotspotId());
-        if (routeHotspots.isEmpty()) {
+        List<Long> routeIds = storyRepository.findRouteIdsByHotspot_HotspotId(event.hotspotId());
+
+        if (routeIds.isEmpty()) {
             return;
         }
 
-        List<Long> routeIds = routeHotspots.stream()
-                .map(rh -> rh.getRoute().getRouteId())
-                .toList();
+        List<RouteParticipant> unfinishedProgresses = routeParticipantRepository
+                .findByUser_UserIdAndRoute_RouteIdInAndStatusNot(event.userId(), routeIds, ProgressStatus.COMPLETED);
 
-        List<UserRouteProgress> activeProgresses = userRouteProgressRepository
-                .findByUser_UserIdAndRoute_RouteIdInAndStatusNot(event.getUserId(), routeIds, ProgressStatus.COMPLETED);
-
-        for (UserRouteProgress progress : activeProgresses) {
+        for (RouteParticipant progress : unfinishedProgresses) {
             int newCompletedStops = progress.getCompletedStops() + 1;
             progress.setCompletedStops(newCompletedStops);
 
@@ -68,16 +62,9 @@ public class RouteProgressEventListener {
             if (newCompletedStops >= progress.getTotalStops()) {
                 progress.setStatus(ProgressStatus.COMPLETED);
                 progress.setCompletedAt(LocalDateTime.now());
-                // update user point, xp after finish route
-                eventPublisher.publishEvent(new PointXpUpdatedEvent(
-                        event.getUserId(),
-                        progress.getRoute().getPoint(),
-                        progress.getRoute().getXp(),
-                        event.getHotspotId(),
-                        hotspot.getHotspotId(),
-                        TransactionType.ROUTE_COMPLETION,
-                        "Hoàn thành tuyến đường: " + progress.getRoute().getRouteName(),
-                        ActionType.ROUTE_COMPLETION
+                eventPublisher.publishEvent(new RouteProgressCompletedEvent(
+                        event.userId(),
+                        progress.getRoute().getRouteId()
                 ));
 
                 Route route = progress.getRoute();
@@ -86,8 +73,8 @@ public class RouteProgressEventListener {
             }
         }
 
-        if (!activeProgresses.isEmpty()) {
-            userRouteProgressRepository.saveAll(activeProgresses);
+        if (!unfinishedProgresses.isEmpty()) {
+            routeParticipantRepository.saveAll(unfinishedProgresses);
         }
     }
 }

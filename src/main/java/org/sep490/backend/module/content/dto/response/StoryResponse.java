@@ -12,10 +12,10 @@ import java.util.List;
 public class StoryResponse {
     Long storyId;
     TagResponse tag;
-    Long hotspotId;
     Integer orderIndex;
     String title;
     String content;
     ContentStatus status;
+    Double distanceToNext;
     List<MediaResponse> medias;
 }

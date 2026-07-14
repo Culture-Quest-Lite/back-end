@@ -7,11 +7,21 @@ import org.sep490.backend.module.user.dto.request.LevelRequest;
 import org.sep490.backend.module.user.dto.response.LevelResponse;
 import org.sep490.backend.module.user.entity.Level;
 import org.sep490.backend.module.user.entity.enumeration.LevelStatus;
+import org.sep490.backend.module.user.dto.response.LevelProgressResponse;
+import org.sep490.backend.module.user.mapper.LevelProgressMapper;
 import org.sep490.backend.module.user.mapper.LevelMapper;
+import org.sep490.backend.module.user.repository.LevelProgressRepository;
 import org.sep490.backend.module.user.repository.LevelRepository;
 import org.sep490.backend.module.user.service.LevelService;
+import org.sep490.backend.module.user.service.UserService;
+import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.user.entity.LevelProgress;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,6 +33,9 @@ public class LevelServiceImpl implements LevelService {
     private final LevelRepository levelRepository;
     private final UserRepository userRepository;
     private final LevelMapper levelMapper;
+    private final LevelProgressRepository levelProgressRepository;
+    private final LevelProgressMapper levelProgressMapper;
+    private final UserService userService;
 
     @Override
     @Transactional
@@ -90,5 +103,43 @@ public class LevelServiceImpl implements LevelService {
         Level level = levelRepository.findByLevelIdAndStatusNot(levelId, LevelStatus.DELETED)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy cấp bậc"));
         return levelMapper.toResponse(level);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LevelProgressResponse> getMyLevelProgress() {
+        User currentUser = userService.getCurrentUser();
+        return getLevelProgressByUserId(currentUser.getUserId());
+    }
+
+    @Override
+    @Transactional
+    public List<LevelProgressResponse> getLevelProgressByUserId(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+
+        List<LevelProgress> progressList = levelProgressRepository.findByUserUserIdOrderByUnlockedAtAsc(userId);
+        if (progressList.isEmpty() && user.getLevel() != null) {
+            List<Level> levelsToBackfill = levelRepository.findAllByStatusNot(LevelStatus.DELETED).stream()
+                    .filter(lvl -> lvl.getRequiredXp() <= user.getLevel().getRequiredXp())
+                    .sorted(Comparator.comparingInt(Level::getRequiredXp))
+                    .collect(Collectors.toList());
+
+            List<LevelProgress> newProgressList = new ArrayList<>();
+            for (Level lvl : levelsToBackfill) {
+                LevelProgress lp = LevelProgress.builder()
+                        .user(user)
+                        .level(lvl)
+                        .xpAtUnlock(lvl.getRequiredXp())
+                        .unlockedAt(user.getCreatedAt() != null ? user.getCreatedAt() : LocalDateTime.now())
+                        .build();
+                newProgressList.add(levelProgressRepository.save(lp));
+            }
+            progressList = newProgressList;
+        }
+
+        return progressList.stream()
+                .map(levelProgressMapper::toResponse)
+                .collect(Collectors.toList());
     }
 }
