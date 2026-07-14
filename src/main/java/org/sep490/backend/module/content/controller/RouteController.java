@@ -72,4 +72,19 @@ public class RouteController {
         routeService.delete(id);
         return ResponseEntity.ok("Route deleted successfully");
     }
+
+    @PostMapping("/record")
+    public ResponseEntity<RouteResponse> recordJourney() {
+        return ResponseEntity.ok(routeService.recordJourney());
+    }
+
+    @PutMapping("/record/finish")
+    public ResponseEntity<RouteResponse> finishRecordJourney() {
+        return ResponseEntity.ok(routeService.finishRecordJourney());
+    }
+
+    @PutMapping("/record/finalize/{id}")
+    public ResponseEntity<RouteResponse> finalizeRecordJourney(@PathVariable("id") Long routeId) {
+        return ResponseEntity.ok(routeService.finalizeCustomRoute(routeId));
+    }
 }

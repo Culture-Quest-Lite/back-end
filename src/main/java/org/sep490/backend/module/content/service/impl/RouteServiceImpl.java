@@ -242,7 +242,7 @@ public class RouteServiceImpl implements RouteService {
         route.setStatus(RouteStatus.DRAFT); // wait for user to finalize their custom route
         route = routeRepository.save(route);
 
-        List<Story> stories = storyRepository.findByRoute_RouteId(route.getRouteId());
+        List<Story> stories = route.getStories();
 
         return buildRouteResponse(route, stories);
     }
@@ -284,6 +284,31 @@ public class RouteServiceImpl implements RouteService {
         return buildRouteResponse(route, newStories);
     }
 
+    @Override
+    @Transactional
+    public RouteResponse finalizeCustomRoute(Long routeId) {
+
+        Route route = getById(routeId);
+        User user = userService.getCurrentUser();
+
+        if(!route.getStatus().equals(RouteStatus.DRAFT)) {
+            throw new BusinessException("Chỉ có thể hoàn tất hành trình cá nhân đang ở trạng thái DRAFT");
+        }
+
+        if(!route.getType().equals(RouteType.CUSTOM)) {
+            throw new BusinessException("Chỉ có thể hoàn tất hành trình cá nhân có loại CUSTOM");
+        }
+
+        if(!route.getCreatedBy().equals(user)) {
+            throw new BusinessException("Người dùng chỉ được hoàn thành hành trình cá nhân của mình");
+        }
+
+        route.setStatus(RouteStatus.TRIAL);
+        route = routeRepository.save(route);
+
+        return buildRouteResponse(route, route.getStories());
+    }
+
     private List<Story> processRouteStories(Route route, List<Long> hotspotIds) {
 
         if (hotspotIds == null || hotspotIds.isEmpty()) {
@@ -303,7 +328,9 @@ public class RouteServiceImpl implements RouteService {
             }
 
             Story story = hotspotStories.stream()
-                    .filter(s -> s.getTag() != null && route.getTag() != null && s.getTag().getTagId().equals(route.getTag().getTagId()))
+                    .filter(s -> s.getTag() != null
+                            && route.getTag() != null
+                            && s.getTag().getTagId().equals(route.getTag().getTagId()))
                     .findFirst()
                     .orElse(hotspotStories.get(0)); 
             story.setRoute(route);
