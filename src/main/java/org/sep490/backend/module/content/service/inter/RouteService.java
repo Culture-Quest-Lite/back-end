@@ -22,4 +22,6 @@ public interface RouteService {
     RouteResponse finishRecordJourney();
     Route findRecordingCustomRouteByUserId(Long userId);
     List<RouteResponse> getByHotspotId(Long hotspotId, RouteStatus routeStatus);
+    RouteResponse addHotspotToEndOfCustomRoute(Long routeId, Long hotspotId, Long userId);
+    RouteResponse finalizeCustomRoute(Long routeId);
 }
