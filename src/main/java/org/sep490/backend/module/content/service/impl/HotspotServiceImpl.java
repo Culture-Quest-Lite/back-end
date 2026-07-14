@@ -6,6 +6,8 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
+import org.sep490.backend.common.utils.SecurityUtils;
+import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
@@ -21,6 +23,7 @@ import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.MediaService;
+import org.sep490.backend.module.exploration.repository.UserHotspotProgressRepository;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +47,7 @@ public class HotspotServiceImpl implements HotspotService {
     StoryRepository storyRepository;
     StoryMapper storyMapper;
     MediaService mediaService;
+    UserHotspotProgressRepository userHotspotProgressRepository;
 
     @Override
     @Transactional
@@ -170,8 +174,17 @@ public class HotspotServiceImpl implements HotspotService {
                 .map(this::buildHotspotResponse)
                 .toList();
     }
+
     private HotspotResponse buildHotspotResponse(Hotspot hotspot) {
         HotspotResponse response = hotspotMapper.toResponse(hotspot);
+
+        boolean isLoggedIn = SecurityUtils.getCurrentUserKeyCloakId().isPresent();
+        if(isLoggedIn) {
+            User user = userService.getCurrentUser();
+            response.setIsCheckIn(userHotspotProgressRepository.existsByUser_UserIdAndHotspot_HotspotId(user.getUserId(), hotspot.getHotspotId()));
+        } else {
+            response.setIsCheckIn(null);
+        }
 
         List<StoryResponse> storyResponses = storyRepository
                 .findByHotspotOrderedByIndex(hotspot.getHotspotId())

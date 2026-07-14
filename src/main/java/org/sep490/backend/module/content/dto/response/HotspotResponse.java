@@ -49,4 +49,6 @@ public class HotspotResponse {
     ContentStatus status;
     List<MediaResponse> medias;
     List<StoryResponse> stories;
+
+    Boolean isCheckIn;
 }
