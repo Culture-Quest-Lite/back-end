@@ -1,0 +1,115 @@
+package org.sep490.backend.module.groupquest.service.impl;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.groupquest.entity.Group;
+import org.sep490.backend.module.groupquest.entity.GroupParticipant;
+import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantAction;
+import org.sep490.backend.module.groupquest.entity.enumuration.GroupRole;
+import org.sep490.backend.module.groupquest.entity.enumuration.GroupStatus;
+import org.sep490.backend.module.groupquest.repository.GroupParticipantRepository;
+import org.sep490.backend.module.groupquest.service.inter.GroupParticipantService;
+import org.sep490.backend.module.user.service.UserService;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+public class GroupParticipantServiceImpl implements GroupParticipantService {
+
+    GroupParticipantRepository repository;
+    UserService userService;
+
+    @Override
+    @Transactional
+    public GroupParticipant addUserToGroup(User user, Group group) {
+
+        GroupParticipant groupParticipant = GroupParticipant.builder()
+                .user(user)
+                .group(group)
+                .role(GroupRole.MEMBER)
+                .action(GroupParticipantAction.JOIN)
+                .status(GroupStatus.ACTIVE)
+                .build();
+
+        return repository.save(groupParticipant);
+    }
+
+    @Override
+    @Transactional
+    public GroupParticipant addLeaderToGroup(User user, Group group) {
+
+        GroupParticipant groupParticipant = GroupParticipant.builder()
+                .user(user)
+                .group(group)
+                .role(GroupRole.LEADER)
+                .action(GroupParticipantAction.JOIN)
+                .status(GroupStatus.ACTIVE)
+                .build();
+
+        return repository.save(groupParticipant);
+    }
+
+    @Override
+    @Transactional
+    public GroupParticipant updateAction(User user, Group group, GroupParticipantAction action) {
+
+        if(!repository.existsByGroup_GroupIdAndUser_UserId(group.getGroupId(), user.getUserId())) {
+            throw new BusinessException("Người dùng chưa là thành viên của nhóm");
+        }
+
+        GroupParticipant groupParticipant = getGroupParticipant(group.getGroupId(), user.getUserId());
+
+        groupParticipant.setAction(action);
+
+        return repository.save(groupParticipant);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public GroupParticipant getGroupParticipant(Long groupId, Long userId) {
+        return repository.findByGroup_GroupIdAndUser_UserId(groupId, userId).orElseThrow(
+                () -> new BusinessException("Người dùng không phải là thành viên của nhóm")
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public GroupParticipant getGroupParticipant(Long groupParticipantId) {
+        return repository.findById(groupParticipantId).orElseThrow(
+                () -> new BusinessException("Thành viên nhóm không tồn tại")
+        );
+    }
+
+    @Override
+    public List<GroupParticipant> getMyParticipants() {
+        User user = userService.getCurrentUser();
+
+        return repository.findAllByUser_UserIdAndActionAndStatus(
+                user.getUserId(),
+                GroupParticipantAction.JOIN,
+                GroupStatus.ACTIVE);
+    }
+
+    @Override
+    public List<GroupParticipant> getGroupParticipants(Long groupId) {
+        return repository.findAllByGroup_GroupId(groupId);
+    }
+
+    @Override
+    public Boolean isLeader(User user, Group group) {
+        GroupParticipant gp = getGroupParticipant(group.getGroupId(), user.getUserId());
+        return gp.getRole() == GroupRole.LEADER;
+    }
+
+    @Override
+    public Boolean isParticipant(User user, Group group) {
+        return repository.existsByGroup_GroupIdAndUser_UserId(group.getGroupId(), user.getUserId());
+    }
+}
