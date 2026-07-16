@@ -97,4 +97,8 @@ public class Route {
     @OneToMany(mappedBy = "route", fetch = FetchType.LAZY)
     @Builder.Default
     List<Story> stories = new ArrayList<>();
+
+    @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    List<Media> medias = new ArrayList<>();
 }
