@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.filter.dto.SearchRequest;
+import org.sep490.backend.module.content.dto.request.RouteCreateRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
@@ -55,21 +56,42 @@ public class RouteController {
         return ResponseEntity.ok(routeResponse);
     }
 
-    @PostMapping("/{routeId}/add/{hotspotId}")
-    public ResponseEntity<RouteResponse> add(@PathVariable Long routeId, @PathVariable Long hotspotId) {
-        RouteResponse routeResponse = routeService.addHotspotToEndOfRoute(routeId, hotspotId);
-        return ResponseEntity.ok(routeResponse);
-    }
-
-    @DeleteMapping("/{routeId}/remove/{hotspotId}")
-    public ResponseEntity<RouteResponse> remove(@PathVariable Long routeId, @PathVariable Long hotspotId) {
-        RouteResponse routeResponse = routeService.removeHotspotFromRoute(routeId, hotspotId);
-        return ResponseEntity.ok(routeResponse);
-    }
+//    @PostMapping("/{routeId}/add/{hotspotId}")
+//    public ResponseEntity<RouteResponse> add(@PathVariable Long routeId, @PathVariable Long hotspotId) {
+//        RouteResponse routeResponse = routeService.addHotspotToEndOfRoute(routeId, hotspotId);
+//        return ResponseEntity.ok(routeResponse);
+//    }
+//
+//    @DeleteMapping("/{routeId}/remove/{hotspotId}")
+//    public ResponseEntity<RouteResponse> remove(@PathVariable Long routeId, @PathVariable Long hotspotId) {
+//        RouteResponse routeResponse = routeService.removeHotspotFromRoute(routeId, hotspotId);
+//        return ResponseEntity.ok(routeResponse);
+//    }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> delete(@PathVariable Long id) {
         routeService.delete(id);
         return ResponseEntity.ok("Route deleted successfully");
+    }
+
+    @PostMapping("/record")
+    public ResponseEntity<RouteResponse> recordJourney() {
+        return ResponseEntity.ok(routeService.recordJourney());
+    }
+
+    @PutMapping("/record/finish")
+    public ResponseEntity<RouteResponse> finishRecordJourney() {
+        return ResponseEntity.ok(routeService.finishRecordJourney());
+    }
+
+    @PutMapping("/record/finalize/{id}")
+    public ResponseEntity<RouteResponse> finalizeRecordJourney(@PathVariable("id") Long routeId) {
+        return ResponseEntity.ok(routeService.finalizeCustomRoute(routeId));
+    }
+
+    @PostMapping(path = "/v2",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RouteResponse> createV2(@Valid @ModelAttribute RouteCreateRequest request) {
+        RouteResponse routeResponse = routeService.createV2(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(routeResponse);
     }
 }

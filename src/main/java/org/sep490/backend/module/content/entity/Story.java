@@ -52,6 +52,9 @@ public class Story {
     @Column(name = "content", columnDefinition = "TEXT")
     String content;
 
+    @Column(name = "audio_script", columnDefinition = "TEXT")
+    String audioScript;
+
     @Column(name = "distance_to_next", nullable = true)
     Double distanceToNext; // km
 
