@@ -16,6 +16,7 @@ import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
+import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.StoryService;
 import org.sep490.backend.module.content.specification.StorySpecification;
@@ -41,6 +42,7 @@ public class StoryServiceImpl implements StoryService {
     UserService userService;
     MediaService mediaService;
     TagRepository tagRepository;
+    HotspotService hotspotService;
 
     @Override
     @Transactional
@@ -48,9 +50,12 @@ public class StoryServiceImpl implements StoryService {
         Tag tag = tagRepository.findById(storyRequest.getTagId())
                 .orElseThrow(() -> new BusinessException("Tag không tồn tại với ID: " + storyRequest.getTagId()));
 
+        Hotspot hotspot = hotspotService.getById(storyRequest.getHotspotId());
+
         Story story = storyMapper.toEntity(storyRequest);
         story.setCreatedBy(userService.getCurrentUser());
         story.setTag(tag);
+        story.setHotspot(hotspot);
         story.setStatus(ContentStatus.DRAFT);
 
         story = storyRepository.save(story);
@@ -76,8 +81,11 @@ public class StoryServiceImpl implements StoryService {
         Tag tag = tagRepository.findById(storyRequest.getTagId())
                 .orElseThrow(() -> new BusinessException("Tag không tồn tại với ID: " + storyRequest.getTagId()));
 
+        Hotspot hotspot = hotspotService.getById(storyRequest.getHotspotId());
+
         storyMapper.updateFromRequest(story, storyRequest);
         story.setTag(tag);
+        story.setHotspot(hotspot);
 
         story = storyRepository.save(story);
         StoryResponse response = storyMapper.toResponse(story);

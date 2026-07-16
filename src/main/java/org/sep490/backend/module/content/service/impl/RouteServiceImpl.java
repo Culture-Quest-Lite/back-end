@@ -8,6 +8,7 @@ import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.content.dto.request.RouteCreateRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
@@ -82,6 +83,45 @@ public class RouteServiceImpl implements RouteService {
         List<Story> stories = processRouteStories(route, request.getHotspotIds());
 
         RouteResponse response = buildRouteResponse(route, stories);
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.ROUTE, route.getRouteId());
+                response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+        return response;
+    }
+
+    @Override
+    @Transactional
+    public RouteResponse createV2(RouteCreateRequest request) {
+
+        if (request.getStoryIds().size() < 4) {
+            throw new BusinessException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
+        }
+
+        Tag tag = tagRepository.findById(request.getTagId())
+                .orElseThrow(() -> new BusinessException("Tag không tồn tại với ID: " + request.getTagId()));
+
+        Route route = routeMapper.toEntity(request);
+        User creator = userService.getCurrentUser();
+
+        route.setCreatedBy(creator);
+        route.setTag(tag);
+        route.setStatus(RouteStatus.DRAFT);
+        route.setType(RouteType.OFFICIAL);
+        route.setIsLocked(false);
+        route.setTotalStops(request.getStoryIds().size());
+
+        route = routeRepository.save(route);
+
+        List<Story> stories = processRouteStoriesV2(route, request.getStoryIds());
+
+        RouteResponse response = buildRouteResponse(route, stories);
+
         if (request.getFiles() != null && request.getFiles().length > 0) {
             try {
                 List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
@@ -336,6 +376,45 @@ public class RouteServiceImpl implements RouteService {
             story.setRoute(route);
             story.setOrderIndex(i + 1);
 
+            stories.add(story);
+        }
+
+        for (int i = 0; i < stories.size(); i++) {
+            Story story = stories.get(i);
+            if (i < stories.size() - 1) {
+                Story nextStory = stories.get(i + 1);
+                double distanceInMeters = SpatialUtils.calculateDistanceInMeters(
+                        story.getHotspot().getLocation(),
+                        nextStory.getHotspot().getLocation());
+                story.setDistanceToNext(distanceInMeters);
+            } else {
+                story.setDistanceToNext(0.0);
+            }
+        }
+
+        return storyRepository.saveAll(stories);
+    }
+
+    private List<Story> processRouteStoriesV2(Route route, List<Long> storyIds) {
+
+        if (storyIds == null || storyIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Story> stories = new ArrayList<>();
+
+        for (int i = 0; i < storyIds.size(); i++) {
+            Long storyId = storyIds.get(i);
+
+            Story story = storyRepository.findById(storyId).orElseThrow(() -> new BusinessException("Cốt truyện không tồn tại!"));
+
+            Hotspot hotspot = story.getHotspot();
+            if (hotspot == null) {
+                throw new BusinessException("Cốt truyện " + story.getTitle() + " không thuộc về địa điểm nào!");
+            }
+
+            story.setRoute(route);
+            story.setOrderIndex(i + 1);
             stories.add(story);
         }
 

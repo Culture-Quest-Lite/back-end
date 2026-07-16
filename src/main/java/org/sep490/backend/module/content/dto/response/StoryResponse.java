@@ -19,4 +19,6 @@ public class StoryResponse {
     Double distanceToNext;
     String audioScript;
     List<MediaResponse> medias;
+    Long hotspotId;
+    Long routeId;
 }

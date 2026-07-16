@@ -14,6 +14,9 @@ public class StoryRequest {
     @NotNull(message = "Tag ID không được để trống")
     Long tagId;
 
+    @NotNull(message = "Hotspot ID không được để trống")
+    Long hotspotId;
+
     @NotBlank(message = "Tiêu đề cốt truyện không được để trống")
     @Size(max = 100, message = "Tiêu đề không được vượt quá 100 ký tự")
     String title;
