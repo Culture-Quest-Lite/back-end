@@ -20,4 +20,6 @@ public class StoryRequest {
 
     @NotBlank(message = "Nội dung cốt truyện không được để trống")
     String content;
+
+    String audioScript;
 }
