@@ -35,4 +35,6 @@ public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpec
             "  )" +
             ")", nativeQuery = true)
     boolean isLocationInVietnam(@Param("longitude") Double longitude, @Param("latitude") Double latitude);
+
+    List<Hotspot> findByStatus(ContentStatus status);
 }
