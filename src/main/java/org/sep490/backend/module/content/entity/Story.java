@@ -53,7 +53,7 @@ public class Story {
     String content;
 
     @Column(name = "distance_to_next", nullable = true)
-    Double distanceToNext;
+    Double distanceToNext; // km
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")

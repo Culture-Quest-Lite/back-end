@@ -18,7 +18,7 @@ import java.time.LocalTime;
 
 @Mapper(
         componentModel = "spring",
-        uses = {MediaMapper.class},
+        uses = {MediaMapper.class, StoryMapper.class},
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface HotspotMapper {
@@ -27,7 +27,6 @@ public interface HotspotMapper {
     @Mapping(source = "createdBy.userId", target = "createByUserId")
     @Mapping(target = "latitude", expression = "java(hotspot.getLocation() != null ? hotspot.getLocation().getY() : null)")
     @Mapping(target = "longitude", expression = "java(hotspot.getLocation() != null ? hotspot.getLocation().getX() : null)")
-    @Mapping(target = "stories", ignore = true)
     HotspotResponse toResponse(Hotspot hotspot);
 
     @Mapping(target = "location", expression = "java(toPoint(request.getLongitude(), request.getLatitude()))")

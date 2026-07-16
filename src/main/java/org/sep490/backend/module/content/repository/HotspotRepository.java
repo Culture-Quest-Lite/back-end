@@ -2,6 +2,7 @@ package org.sep490.backend.module.content.repository;
 
 import org.locationtech.jts.geom.Point;
 import org.sep490.backend.module.content.entity.Hotspot;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -32,4 +33,6 @@ public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpec
             "  )" +
             ")", nativeQuery = true)
     boolean isLocationInVietnam(@Param("longitude") Double longitude, @Param("latitude") Double latitude);
+
+    List<Hotspot> findByStatus(ContentStatus status);
 }
