@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.filter.dto.SearchRequest;
+import org.sep490.backend.module.content.dto.request.RouteCreateRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
@@ -86,5 +87,11 @@ public class RouteController {
     @PutMapping("/record/finalize/{id}")
     public ResponseEntity<RouteResponse> finalizeRecordJourney(@PathVariable("id") Long routeId) {
         return ResponseEntity.ok(routeService.finalizeCustomRoute(routeId));
+    }
+
+    @PostMapping(path = "/v2",consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RouteResponse> createV2(@Valid @ModelAttribute RouteCreateRequest request) {
+        RouteResponse routeResponse = routeService.createV2(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(routeResponse);
     }
 }

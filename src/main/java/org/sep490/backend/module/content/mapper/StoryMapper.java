@@ -17,6 +17,9 @@ import org.sep490.backend.module.content.entity.Tag;
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface StoryMapper {
+
+    @Mapping(source = "hotspot.hotspotId", target = "hotspotId")
+    @Mapping(source = "route.routeId", target = "routeId")
     StoryResponse toResponse(Story story);
 
     TagResponse toTagResponse(Tag tag);
