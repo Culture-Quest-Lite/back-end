@@ -1,6 +1,5 @@
 package org.sep490.backend.module.content.dto.request;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AccessLevel;
 import lombok.Data;
@@ -15,6 +14,7 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RouteRequest {
     MultipartFile[] files;
+
     @NotBlank(message = "Tên tuyến đường không được để trống")
     @Size(max = 100, message = "Tên tuyến đường không được vượt quá 100 ký tự")
     String routeName;
@@ -33,12 +33,12 @@ public class RouteRequest {
     @Positive(message = "Tổng khoảng cách phải lớn hơn 0")
     Double totalDistance;
 
-    @NotEmpty(message = "Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)")
-    @Valid
-    List<RouteHotspotRequest> hotspots;
+    @NotNull(message = "Tag ID của tuyến đường không được để trống")
+    Long tagId;
 
-    @NotEmpty(message = "Tuyến đường phải thuộc ít nhất 1 tag")
-    List<Long> tagIds;
+    @NotEmpty(message = "Tuyến đường phải có ít nhất 4 điểm dừng (hotspot)")
+    @Size(min = 4, message = "Tuyến đường phải có ít nhất 4 điểm dừng")
+    List<Long> hotspotIds;
 
     @NotNull(message = "Kinh nghiệm không được để trống")
     @PositiveOrZero(message = "Kinh nghiệm không được là số âm")

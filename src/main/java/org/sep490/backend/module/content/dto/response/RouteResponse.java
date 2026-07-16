@@ -20,7 +20,7 @@ public class RouteResponse {
     RouteStatus status;
     Long xp;
     Long point;
-    List<TagResponse> tags;
-    List<RouteHotspotResponse> hotspots;
+    TagResponse tag;
+    List<HotspotResponse> hotspots;
     List<MediaResponse> medias;
 }

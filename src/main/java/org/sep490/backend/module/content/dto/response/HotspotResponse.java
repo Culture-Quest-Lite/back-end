@@ -16,7 +16,6 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class HotspotResponse {
     Long hotspotId;
-    List<TagResponse> tags;
     Long createByUserId;
     String hotspotName;
     String address;
@@ -49,4 +48,7 @@ public class HotspotResponse {
 
     ContentStatus status;
     List<MediaResponse> medias;
+    List<StoryResponse> stories;
+
+    Boolean isCheckIn;
 }

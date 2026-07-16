@@ -21,6 +21,7 @@ import java.util.ArrayList;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Story {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "story_id")
@@ -31,14 +32,18 @@ public class Story {
     Tag tag;
 
     @ManyToOne
-    @JoinColumn(name = "hotspot_id", nullable = false)
+    @JoinColumn(name = "hotspot_id", nullable = true)
     Hotspot hotspot;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "route_id", nullable = true)
+    Route route;
 
     @ManyToOne
     @JoinColumn(name = "created_by", nullable = false)
     User createdBy;
 
-    @Column(name = "order_index", nullable = false)
+    @Column(name = "order_index", nullable = true)
     Integer orderIndex;
 
     @Column(name = "title", nullable = false, length = 100)
@@ -46,6 +51,9 @@ public class Story {
 
     @Column(name = "content", columnDefinition = "TEXT")
     String content;
+
+    @Column(name = "distance_to_next", nullable = true)
+    Double distanceToNext;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")

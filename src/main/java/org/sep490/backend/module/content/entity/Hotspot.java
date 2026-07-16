@@ -12,10 +12,8 @@ import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "hotspots")
@@ -31,14 +29,6 @@ public class Hotspot implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "hotspot_id")
     Long hotspotId;
-
-    @ManyToMany
-    @JoinTable(
-            name = "hotspot_tags",
-            joinColumns = @JoinColumn(name = "hotspot_id"),
-            inverseJoinColumns = @JoinColumn(name = "tag_id")
-    )
-    Set<Tag> tags = new HashSet<>();
 
     @ManyToOne
     @JoinColumn(name = "created_by", nullable = false)
@@ -56,7 +46,7 @@ public class Hotspot implements Serializable {
     @Column(name = "history_information", columnDefinition = "TEXT")
     String historyInformation;
 
-    @Column(name = "XP", nullable = false)
+    @Column(name = "xp", nullable = false)
     Long xp;
 
     @Column(name = "point", nullable = false)
@@ -72,7 +62,7 @@ public class Hotspot implements Serializable {
     Long estimatedDurationMax;
 
     @Column(name = "start_time", nullable = false)
-    LocalTime startTime; // nice time in day
+    LocalTime startTime;
 
     @Column(name = "end_time", nullable = false)
     LocalTime endTime;
@@ -91,6 +81,10 @@ public class Hotspot implements Serializable {
     @Builder.Default
     List<Media> medias = new ArrayList<>();
 
+    @OneToMany(mappedBy = "hotspot", fetch = FetchType.LAZY)
+    @Builder.Default
+    List<Story> stories = new ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt;
@@ -101,15 +95,4 @@ public class Hotspot implements Serializable {
 
     @Column(name = "published_at")
     LocalDateTime publishedAt;
-
-
-    public void addTag(Tag tag) {
-        this.tags.add(tag);
-        tag.getHotspots().add(this);
-    }
-
-    public void removeTag(Tag tag) {
-        this.tags.remove(tag);
-        tag.getHotspots().remove(this);
-    }
 }

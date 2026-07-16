@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
+import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -37,8 +38,8 @@ public class RouteController {
     }
 
     @GetMapping("/hotspot/{hotspotId}")
-    public ResponseEntity<List<RouteResponse>> getByHotspotId(@PathVariable Long hotspotId) {
-        List<RouteResponse> routeResponses = routeService.getByHotspotId(hotspotId);
+    public ResponseEntity<List<RouteResponse>> getByHotspotId(@PathVariable Long hotspotId, @RequestParam RouteStatus routeStatus) {
+        List<RouteResponse> routeResponses = routeService.getByHotspotId(hotspotId, routeStatus);
         return ResponseEntity.ok(routeResponses);
     }
 
@@ -54,21 +55,36 @@ public class RouteController {
         return ResponseEntity.ok(routeResponse);
     }
 
-    @PostMapping("/{routeId}/add/{hotspotId}")
-    public ResponseEntity<RouteResponse> add(@PathVariable Long routeId, @PathVariable Long hotspotId) {
-        RouteResponse routeResponse = routeService.addHotspotToEndOfRoute(routeId, hotspotId);
-        return ResponseEntity.ok(routeResponse);
-    }
-
-    @DeleteMapping("/{routeId}/remove/{hotspotId}")
-    public ResponseEntity<RouteResponse> remove(@PathVariable Long routeId, @PathVariable Long hotspotId) {
-        RouteResponse routeResponse = routeService.removeHotspotFromRoute(routeId, hotspotId);
-        return ResponseEntity.ok(routeResponse);
-    }
+//    @PostMapping("/{routeId}/add/{hotspotId}")
+//    public ResponseEntity<RouteResponse> add(@PathVariable Long routeId, @PathVariable Long hotspotId) {
+//        RouteResponse routeResponse = routeService.addHotspotToEndOfRoute(routeId, hotspotId);
+//        return ResponseEntity.ok(routeResponse);
+//    }
+//
+//    @DeleteMapping("/{routeId}/remove/{hotspotId}")
+//    public ResponseEntity<RouteResponse> remove(@PathVariable Long routeId, @PathVariable Long hotspotId) {
+//        RouteResponse routeResponse = routeService.removeHotspotFromRoute(routeId, hotspotId);
+//        return ResponseEntity.ok(routeResponse);
+//    }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<String> delete(@PathVariable Long id) {
         routeService.delete(id);
         return ResponseEntity.ok("Route deleted successfully");
+    }
+
+    @PostMapping("/record")
+    public ResponseEntity<RouteResponse> recordJourney() {
+        return ResponseEntity.ok(routeService.recordJourney());
+    }
+
+    @PutMapping("/record/finish")
+    public ResponseEntity<RouteResponse> finishRecordJourney() {
+        return ResponseEntity.ok(routeService.finishRecordJourney());
+    }
+
+    @PutMapping("/record/finalize/{id}")
+    public ResponseEntity<RouteResponse> finalizeRecordJourney(@PathVariable("id") Long routeId) {
+        return ResponseEntity.ok(routeService.finalizeCustomRoute(routeId));
     }
 }

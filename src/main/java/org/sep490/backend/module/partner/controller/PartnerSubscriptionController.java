@@ -2,7 +2,9 @@ package org.sep490.backend.module.partner.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
+import org.sep490.backend.module.admin.dto.response.MomoPaymentInitResponse;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
+import org.sep490.backend.module.admin.dto.response.PaymentInitResponse;
 import org.sep490.backend.module.admin.dto.response.SubscriptionPlanResponse;
 import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
 import org.sep490.backend.module.admin.service.SubscriptionPlanService;
@@ -40,5 +42,13 @@ public class PartnerSubscriptionController {
     @GetMapping("/{id}/subscriptions")
     public ResponseEntity<List<PartnerSubscriptionResponse>> getSubscriptionsByPartnerId(@PathVariable Long id) {
         return ResponseEntity.ok(subscriptionService.getSubscriptionsByPartnerId(id));
+    }
+
+    @PostMapping("/subscriptions/{id}/initiate-payment")
+    public ResponseEntity<PaymentInitResponse> initiatePayment(
+            @PathVariable Long id,
+            @RequestParam(required = false) String redirectUrl,
+            @RequestParam(defaultValue = "PAYOS") String gateway) {
+        return ResponseEntity.ok(subscriptionService.initiatePayment(id, redirectUrl, gateway));
     }
 }

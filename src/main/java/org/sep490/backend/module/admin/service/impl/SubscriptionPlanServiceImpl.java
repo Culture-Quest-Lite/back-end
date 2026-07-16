@@ -3,14 +3,20 @@ package org.sep490.backend.module.admin.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+
+import java.util.List;
+import java.util.Map;
+
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.admin.dto.filter.SubscriptionPlanFilterRequest;
 import org.sep490.backend.module.admin.dto.request.SubscriptionPlanRequest;
 import org.sep490.backend.module.admin.dto.response.SubscriptionPlanResponse;
 import org.sep490.backend.module.admin.entity.SubscriptionPlan;
+import org.sep490.backend.module.admin.entity.PlanRule;
 import org.sep490.backend.module.admin.entity.enumeration.SubscriptionPlanStatus;
 import org.sep490.backend.module.admin.mapper.SubscriptionPlanMapper;
 import org.sep490.backend.module.admin.repository.SubscriptionPlanRepository;
+import org.sep490.backend.module.admin.repository.PlanRuleRepository;
 import org.sep490.backend.module.admin.service.SubscriptionPlanService;
 import org.sep490.backend.module.admin.specification.SubscriptionPlanSpecification;
 import org.springframework.data.domain.Page;
@@ -29,6 +35,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
     SubscriptionPlanMapper subscriptionPlanMapper;
     SubscriptionPlanRepository subscriptionPlanRepository;
+    PlanRuleRepository planRuleRepository;
 
     @Override
     @Transactional
@@ -39,6 +46,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
         SubscriptionPlan plan = subscriptionPlanMapper.toEntity(request);
         plan.setStatus(SubscriptionPlanStatus.ACTIVE);
         plan = subscriptionPlanRepository.save(plan);
+        syncPlanRules(plan, request.getConfigLimit());
         return subscriptionPlanMapper.toResponse(plan);
     }
 
@@ -55,7 +63,29 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
         }
         subscriptionPlanMapper.updateEntityFromRequest(request, plan);
         plan = subscriptionPlanRepository.save(plan);
+        syncPlanRules(plan, request.getConfigLimit());
         return subscriptionPlanMapper.toResponse(plan);
+    }
+
+    private void syncPlanRules(SubscriptionPlan plan, Map<String, Object> configLimit) {
+        List<PlanRule> oldRules = planRuleRepository.findBySubscriptionPlan_SubscriptionPlanId(plan.getSubscriptionPlanId());
+        if (oldRules != null && !oldRules.isEmpty()) {
+            planRuleRepository.deleteAll(oldRules);
+        }
+
+        if (configLimit != null && !configLimit.isEmpty()) {
+            for (Map.Entry<String, Object> entry : configLimit.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue() != null ? entry.getValue().toString() : "0";
+                PlanRule rule = PlanRule.builder()
+                        .subscriptionPlan(plan)
+                        .ruleKey(key)
+                        .ruleValue(value)
+                        .description("Giới hạn cho " + key)
+                        .build();
+                planRuleRepository.save(rule);
+            }
+        }
     }
 
     @Override

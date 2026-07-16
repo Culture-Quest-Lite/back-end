@@ -50,6 +50,7 @@ public class SecurityConfig {
             "/api/v1/hotspots/**",
             "/api/v1/stories/**",
             "/api/v1/routes/**",
+            "/api/tags/**"
     };
 
     @Bean
@@ -62,6 +63,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers("/api/payment/momo/ipn", "/api/payment/payos/webhook").permitAll()
                         // .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt

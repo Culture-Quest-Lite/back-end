@@ -7,29 +7,38 @@ import org.mapstruct.Named;
 import org.mapstruct.ReportingPolicy;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
-import org.sep490.backend.module.admin.entity.PartnerSubscription;
+import org.sep490.backend.module.admin.entity.Invoice;
+import org.sep490.backend.module.admin.entity.PartnerInfo;
 import org.sep490.backend.module.content.entity.Media;
 
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface PartnerSubscriptionMapper {
 
     @Mapping(target = "location", expression = "java(org.sep490.backend.common.utils.SpatialUtils.fromCoordinates(request.getLongitude(), request.getLatitude()))")
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "partner", ignore = true)
-    @Mapping(target = "subscriptionPlan", ignore = true)
+    @Mapping(target = "partnerInfoId", ignore = true)
+    @Mapping(target = "user", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "startDate", ignore = true)
-    @Mapping(target = "endDate", ignore = true)
-    PartnerSubscription toEntity(PartnerSubscriptionRequest request);
+    @Mapping(target = "updatedAt", ignore = true)
+    PartnerInfo toPartnerInfo(PartnerSubscriptionRequest request);
 
-    @Mapping(source = "partner.userId", target = "partnerId")
-    @Mapping(source = "partner.username", target = "partnerName")
-    @Mapping(source = "subscriptionPlan.subscriptionPlanId", target = "subscriptionPlanId")
-    @Mapping(source = "subscriptionPlan.subscriptionPlanName", target = "subscriptionPlanName")
-    @Mapping(source = "location", target = "longitude", qualifiedByName = "getLongitude")
-    @Mapping(source = "location", target = "latitude", qualifiedByName = "getLatitude")
-    PartnerSubscriptionResponse toResponse(PartnerSubscription entity);
+    @Mapping(source = "invoice.invoiceId", target = "id")
+    @Mapping(source = "invoice.partnerInfo.user.userId", target = "partnerId")
+    @Mapping(source = "invoice.partnerInfo.user.displayName", target = "partnerName")
+    @Mapping(source = "invoice.subscriptionPlan.subscriptionPlanId", target = "subscriptionPlanId")
+    @Mapping(source = "invoice.subscriptionPlan.subscriptionPlanName", target = "subscriptionPlanName")
+    @Mapping(source = "invoice.partnerInfo.shopName", target = "shopName")
+    @Mapping(source = "invoice.partnerInfo.address", target = "address")
+    @Mapping(source = "invoice.partnerInfo.location", target = "longitude", qualifiedByName = "getLongitude")
+    @Mapping(source = "invoice.partnerInfo.location", target = "latitude", qualifiedByName = "getLatitude")
+    @Mapping(source = "invoice.partnerInfo.documentUrl", target = "documentUrl")
+    @Mapping(expression = "java(\"ACTIVE\".equals(invoice.getPartnerInfo().getStatus() != null ? invoice.getPartnerInfo().getStatus().name() : null))", target = "isVerified")
+    @Mapping(source = "invoice.billingCycle", target = "billingCycle")
+    @Mapping(source = "invoice.status", target = "status")
+    @Mapping(source = "invoice.startDate", target = "startDate")
+    @Mapping(source = "invoice.endDate", target = "endDate")
+    @Mapping(target = "medias", ignore = true)
+    PartnerSubscriptionResponse toResponse(Invoice invoice);
 
     @Named("getLongitude")
     default Double getLongitude(Point coordinate) {

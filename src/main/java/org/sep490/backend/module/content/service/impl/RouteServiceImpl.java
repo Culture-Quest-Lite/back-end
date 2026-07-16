@@ -8,24 +8,26 @@ import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.dto.request.RouteHotspotRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
+import org.sep490.backend.module.content.dto.response.HotspotResponse;
+import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
+import org.sep490.backend.module.content.dto.response.StoryResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
-import org.sep490.backend.module.content.entity.RouteHotspot;
-import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
-import org.sep490.backend.module.content.entity.enumeration.RouteDifficulty;
-import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
-import org.sep490.backend.module.content.entity.enumeration.RouteType;
+import org.sep490.backend.module.content.entity.Story;
+import org.sep490.backend.module.content.entity.enumeration.*;
+import org.sep490.backend.module.content.mapper.HotspotMapper;
+import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.content.mapper.RouteMapper;
-import org.sep490.backend.module.content.repository.RouteHotspotRepository;
+import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.RouteRepository;
+import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.RouteService;
-import org.sep490.backend.module.content.dto.response.MediaResponse;
-import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
+import org.sep490.backend.module.content.entity.Tag;
+import org.sep490.backend.module.content.repository.TagRepository;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,47 +39,49 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.HashSet;
-import org.sep490.backend.module.content.entity.Tag;
-import org.sep490.backend.module.content.repository.TagRepository;
 
 @Service
 @RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE,  makeFinal = true)
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class RouteServiceImpl implements RouteService {
 
     RouteRepository routeRepository;
     RouteMapper routeMapper;
-    RouteHotspotRepository routeHotspotRepository;
+    StoryRepository storyRepository;
     HotspotService hotspotService;
     UserService userService;
-    TagRepository tagRepository;
     MediaService mediaService;
+    MediaMapper mediaMapper;
+    StoryMapper storyMapper;
+    TagRepository tagRepository;
+    HotspotMapper hotspotMapper;
 
     @Override
     @Transactional
     public RouteResponse create(RouteRequest request) {
 
-        if(request.getHotspots().size() < 4) {
+        if (request.getHotspotIds().size() < 4) {
             throw new BusinessException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
         }
 
+        Tag tag = tagRepository.findById(request.getTagId())
+                .orElseThrow(() -> new BusinessException("Tag không tồn tại với ID: " + request.getTagId()));
+
         Route route = routeMapper.toEntity(request);
-        List<Tag> tags = tagRepository.findAllById(request.getTagIds());
-        route.setTags(new HashSet<>(tags));
         User creator = userService.getCurrentUser();
 
         route.setCreatedBy(creator);
+        route.setTag(tag);
         route.setStatus(RouteStatus.DRAFT);
         route.setType(RouteType.OFFICIAL);
         route.setIsLocked(false);
-        route.setTotalStops(request.getHotspots().size());
+        route.setTotalStops(request.getHotspotIds().size());
 
         route = routeRepository.save(route);
 
-        List<RouteHotspot> routeHotspots = processRouteHotspots(route, request.getHotspots());
+        List<Story> stories = processRouteStories(route, request.getHotspotIds());
 
-        RouteResponse response = buildRouteResponse(route, routeHotspots);
+        RouteResponse response = buildRouteResponse(route, stories);
         if (request.getFiles() != null && request.getFiles().length > 0) {
             try {
                 List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
@@ -94,41 +98,47 @@ public class RouteServiceImpl implements RouteService {
     @Transactional
     public RouteResponse update(Long id, RouteRequest request) {
 
-        if(request.getHotspots().size() < 4) {
-            throw new BusinessException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
+        if (request.getHotspotIds().size() < 4) {
+            throw new BusinessException("Tuyến đường phải có ít nhất 4 điểm dừng");
         }
 
-        Route currRoute = getById(id);
+        Tag tag = tagRepository.findById(request.getTagId())
+                .orElseThrow(() -> new BusinessException("Tag không tồn tại với ID: " + request.getTagId()));
 
+        Route currRoute = getById(id);
         routeMapper.updateFromRequest(currRoute, request);
-        List<Tag> tags = tagRepository.findAllById(request.getTagIds());
-        currRoute.setTags(new HashSet<>(tags));
-        currRoute.setTotalStops(request.getHotspots().size());
+        currRoute.setTag(tag);
+        currRoute.setTotalStops(request.getHotspotIds().size());
         currRoute = routeRepository.save(currRoute);
 
-        routeHotspotRepository.deleteByRoute_RouteId(id);
+        // Unset route_id cho tất cả story cũ đang thuộc route này
+        List<Story> oldStories = storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(id);
+        for (Story s : oldStories) {
+            s.setRoute(null);
+            s.setOrderIndex(null);
+            s.setDistanceToNext(null);
+        }
+        storyRepository.saveAll(oldStories);
 
-        List<RouteHotspot> updatedRouteHotspot = processRouteHotspots(currRoute, request.getHotspots());
-
-        return buildRouteResponse(currRoute, updatedRouteHotspot);
+        List<Story> updatedStories = processRouteStories(currRoute, request.getHotspotIds());
+        return buildRouteResponse(currRoute, updatedStories);
     }
 
     @Override
     @Transactional(readOnly = true)
     public RouteResponse getDetail(Long id) {
 
-        Route route  = getById(id);
-        List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteIdOrderByIndexAsc(id);
+        Route route = getById(id);
+        List<Story> stories = storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(id);
 
-        return buildRouteResponse(route, routeHotspots);
+        return buildRouteResponse(route, stories);
     }
 
     @Override
     @Transactional
     public void delete(Long id) {
 
-        Route route =  getById(id);
-
+        Route route = getById(id);
         route.setStatus(RouteStatus.DELETED);
         routeRepository.save(route);
     }
@@ -137,10 +147,8 @@ public class RouteServiceImpl implements RouteService {
     @Transactional(readOnly = true)
     public Route getById(Long id) {
 
-        Route route = routeRepository.findById(id)
+        return routeRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Tuyến đường không tồn tại"));
-
-        return route;
     }
 
     @Override
@@ -152,7 +160,10 @@ public class RouteServiceImpl implements RouteService {
 
         GenericSpecification<Route> spec = new GenericSpecification<>(request);
 
-        return routeRepository.findAll(spec, pageable).map(routeMapper::toResponse);
+        return routeRepository.findAll(spec, pageable).map(route -> {
+            List<Story> stories = storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(route.getRouteId());
+            return buildRouteResponse(route, stories);
+        });
     }
 
     @Override
@@ -162,9 +173,9 @@ public class RouteServiceImpl implements RouteService {
         Route route = getById(routeId);
         Hotspot hotspot = hotspotService.getById(hotspotId);
         addHotspotToRoute(route, hotspot);
-        List<RouteHotspot> newRouteHotspots = routeHotspotRepository.findByRoute_RouteId(routeId);
+        List<Story> newStories = storyRepository.findByRoute_RouteId(routeId);
 
-        return buildRouteResponse(route, newRouteHotspots);
+        return buildRouteResponse(route, newStories);
     }
 
     @Override
@@ -172,16 +183,15 @@ public class RouteServiceImpl implements RouteService {
     public RouteResponse removeHotspotFromRoute(Long routeId, Long hotspotId) {
         Route route = getById(routeId);
         Hotspot hotspot = hotspotService.getById(hotspotId);
-        List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteId(routeId);
 
-        if(routeHotspots.size() <= 4) {
+        if (route.getTotalStops() <= 4) {
             throw new BusinessException("Tuyến đường hiện có 4 điểm dừng, thêm điểm dừng mới trước khi xóa");
         }
 
         removeHotspotFromRoute(route, hotspot);
-        List<RouteHotspot> newRouteHotspots = routeHotspotRepository.findByRoute_RouteId(routeId);
+        List<Story> newStories = storyRepository.findByRoute_RouteId(routeId);
 
-        return buildRouteResponse(route, newRouteHotspots);
+        return buildRouteResponse(route, newStories);
     }
 
     @Override
@@ -190,11 +200,14 @@ public class RouteServiceImpl implements RouteService {
 
         User creator = userService.getCurrentUser();
 
-        // check if user was currently recording any journey
-        if(findRecordingCustomRouteByUserId(creator.getUserId()) != null) {
+        if (findRecordingCustomRouteByUserId(creator.getUserId()) != null) {
             throw new BusinessException("Người dùng đã có hành trình đang ghi lại. " +
                     "Vui lòng hoàn thành hành trình trước khi bắt đầu hành trình mới.");
         }
+
+        // default tag for custom route
+        Tag tag = tagRepository.findByTagName("Hành Trình Cá Nhân")
+                .orElseThrow(() -> new BusinessException("Không tìm thấy tag 'Hành trình cá nhân'"));
 
         Route route = new Route();
 
@@ -210,29 +223,28 @@ public class RouteServiceImpl implements RouteService {
         route.setCreatedBy(creator);
         route.setStatus(RouteStatus.RECORDING);
         route.setType(RouteType.CUSTOM);
+        route.setTag(tag);
         route.setIsLocked(false);
         route.setTotalStops(0);
 
         route = routeRepository.save(route);
 
-        List<RouteHotspot> routeHotspots = processRouteHotspots(route, new ArrayList<>());
-
-        return buildRouteResponse(route, routeHotspots);
+        return buildRouteResponse(route, new ArrayList<>());
     }
 
     @Override
     @Transactional
     public RouteResponse finishRecordJourney() {
 
-        User user  = userService.getCurrentUser();
+        User user = userService.getCurrentUser();
         Route route = findRecordingCustomRouteByUserId(user.getUserId());
 
-        route.setStatus(RouteStatus.TRIAL);
+        route.setStatus(RouteStatus.DRAFT); // wait for user to finalize their custom route
         route = routeRepository.save(route);
 
-        List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteId(route.getRouteId());
+        List<Story> stories = route.getStories();
 
-        return buildRouteResponse(route, routeHotspots);
+        return buildRouteResponse(route, stories);
     }
 
     @Override
@@ -247,141 +259,266 @@ public class RouteServiceImpl implements RouteService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<RouteResponse> getByHotspotId(Long hotspotId) {
+    public List<RouteResponse> getByHotspotId(Long hotspotId, RouteStatus routeStatus) {
         Hotspot hotspot = hotspotService.getById(hotspotId);
-        return routeRepository.findRoutesByHotspotIdAndStatus(hotspot.getHotspotId(), RouteStatus.PUBLISHED).stream()
-                .map(routeMapper::toResponse)
-                .toList();
+        List<Route> routes = routeRepository.findRoutesByHotspotIdAndStatus(hotspot.getHotspotId(), routeStatus);
+        List<RouteResponse> routeResponses = new ArrayList<>();
+        for (Route route : routes) {
+            RouteResponse routeResponse = buildRouteResponse(route,
+                    storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(route.getRouteId()));
+            routeResponses.add(routeResponse);
+        }
+        return routeResponses;
     }
 
+    @Override
+    @Transactional
+    public RouteResponse addHotspotToEndOfCustomRoute(Long routeId, Long hotspotId, Long userId) {
 
-    private List<RouteHotspot> processRouteHotspots(Route route, List<RouteHotspotRequest> hotspotRequests) {
+        Route route = getById(routeId);
+        Hotspot hotspot = hotspotService.getById(hotspotId);
+        User user = userService.getUserById(userId);
+        addHotspotToCustomRoute(route, hotspot, user);
+        List<Story> newStories = storyRepository.findByRoute_RouteId(routeId);
 
-        if (hotspotRequests == null || hotspotRequests.isEmpty()) {
+        return buildRouteResponse(route, newStories);
+    }
+
+    @Override
+    @Transactional
+    public RouteResponse finalizeCustomRoute(Long routeId) {
+
+        Route route = getById(routeId);
+        User user = userService.getCurrentUser();
+
+        if(!route.getStatus().equals(RouteStatus.DRAFT)) {
+            throw new BusinessException("Chỉ có thể hoàn tất hành trình cá nhân đang ở trạng thái DRAFT");
+        }
+
+        if(!route.getType().equals(RouteType.CUSTOM)) {
+            throw new BusinessException("Chỉ có thể hoàn tất hành trình cá nhân có loại CUSTOM");
+        }
+
+        if(!route.getCreatedBy().equals(user)) {
+            throw new BusinessException("Người dùng chỉ được hoàn thành hành trình cá nhân của mình");
+        }
+
+        route.setStatus(RouteStatus.TRIAL);
+        route = routeRepository.save(route);
+
+        return buildRouteResponse(route, route.getStories());
+    }
+
+    private List<Story> processRouteStories(Route route, List<Long> hotspotIds) {
+
+        if (hotspotIds == null || hotspotIds.isEmpty()) {
             return new ArrayList<>();
         }
 
-        List<RouteHotspot> routeHotspots = new ArrayList<>();
+        List<Story> stories = new ArrayList<>();
 
-        for (int i = 0; i < hotspotRequests.size(); i++) {
+        for (int i = 0; i < hotspotIds.size(); i++) {
+            Long hotspotId = hotspotIds.get(i);
 
-            RouteHotspotRequest req = hotspotRequests.get(i);
+            Hotspot hotspot = hotspotService.getById(hotspotId);
 
-            Hotspot hotspot = hotspotService.getById(req.getHotspotId());
-
-            RouteHotspot routeHotspot = RouteHotspot.builder()
-                    .route(route)
-                    .hotspot(hotspot)
-                    .index(req.getIndex() != null ? req.getIndex() : i)
-                    .build();
-
-            if (i < hotspotRequests.size() - 1) {
-
-                Long nextHotspotId = hotspotRequests.get(i + 1).getHotspotId();
-
-                Hotspot nextHotspot = hotspotService.getById(nextHotspotId);
-
-                double distanceInMeters = SpatialUtils.calculateDistanceInMeters(
-                        hotspot.getLocation(),
-                        nextHotspot.getLocation());
-                routeHotspot.setDistanceToNext(distanceInMeters);
-            } else {
-                routeHotspot.setDistanceToNext(0.0);
+            List<Story> hotspotStories = storyRepository.findByHotspotOrderedByIndex(hotspotId);
+            if (hotspotStories.isEmpty()) {
+                throw new BusinessException("Địa điểm " + hotspot.getHotspotName() + " chưa có cốt truyện nào!");
             }
-            routeHotspots.add(routeHotspot);
+
+            Story story = hotspotStories.stream()
+                    .filter(s -> s.getTag() != null
+                            && route.getTag() != null
+                            && s.getTag().getTagId().equals(route.getTag().getTagId()))
+                    .findFirst()
+                    .orElse(hotspotStories.get(0)); 
+            story.setRoute(route);
+            story.setOrderIndex(i + 1);
+
+            stories.add(story);
         }
 
-        return routeHotspotRepository.saveAll(routeHotspots);
+        for (int i = 0; i < stories.size(); i++) {
+            Story story = stories.get(i);
+            if (i < stories.size() - 1) {
+                Story nextStory = stories.get(i + 1);
+                double distanceInMeters = SpatialUtils.calculateDistanceInMeters(
+                        story.getHotspot().getLocation(),
+                        nextStory.getHotspot().getLocation());
+                story.setDistanceToNext(distanceInMeters);
+            } else {
+                story.setDistanceToNext(0.0);
+            }
+        }
+
+        return storyRepository.saveAll(stories);
     }
 
-    private RouteResponse buildRouteResponse(Route route, List<RouteHotspot> routeHotspots) {
+    private RouteResponse buildRouteResponse(Route route, List<Story> stories) {
 
         RouteResponse response = routeMapper.toResponse(route);
 
-        response.setHotspots(routeMapper.toRouteHotspotResponseList(routeHotspots));
+        List<HotspotResponse> hotspotResponses = new ArrayList<>();
+
+        for (Story s : stories) {
+            if (s.getHotspot() != null) {
+                HotspotResponse hr = buildHotspotResponseForRoute(s.getHotspot(), route);
+                hotspotResponses.add(hr);
+            }
+        }
+
+        response.setHotspots(hotspotResponses);
+
+        if (route.getTag() != null) {
+            response.setTag(storyMapper.toTagResponse(route.getTag()));
+        }
+
+        return response;
+    }
+
+    private HotspotResponse buildHotspotResponseForRoute(Hotspot hotspot, Route route) {
+        HotspotResponse response = hotspotMapper.toResponse(hotspot);
+
+        List<Story> stories;
+        if (route.getTag() != null) {
+            List<Long> routeTagIds = List.of(route.getTag().getTagId());
+            stories = storyRepository.findByHotspotOrderedByRouteTag(hotspot.getHotspotId(), routeTagIds);
+        } else {
+            stories = storyRepository.findByHotspotOrderedByIndex(hotspot.getHotspotId());
+        }
+
+        List<StoryResponse> storyResponses = stories.stream()
+                .map(storyMapper::toResponse)
+                .toList();
+        response.setStories(storyResponses);
 
         return response;
     }
 
     private void addHotspotToRoute(Route route, Hotspot hotspot) {
-        List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteIdOrderByIndexAsc(route.getRouteId());
+        // check if hotspot was already in route
+        List<Story> stories = storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(route.getRouteId());
 
-        for (RouteHotspot rh : routeHotspots) {
-            if (rh.getHotspot().getHotspotId().equals(hotspot.getHotspotId())) {
-                throw new BusinessException("Điểm dừng đã tồn tại trong tuyến đường");
+        for (Story s : stories) {
+            if (s.getHotspot().getHotspotId().equals(hotspot.getHotspotId())) {
+                throw new BusinessException("Hotspot này đã có trong tuyến đường");
             }
         }
+        // fetch un-assigned stories for hotspot
+        List<Story> hotspotStories = storyRepository.findByHotspotOrderedByIndex(hotspot.getHotspotId())
+                .stream().filter(s -> s.getRoute() == null).toList();
 
-        RouteHotspot newRouteHotspot = new RouteHotspot();
-        newRouteHotspot.setRoute(route);
-        newRouteHotspot.setHotspot(hotspot);
-        newRouteHotspot.setDistanceToNext(0.0);
+        Story storyToAdd = hotspotStories.stream()
+                .filter(s -> s.getTag() != null
+                        && route.getTag() != null
+                        && s.getTag().getTagId().equals(route.getTag().getTagId()))
+                .findFirst()
+                .orElseGet(() -> hotspotStories.stream().findFirst().orElse(null));
 
-        if (!routeHotspots.isEmpty()) {
-            RouteHotspot lastRouteHotspot = routeHotspots.get(routeHotspots.size() - 1);
-
-            newRouteHotspot.setIndex(lastRouteHotspot.getIndex() + 1);
-
-            double distance = SpatialUtils.calculateDistanceInMeters(
-                    lastRouteHotspot.getHotspot().getLocation(),
-                    hotspot.getLocation()
-            );
-
-            lastRouteHotspot.setDistanceToNext(distance);
-            routeHotspotRepository.save(lastRouteHotspot);
-
-            route.setTotalDistance(route.getTotalDistance() + distance);
-            routeRepository.save(route);
-        } else {
-            newRouteHotspot.setIndex(0);
+        if (storyToAdd == null) {
+            throw new BusinessException("Hotspot chưa có story nào. Vui lòng tạo story cho hotspot trước.");
         }
 
-        routeHotspotRepository.save(newRouteHotspot);
+        storyToAdd.setRoute(route);
+
+        calculateIndexAndDistance(route, hotspot, stories, storyToAdd);
     }
 
     private void removeHotspotFromRoute(Route route, Hotspot hotspot) {
-        List<RouteHotspot> routeHotspots = routeHotspotRepository.findByRoute_RouteIdOrderByIndexAsc(route.getRouteId());
+        List<Story> stories = storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(route.getRouteId());
 
         int targetIndex = -1;
-        RouteHotspot targetRouteHotspot = null;
+        Story targetStory = null;
 
-        for (int i = 0; i < routeHotspots.size(); i++) {
-            if (routeHotspots.get(i).getHotspot().getHotspotId().equals(hotspot.getHotspotId())) {
+        for (int i = 0; i < stories.size(); i++) {
+            if (stories.get(i).getHotspot().getHotspotId().equals(hotspot.getHotspotId())) {
                 targetIndex = i;
-                targetRouteHotspot = routeHotspots.get(i);
+                targetStory = stories.get(i);
                 break;
             }
         }
 
-        if (targetRouteHotspot == null) {
+        if (targetStory == null) {
             throw new BusinessException("Điểm dừng này không nằm trong tuyến đường");
         }
 
         if (targetIndex > 0) {
-            RouteHotspot prevRouteHotspot = routeHotspots.get(targetIndex - 1);
+            Story prevStory = stories.get(targetIndex - 1);
 
-            if (targetIndex < routeHotspots.size() - 1) {
-                RouteHotspot nextRouteHotspot = routeHotspots.get(targetIndex + 1);
+            if (targetIndex < stories.size() - 1) {
+                Story nextStory = stories.get(targetIndex + 1);
 
                 double newDistance = SpatialUtils.calculateDistanceInMeters(
-                        prevRouteHotspot.getHotspot().getLocation(),
-                        nextRouteHotspot.getHotspot().getLocation()
+                        prevStory.getHotspot().getLocation(),
+                        nextStory.getHotspot().getLocation()
                 );
-                prevRouteHotspot.setDistanceToNext(newDistance);
+                prevStory.setDistanceToNext(newDistance);
+            } else {
+                prevStory.setDistanceToNext(0.0);
             }
-            else {
-                prevRouteHotspot.setDistanceToNext(0.0);
-            }
-
-            routeHotspotRepository.save(prevRouteHotspot);
+            storyRepository.save(prevStory);
         }
 
-        for (int i = targetIndex + 1; i < routeHotspots.size(); i++) {
-            RouteHotspot nextRouteHotspot = routeHotspots.get(i);
-            nextRouteHotspot.setIndex(nextRouteHotspot.getIndex() - 1);
-            routeHotspotRepository.save(nextRouteHotspot);
+        for (int i = targetIndex + 1; i < stories.size(); i++) {
+            Story nextStory = stories.get(i);
+            nextStory.setOrderIndex(nextStory.getOrderIndex() - 1);
+            storyRepository.save(nextStory);
         }
 
-        routeHotspotRepository.delete(targetRouteHotspot);
+        // Unset route (không xóa story, chỉ gỡ khỏi route)
+        targetStory.setRoute(null);
+        targetStory.setOrderIndex(null);
+        targetStory.setDistanceToNext(null);
+        storyRepository.save(targetStory);
+    }
+
+    private void addHotspotToCustomRoute(Route route, Hotspot hotspot, User user) {
+        // check if hotspot was already in route
+        List<Story> stories = storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(route.getRouteId());
+
+        for (Story s : stories) {
+            if (s.getHotspot().getHotspotId().equals(hotspot.getHotspotId())) {
+                throw new BusinessException("Hotspot này đã có trong tuyến đường");
+            }
+        }
+
+        // create new story, user have to edit later for publish
+        Story storyToAdd = Story.builder()
+                .tag(route.getTag())
+                .hotspot(hotspot)
+                .route(route)
+                .createdBy(user)
+                .title("Câu chuyện cho hành trình cá nhân của " + user.getDisplayName())
+                .content("Đây là câu chuyện mặc định cho điểm dừng " + hotspot.getHotspotName() + " trong hành trình cá nhân của bạn. Hãy chỉnh sửa nội dung này để tạo trải nghiệm thú vị hơn cho người dùng.")
+                .status(ContentStatus.DRAFT)
+                .build();
+
+        // update story and route fields
+        calculateIndexAndDistance(route, hotspot, stories, storyToAdd);
+    }
+
+    private void calculateIndexAndDistance(Route route, Hotspot hotspot, List<Story> stories, Story storyToAdd) {
+        if (!stories.isEmpty()) {
+            Story lastStory = stories.get(stories.size() - 1);
+            storyToAdd.setOrderIndex(lastStory.getOrderIndex() + 1);
+
+            double distance = SpatialUtils.calculateDistanceInMeters(
+                    lastStory.getHotspot().getLocation(),
+                    hotspot.getLocation()
+            );
+            lastStory.setDistanceToNext(distance);
+            storyRepository.save(lastStory);
+
+            route.setTotalDistance(route.getTotalDistance() + distance);
+            routeRepository.save(route);
+        } else {
+            storyToAdd.setOrderIndex(1);
+        }
+
+        route.setTotalStops(route.getTotalStops() == null ? 1 : route.getTotalStops() + 1);
+
+        storyToAdd.setDistanceToNext(0.0);
+        storyRepository.save(storyToAdd);
     }
 }

@@ -4,10 +4,8 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.sep490.backend.module.gamification.dto.response.PointTransactionResponse;
-import org.sep490.backend.module.gamification.service.PointTransactionService;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
-import org.sep490.backend.module.partner.dto.response.UserVoucherResponse;
+import org.sep490.backend.module.partner.dto.response.VoucherUsageResponse;
 import org.sep490.backend.module.partner.dto.response.VoucherResponse;
 import org.sep490.backend.module.partner.service.VoucherService;
 import org.springdoc.core.annotations.ParameterObject;
@@ -35,7 +33,7 @@ public class VoucherController {
     }
 
     @PostMapping("/{id}/redeem")
-    public ResponseEntity<UserVoucherResponse> redeemVoucher(@PathVariable Long id) {
+    public ResponseEntity<VoucherUsageResponse> redeemVoucher(@PathVariable Long id) {
         return ResponseEntity.ok(voucherService.redeemVoucher(id));
     }
 }

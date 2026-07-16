@@ -35,6 +35,6 @@ public class CustomRouteEventListener {
         User user = userService.getUserById(event.userId());
         Route customRoute = routeService.findRecordingCustomRouteByUserId(user.getUserId());
 
-        routeService.addHotspotToEndOfRoute(customRoute.getRouteId(), hotspot.getHotspotId());
+        routeService.addHotspotToEndOfCustomRoute(customRoute.getRouteId(), hotspot.getHotspotId(), user.getUserId());
     }
 }

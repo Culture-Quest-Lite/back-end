@@ -6,4 +6,6 @@ public enum TransactionType {
     EARN,
     HOTSPOT_CHECKIN,
     ROUTE_COMPLETION,
+    POST_CREATION,
+    ROUTE_FEEDBACK,
 }
