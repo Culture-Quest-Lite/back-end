@@ -50,7 +50,8 @@ public class SecurityConfig {
             "/api/v1/hotspots/**",
             "/api/v1/stories/**",
             "/api/v1/routes/**",
-            "/api/tags/**"
+            "/api/tags/**",
+            "/api/posts/**",
     };
 
     @Bean
