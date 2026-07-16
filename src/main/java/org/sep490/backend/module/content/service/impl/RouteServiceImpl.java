@@ -200,7 +200,7 @@ public class RouteServiceImpl implements RouteService {
 
         User creator = userService.getCurrentUser();
 
-        if (findRecordingCustomRouteByUserId(creator.getUserId()) != null) {
+        if (routeRepository.findByCreatedByAndTypeAndStatus(creator, RouteType.CUSTOM, RouteStatus.RECORDING).orElse(null) != null) {
             throw new BusinessException("Người dùng đã có hành trình đang ghi lại. " +
                     "Vui lòng hoàn thành hành trình trước khi bắt đầu hành trình mới.");
         }
