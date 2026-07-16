@@ -90,10 +90,11 @@ public class AISuggestionServiceImpl implements AISuggestionService {
 
         for (Long anchorId : anchors) {
             Hotspot anchor = hotspotService.getById(anchorId);
-            List<Hotspot> nearBy = hotspotRepository.findNearbyHotspots(
+            List<Hotspot> nearBy = hotspotRepository.findNearbyHotspotsWithStatus(
                     anchor.getLocation().getX(),
                     anchor.getLocation().getY(),
-                    radius
+                    radius,
+                    ContentStatus.PUBLISHED.name()
             );
 
             for (Hotspot h : nearBy) {
@@ -159,14 +160,15 @@ public class AISuggestionServiceImpl implements AISuggestionService {
         if (anchors != null && !anchors.isEmpty()) {
             for (Long anchorId : anchors) {
                 Hotspot anchor = hotspotService.getById(anchorId);
-                hotspotRepository.findNearbyHotspots(
+                hotspotRepository.findNearbyHotspotsWithStatus(
                         anchor.getLocation().getX(),
                         anchor.getLocation().getY(),
-                        radius
+                        radius,
+                        ContentStatus.PUBLISHED.name()
                 ).forEach(h -> map.putIfAbsent(h.getHotspotId(), h));
             }
         } else if (request.getLatitude() != null && request.getLongitude() != null) {
-            hotspotRepository.findNearbyHotspots(request.getLongitude(), request.getLatitude(), radius)
+            hotspotRepository.findNearbyHotspotsWithStatus(request.getLongitude(), request.getLatitude(), radius, ContentStatus.PUBLISHED.name())
                     .forEach(h -> map.putIfAbsent(h.getHotspotId(), h));
         } else {
             hotspotRepository.findByStatus(ContentStatus.PUBLISHED)
