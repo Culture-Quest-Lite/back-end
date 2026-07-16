@@ -160,7 +160,7 @@ public class HotspotServiceImpl implements HotspotService {
             throw new BusinessException("Khoảng cách phải lớn hơn 0");
         }
 
-        List<Hotspot> nearbies = hotspotRepository.findNearbyHotspots(longitude, latitude, distanceInMeters);
+        List<Hotspot> nearbies = hotspotRepository.findNearbyHotspotsWithStatus(longitude, latitude, distanceInMeters, ContentStatus.PUBLISHED.name());
 
         return nearbies.stream()
                 .map(this::buildHotspotResponse)
