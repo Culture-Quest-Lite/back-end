@@ -10,7 +10,7 @@ import org.sep490.backend.module.content.entity.Route;
 
 @Mapper(
         componentModel = "spring",
-        uses = {StoryMapper.class},
+        uses = {StoryMapper.class, MediaMapper.class},
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface RouteMapper {
