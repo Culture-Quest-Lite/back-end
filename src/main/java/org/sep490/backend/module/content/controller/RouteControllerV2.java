@@ -20,7 +20,7 @@ public class RouteControllerV2 {
 
     RouteService routeService;
 
-    @PostMapping(,consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<RouteResponse> createV2(@Valid @ModelAttribute RouteRequestV2 request) {
         RouteResponse routeResponse = routeService.createV2(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(routeResponse);
