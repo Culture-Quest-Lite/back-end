@@ -70,7 +70,7 @@ public class HotspotServiceImpl implements HotspotService {
         hotspot.setStatus(ContentStatus.DRAFT);
         hotspot = hotspotRepository.save(hotspot);
 
-        assignStoriesToHotspot(hotspot, request.getStoryIds());
+        //assignStoriesToHotspot(hotspot, request.getStoryIds());
 
         HotspotResponse response = buildHotspotResponse(hotspot);
         if (request.getFiles() != null && request.getFiles().length > 0) {
@@ -92,8 +92,8 @@ public class HotspotServiceImpl implements HotspotService {
         hotspotMapper.updateFromRequest(hotspot, request);
         hotspot = hotspotRepository.save(hotspot);
 
-        unsetStoriesFromHotspot(hotspot.getHotspotId());
-        assignStoriesToHotspot(hotspot, request.getStoryIds());
+        //unsetStoriesFromHotspot(hotspot.getHotspotId());
+        //assignStoriesToHotspot(hotspot, request.getStoryIds());
 
         return buildHotspotResponse(hotspot);
     }

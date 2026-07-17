@@ -16,8 +16,8 @@ import java.util.List;
 public class HotspotRequest {
     MultipartFile[] files;
 
-    @NotEmpty(message = "Hotspot phải gắn với ít nhất 1 story")
-    List<Long> storyIds;
+//    @NotEmpty(message = "Hotspot phải gắn với ít nhất 1 story")
+//    List<Long> storyIds;
 
     @NotBlank(message = "Tên địa điểm không được để trống")
     @Size(max = 100, message = "Tên địa điểm không được vượt quá 100 ký tự")
