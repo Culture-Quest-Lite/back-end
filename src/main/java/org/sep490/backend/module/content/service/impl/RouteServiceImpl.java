@@ -401,23 +401,24 @@ public class RouteServiceImpl implements RouteService {
             return new ArrayList<>();
         }
 
-        List<Story> stories = new ArrayList<>();
-
+        List<Story> stories = storyRepository.findAllByStoryIdIn(storyIds);
+        // update index
         for (int i = 0; i < storyIds.size(); i++) {
-            Long storyId = storyIds.get(i);
+            Story story = stories.get(i);
 
-            Story story = storyRepository.findById(storyId).orElseThrow(() -> new BusinessException("Cốt truyện không tồn tại!"));
+            if(story.getRoute() != null && !story.getRoute().equals(route)) {
+                throw new BusinessException("Cốt truyện #" + story.getStoryId()+ " - " + story.getTitle() + " đã thuộc về tuyến đường khác!");
+            }
 
-            Hotspot hotspot = story.getHotspot();
-            if (hotspot == null) {
-                throw new BusinessException("Cốt truyện " + story.getTitle() + " không thuộc về địa điểm nào!");
+            if (story.getHotspot() == null) {
+                throw new BusinessException("Cốt truyện #" + story.getStoryId()+ " - " + story.getTitle() + " không thuộc về địa điểm nào!");
             }
 
             story.setRoute(route);
             story.setOrderIndex(i + 1);
-            stories.add(story);
         }
 
+        // update distance to next
         for (int i = 0; i < stories.size(); i++) {
             Story story = stories.get(i);
             if (i < stories.size() - 1) {
