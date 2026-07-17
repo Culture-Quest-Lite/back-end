@@ -326,6 +326,7 @@ public class RouteServiceImpl implements RouteService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Route findRecordingCustomRouteByUserId(Long userId) {
 
         User user = userService.getUserById(userId);
@@ -388,14 +389,26 @@ public class RouteServiceImpl implements RouteService {
     }
 
     @Override
-    public RouteResponse getMyJourney() {
+    @Transactional(readOnly = true)
+    public List<RouteResponse> getMyJourney(RouteStatus routeStatus) {
 
         User user = userService.getCurrentUser();
+        List<Route> routes;
 
-        Route route  = findRecordingCustomRouteByUserId(user.getUserId());
-        RouteResponse routeResponse = buildRouteResponse(route, route.getStories());
+        if (routeStatus == null) {
+            routes = routeRepository.findAllByCreatedByAndType(user, RouteType.CUSTOM);
+        } else {
+            routes = routeRepository.findAllByCreatedByAndTypeAndStatus(user, RouteType.CUSTOM, routeStatus);
+        }
 
-        return routeResponse;
+        if (routes.isEmpty()) {
+            throw new BusinessException("Không tìm thấy hành trình cá nhân nào"
+                    + (routeStatus != null ? " với trạng thái: " + routeStatus : ""));
+        }
+
+        return routes.stream()
+                .map(route -> buildRouteResponse(route, route.getStories()))
+                .toList();
     }
 
     private List<Story> processRouteStories(Route route, List<Long> hotspotIds) {
