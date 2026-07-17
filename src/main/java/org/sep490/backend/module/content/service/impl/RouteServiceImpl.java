@@ -387,6 +387,17 @@ public class RouteServiceImpl implements RouteService {
         return buildRouteResponse(route, route.getStories());
     }
 
+    @Override
+    public RouteResponse getMyJourney() {
+
+        User user = userService.getCurrentUser();
+
+        Route route  = findRecordingCustomRouteByUserId(user.getUserId());
+        RouteResponse routeResponse = buildRouteResponse(route, route.getStories());
+
+        return routeResponse;
+    }
+
     private List<Story> processRouteStories(Route route, List<Long> hotspotIds) {
 
         if (hotspotIds == null || hotspotIds.isEmpty()) {
