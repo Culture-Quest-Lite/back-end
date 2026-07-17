@@ -326,6 +326,7 @@ public class RouteServiceImpl implements RouteService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Route findRecordingCustomRouteByUserId(Long userId) {
 
         User user = userService.getUserById(userId);
@@ -388,11 +389,14 @@ public class RouteServiceImpl implements RouteService {
     }
 
     @Override
-    public RouteResponse getMyJourney() {
+    @Transactional(readOnly = true)
+    public RouteResponse getMyJourney(RouteStatus routeStatus) {
 
         User user = userService.getCurrentUser();
 
-        Route route  = findRecordingCustomRouteByUserId(user.getUserId());
+        Route route  = routeRepository
+                .findByCreatedByAndTypeAndStatus(user, RouteType.CUSTOM, routeStatus)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy hành trình cá nhân của người dùng với trạng thái: " + routeStatus));
         RouteResponse routeResponse = buildRouteResponse(route, route.getStories());
 
         return routeResponse;
