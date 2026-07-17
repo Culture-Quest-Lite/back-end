@@ -91,7 +91,7 @@ public class RouteController {
 
     @GetMapping("/my-journey")
     @Operation(summary = "Get Explorer's Journey", description = "RECORDING, DRAFT, TRIAL")
-    public ResponseEntity<RouteResponse> getMyJourney(@RequestParam RouteStatus routeStatus) {
+    public ResponseEntity<List<RouteResponse>> getMyJourney(@RequestParam(required = false) RouteStatus routeStatus) {
         return ResponseEntity.ok(routeService.getMyJourney(routeStatus));
     }
 }
