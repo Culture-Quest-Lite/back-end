@@ -75,4 +75,6 @@ public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecific
 
     @Query("SELECT DISTINCT s.tag.tagId FROM Story s WHERE s.route.routeId = :routeId")
     List<Long> findTagIdsByRouteId(@Param("routeId") Long routeId);
+
+    List<Story> findAllByStoryIdIn(List<Long> storyIds);
 }
