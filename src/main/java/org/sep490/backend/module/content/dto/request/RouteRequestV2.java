@@ -12,7 +12,7 @@ import java.util.List;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class RouteCreateRequest {
+public class RouteRequestV2 {
 
     MultipartFile[] files;
 
