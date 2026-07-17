@@ -3,6 +3,7 @@ package org.sep490.backend.module.admin.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
+import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
 import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
 import org.sep490.backend.module.social.dto.request.DeletePostRequest;
 import org.sep490.backend.module.social.dto.request.RejectPostRequest;
@@ -18,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -85,6 +87,13 @@ public class AdminController {
             @RequestBody @Valid DeletePostRequest request
             ) {
         PostResponse response = postService.banPostByAdmin(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/subscriptions")
+    public ResponseEntity<List<PartnerSubscriptionResponse>> getAllSubscriptions(
+            @RequestParam(required = false) InvoiceStatus status) {
+        List<PartnerSubscriptionResponse> response = partnerSubscriptionService.getAllSubscriptions(status);
         return ResponseEntity.ok(response);
     }
 

@@ -5,6 +5,7 @@ import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
 import org.sep490.backend.module.admin.dto.response.MomoPaymentInitResponse;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
 import org.sep490.backend.module.admin.dto.response.PaymentInitResponse;
+import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
 
 import java.util.List;
 import java.util.Map;
@@ -14,6 +15,7 @@ public interface PartnerSubscriptionService {
     PartnerSubscriptionResponse verifiedSubscription(Long subscriptionId, boolean isVerified);
     List<PartnerSubscriptionResponse> getMySubscriptions();
     List<PartnerSubscriptionResponse> getSubscriptionsByPartnerId(Long partnerId);
+    List<PartnerSubscriptionResponse> getAllSubscriptions(InvoiceStatus status);
 
     MomoPaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl);
     void handleMomoIpn(MomoIpnRequest request);
