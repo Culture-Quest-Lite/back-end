@@ -60,6 +60,7 @@ public class PartnerInfo {
     LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "partnerInfo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("displayOrder ASC")
     @Builder.Default
     List<Media> medias = new ArrayList<>();
 }

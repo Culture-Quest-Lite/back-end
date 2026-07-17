@@ -239,7 +239,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         List<Invoice> invoices = invoiceRepository
                 .findByPartnerInfo_User_UserIdOrderByCreatedAtDesc(currentPartner.getUserId());
         return invoices.stream()
-                .map(subscriptionMapper::toResponse)
+                .map(this::toResponseWithMedia)
                 .toList();
     }
 
@@ -250,8 +250,30 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         List<Invoice> invoices = invoiceRepository
                 .findByPartnerInfo_User_UserIdOrderByCreatedAtDesc(partnerId);
         return invoices.stream()
-                .map(subscriptionMapper::toResponse)
+                .map(this::toResponseWithMedia)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PartnerSubscriptionResponse> getAllSubscriptions(InvoiceStatus status) {
+        List<Invoice> invoices = status != null
+                ? invoiceRepository.findByStatusOrderByCreatedAtDesc(status)
+                : invoiceRepository.findAllByOrderByCreatedAtDesc();
+        return invoices.stream()
+                .map(this::toResponseWithMedia)
+                .toList();
+    }
+
+    private PartnerSubscriptionResponse toResponseWithMedia(Invoice invoice) {
+        PartnerSubscriptionResponse response = subscriptionMapper.toResponse(invoice);
+        PartnerInfo partnerInfo = invoice.getPartnerInfo();
+        if (partnerInfo != null && partnerInfo.getMedias() != null) {
+            response.setMedias(partnerInfo.getMedias().stream()
+                    .map(subscriptionMapper::toMediaDto)
+                    .toList());
+        }
+        return response;
     }
 
     @Override
