@@ -87,4 +87,9 @@ public class RouteController {
     public ResponseEntity<RouteResponse> finalizeRecordJourney(@PathVariable("id") Long routeId) {
         return ResponseEntity.ok(routeService.finalizeCustomRoute(routeId));
     }
+
+    @GetMapping("/my-journey")
+    public ResponseEntity<RouteResponse> getMyJourney() {
+        return ResponseEntity.ok(routeService.getMyJourney());
+    }
 }
