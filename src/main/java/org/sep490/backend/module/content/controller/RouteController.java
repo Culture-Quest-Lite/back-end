@@ -1,5 +1,6 @@
 package org.sep490.backend.module.content.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -89,7 +90,8 @@ public class RouteController {
     }
 
     @GetMapping("/my-journey")
-    public ResponseEntity<RouteResponse> getMyJourney() {
-        return ResponseEntity.ok(routeService.getMyJourney());
+    @Operation(summary = "Get Explorer's Journey", description = "RECORDING, DRAFT, TRIAL")
+    public ResponseEntity<List<RouteResponse>> getMyJourney(@RequestParam(required = false) RouteStatus routeStatus) {
+        return ResponseEntity.ok(routeService.getMyJourney(routeStatus));
     }
 }
