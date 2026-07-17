@@ -7,7 +7,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-@Repository
 public interface MediaRepository extends JpaRepository<Media, Long> {
 
     @Query("SELECT COALESCE(MAX(m.displayOrder), 0) FROM Media m WHERE m.story.storyId = :storyId")

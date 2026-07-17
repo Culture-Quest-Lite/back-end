@@ -125,7 +125,6 @@ public class UserPlanServiceImpl implements UserPlanService {
             if (checkedIn) {
                 completed++;
             } else if (stop.getHotspot() != null) {
-                // Chưa check-in thì chưa unlock story -> ẩn story khỏi response.
                 stop.getHotspot().setStories(Collections.emptyList());
             }
         }
