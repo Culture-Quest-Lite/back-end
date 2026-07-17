@@ -1,7 +1,7 @@
 package org.sep490.backend.module.content.service.inter;
 
 import org.sep490.backend.common.filter.dto.SearchRequest;
-import org.sep490.backend.module.content.dto.request.RouteCreateRequest;
+import org.sep490.backend.module.content.dto.request.RouteRequestV2;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.entity.Route;
@@ -12,8 +12,9 @@ import java.util.List;
 
 public interface RouteService {
     RouteResponse create(RouteRequest request);
-    RouteResponse createV2(RouteCreateRequest request);
+    RouteResponse createV2(RouteRequestV2 request);
     RouteResponse update(Long id, RouteRequest request);
+    RouteResponse updateV2(Long id, RouteRequestV2 request);
     RouteResponse getDetail(Long id);
     void delete(Long id);
     Route getById(Long id);

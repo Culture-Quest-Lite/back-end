@@ -8,7 +8,7 @@ import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.dto.request.RouteCreateRequest;
+import org.sep490.backend.module.content.dto.request.RouteRequestV2;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
@@ -97,7 +97,7 @@ public class RouteServiceImpl implements RouteService {
 
     @Override
     @Transactional
-    public RouteResponse createV2(RouteCreateRequest request) {
+    public RouteResponse createV2(RouteRequestV2 request) {
 
         if (request.getStoryIds().size() < 4) {
             throw new BusinessException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
@@ -165,6 +165,35 @@ public class RouteServiceImpl implements RouteService {
     }
 
     @Override
+    @Transactional
+    public RouteResponse updateV2(Long id, RouteRequestV2 request) {
+        if (request.getStoryIds().size() < 4) {
+            throw new BusinessException("Tuyến đường phải có ít nhất 4 điểm dừng");
+        }
+
+        Tag tag = tagRepository.findById(request.getTagId())
+                .orElseThrow(() -> new BusinessException("Tag không tồn tại với ID: " + request.getTagId()));
+
+        Route currRoute = getById(id);
+        routeMapper.updateFromRequest(currRoute, request);
+        currRoute.setTag(tag);
+        currRoute.setTotalStops(request.getStoryIds().size());
+        currRoute = routeRepository.save(currRoute);
+
+        // Unset route_id cho tất cả story cũ đang thuộc route này
+        List<Story> oldStories = storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(id);
+        for (Story s : oldStories) {
+            s.setRoute(null);
+            s.setOrderIndex(null);
+            s.setDistanceToNext(null);
+        }
+        storyRepository.saveAll(oldStories);
+
+        List<Story> updatedStories = processRouteStoriesV2(currRoute, request.getStoryIds());
+        return buildRouteResponse(currRoute, updatedStories);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public RouteResponse getDetail(Long id) {
 
@@ -180,6 +209,15 @@ public class RouteServiceImpl implements RouteService {
 
         Route route = getById(id);
         route.setStatus(RouteStatus.DELETED);
+
+        List<Story> stories = storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(id);
+        for (Story s : stories) {
+            s.setRoute(null);
+            s.setOrderIndex(null);
+            s.setDistanceToNext(null);
+        }
+
+        storyRepository.saveAll(stories);
         routeRepository.save(route);
     }
 
