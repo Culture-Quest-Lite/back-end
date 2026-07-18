@@ -2,7 +2,6 @@ package org.sep490.backend.module.partner.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
-import org.sep490.backend.module.admin.dto.response.MomoPaymentInitResponse;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
 import org.sep490.backend.module.admin.dto.response.PaymentInitResponse;
 import org.sep490.backend.module.admin.dto.response.SubscriptionPlanResponse;

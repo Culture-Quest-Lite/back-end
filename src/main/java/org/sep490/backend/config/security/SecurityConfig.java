@@ -65,7 +65,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        .requestMatchers("/api/payment/momo/ipn", "/api/payment/payos/webhook").permitAll()
+                        .requestMatchers("/api/payment/payos/webhook").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())

@@ -8,9 +8,7 @@ import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
-import org.sep490.backend.config.momo.MomoClient;
 import org.sep490.backend.config.payos.PayOsProperties;
-import org.sep490.backend.module.admin.dto.request.MomoIpnRequest;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
 import org.sep490.backend.module.admin.dto.response.*;
 import org.sep490.backend.module.admin.entity.*;
@@ -71,7 +69,6 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     UserRepository userRepository;
     S3Service s3Service;
     MediaService mediaService;
-    MomoClient momoClient;
 
     private final JavaMailSender mailSender;
     private final PayOsProperties payOsProperties;
@@ -221,11 +218,6 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                     .reviewedAt(LocalDateTime.now())
                     .build();
             partnerApprovalRepository.save(approval);
-
-            if (InvoicePaymentStatus.PAID.equals(invoice.getPaymentStatus())
-                    && invoice.getMomoTransId() != null) {
-                doMomoRefund(invoice);
-            }
         }
         partnerInfoRepository.save(partnerInfo);
         invoice = invoiceRepository.save(invoice);
@@ -277,66 +269,6 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     }
 
     @Override
-    @Deprecated
-    @Transactional
-    public MomoPaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl) {
-        PaymentInitResponse resp = initiatePayment(subscriptionId, redirectUrl, "MOMO");
-        return MomoPaymentInitResponse.builder()
-                .subscriptionId(resp.getSubscriptionId())
-                .payUrl(resp.getPayUrl())
-                .deeplink(resp.getDeeplink())
-                .qrCodeUrl(resp.getQrCodeUrl())
-                .amount(resp.getAmount())
-                .orderInfo(resp.getOrderInfo())
-                .build();
-    }
-
-    @Override
-    @Transactional
-    public void handleMomoIpn(MomoIpnRequest request) {
-        Invoice invoice = invoiceRepository
-                .findByMomoOrderId(request.getOrderId())
-                .orElse(null);
-
-        if (invoice == null) {
-            log.error("[MoMo IPN] Không tìm thấy hóa đơn với orderId={}", request.getOrderId());
-            return;
-        }
-
-        if (InvoicePaymentStatus.PAID.equals(invoice.getPaymentStatus())) {
-            log.warn("[MoMo IPN] Đã xử lý rồi, bỏ qua. orderId={}", request.getOrderId());
-            return;
-        }
-
-        SystemTransaction transaction = systemTransactionRepository
-                .findFirstByGatewayRefOrderByCreatedAtDesc(request.getOrderId())
-                .orElse(null);
-
-        if (request.getResultCode() == 0) {
-            invoice.setPaymentStatus(InvoicePaymentStatus.PAID);
-            invoice.setMomoTransId(String.valueOf(request.getTransId()));
-            invoice.setPaidAt(LocalDateTime.now());
-            invoice.setStatus(InvoiceStatus.PENDING);
-            invoiceRepository.save(invoice);
-
-            if (transaction != null) {
-                transaction.setStatus(SystemTransactionStatus.SUCCESSED);
-                transaction.setNotes("Thanh toán thành công qua MoMo. Mã GD: " + request.getTransId());
-                systemTransactionRepository.save(transaction);
-            }
-        } else {
-            invoice.setPaymentStatus(InvoicePaymentStatus.FAILED);
-            invoiceRepository.save(invoice);
-
-            if (transaction != null) {
-                transaction.setStatus(SystemTransactionStatus.FAILED);
-                transaction.setNotes("Thanh toán thất bại qua MoMo. Lỗi: " + request.getMessage());
-                systemTransactionRepository.save(transaction);
-            }
-        }
-    }
-
-    @Override
     @Transactional
     public PaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl, String gateway) {
         User currentUser = userService.getCurrentUser();
@@ -353,11 +285,10 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
             throw new BusinessException("Vui lòng upload đầy đủ giấy tờ trước khi thanh toán.");
         }
 
-        if ("PAYOS".equalsIgnoreCase(gateway)) {
-            return initiatePayOsPayment(invoice, redirectUrl);
-        } else {
-            return initiateMomoPayment(invoice, redirectUrl);
+        if (!"PAYOS".equalsIgnoreCase(gateway)) {
+            throw new BusinessException("Cổng thanh toán không được hỗ trợ: " + gateway);
         }
+        return initiatePayOsPayment(invoice, redirectUrl);
     }
 
     @Override
@@ -409,49 +340,6 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         }
     }
 
-    private PaymentInitResponse initiateMomoPayment(Invoice invoice, String redirectUrl) {
-        long amount = invoice.getPaidAmount();
-        String momoOrderId = "SUB_" + invoice.getInvoiceId() + "_" + System.currentTimeMillis();
-        String momoRequestId = UUID.randomUUID().toString();
-        String orderInfo = "Thanh toan dang ky goi dich vu Culture Quest cho hoa don SUB" + invoice.getInvoiceId();
-
-        MomoPaymentResponse momoResp;
-        try {
-            momoResp = momoClient.createPayment(amount, momoOrderId, momoRequestId, orderInfo, redirectUrl);
-        } catch (Exception e) {
-            throw new BusinessException("Không thể kết nối cổng thanh toán MoMo. Vui lòng thử lại.");
-        }
-        if (momoResp == null || momoResp.getResultCode() != 0) {
-            String errMsg = momoResp != null ? momoResp.getMessage() : "Không có phản hồi";
-            throw new BusinessException("Tạo giao dịch MoMo thất bại: " + errMsg);
-        }
-
-        invoice.setMomoOrderId(momoOrderId);
-        invoice.setMomoRequestId(momoRequestId);
-        invoice.setPaymentGateway(PaymentGateway.MOMO);
-        invoiceRepository.save(invoice);
-
-        SystemTransaction paymentTrans = SystemTransaction.builder()
-                .invoice(invoice)
-                .transactionType(SystemTransactionType.PAYMENT)
-                .amount(amount)
-                .status(SystemTransactionStatus.PENDING)
-                .gatewayRef(momoOrderId)
-                .notes("Khởi tạo thanh toán qua MoMo")
-                .build();
-        systemTransactionRepository.save(paymentTrans);
-
-        return PaymentInitResponse.builder()
-                .subscriptionId(invoice.getInvoiceId())
-                .gateway(PaymentGateway.MOMO)
-                .payUrl(momoResp.getPayUrl())
-                .deeplink(momoResp.getDeeplink())
-                .qrCodeUrl(momoResp.getQrCodeUrl())
-                .amount(amount)
-                .orderInfo(orderInfo)
-                .build();
-    }
-
     private PaymentInitResponse initiatePayOsPayment(Invoice invoice, String redirectUrl) {
         long orderCode = System.currentTimeMillis() / 1000;
         String description = "SUB" + invoice.getInvoiceId();
@@ -495,53 +383,6 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         } catch (PayOSException e) {
             log.error("[PayOS] Tạo link thanh toán thất bại: {}", e.getMessage());
             throw new BusinessException("Không thể tạo link thanh toán PayOS: " + e.getMessage());
-        }
-    }
-
-    private void doMomoRefund(Invoice invoice) {
-        String refundOrderId = "REFUND_" + invoice.getInvoiceId() + "_" + System.currentTimeMillis();
-        String requestId = UUID.randomUUID().toString();
-
-        try {
-            MomoRefundResponse resp = momoClient.refund(
-                    invoice.getPaidAmount(),
-                    refundOrderId,
-                    requestId,
-                    Long.parseLong(invoice.getMomoTransId()),
-                    "Hoan tien don dang ky bi tu choi");
-            if (resp != null && resp.getResultCode() == 0) {
-                invoice.setPaymentStatus(InvoicePaymentStatus.REFUNDED);
-                invoice.setStatus(InvoiceStatus.CANCELLED);
-                invoice.setRefundOrderId(refundOrderId);
-                invoice.setRefundedAt(LocalDateTime.now());
-
-                SystemTransaction refundTrans = SystemTransaction.builder()
-                        .invoice(invoice)
-                        .transactionType(SystemTransactionType.REFUND)
-                        .amount(invoice.getPaidAmount())
-                        .status(SystemTransactionStatus.SUCCESSED)
-                        .gatewayRef(refundOrderId)
-                        .notes("Hoàn tiền thành công qua MoMo.")
-                        .build();
-                systemTransactionRepository.save(refundTrans);
-            } else {
-                String msg = resp != null ? resp.getMessage() : "null response";
-                log.error("[MoMo] Refund FAILED: invoiceId={}, msg={}",
-                        invoice.getInvoiceId(), msg);
-
-                SystemTransaction refundTrans = SystemTransaction.builder()
-                        .invoice(invoice)
-                        .transactionType(SystemTransactionType.REFUND)
-                        .amount(invoice.getPaidAmount())
-                        .status(SystemTransactionStatus.FAILED)
-                        .gatewayRef(refundOrderId)
-                        .notes("Hoàn tiền thất bại qua MoMo. Lỗi: " + msg)
-                        .build();
-                systemTransactionRepository.save(refundTrans);
-            }
-        } catch (Exception e) {
-            log.error("[MoMo] Exception khi refund invoiceId={}: {}",
-                    invoice.getInvoiceId(), e.getMessage(), e);
         }
     }
 
