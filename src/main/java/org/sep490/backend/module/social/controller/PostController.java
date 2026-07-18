@@ -81,9 +81,10 @@ public class PostController {
     @GetMapping("/my-posts")
     public ResponseEntity<Slice<PostResponse>> getMyPosts(
             @ParameterObject @PageableDefault(size = 10, sort = "createdAt",
-            direction = Sort.Direction.DESC) Pageable pageable
+            direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) PostStatus status
     ) {
-        Slice<PostResponse> responses = postService.getMyPosts(pageable);
+        Slice<PostResponse> responses = postService.getMyPosts(pageable, status);
         return ResponseEntity.ok(responses);
     }
 

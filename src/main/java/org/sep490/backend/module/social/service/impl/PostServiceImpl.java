@@ -106,7 +106,7 @@ public class PostServiceImpl implements PostService {
 
         post = postRepository.saveAndFlush(post);
 
-        PostResponse response = postMapper.toResponse(post);
+        PostResponse response = toResponseWithLiked(post, user.getUserId());
         if (request.getFiles() != null && request.getFiles().length > 0) {
             try {
                 List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
@@ -122,9 +122,10 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public Slice<PostResponse> getPosts(PostStatus status, int page, int size) {
+        User currentUser = userService.getCurrentUser();
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Slice<Post> postSlice = postRepository.findByStatusOptional(status, pageable);
-        return postSlice.map(postMapper::toResponse);
+        return postSlice.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
@@ -133,7 +134,8 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
 
-        return postMapper.toResponse(post);
+        User currentUser = userService.getCurrentUser();
+        return toResponseWithLiked(post, currentUser.getUserId());
     }
 
     @Override
@@ -158,7 +160,7 @@ public class PostServiceImpl implements PostService {
         }
 
         Post updatedPost = postRepository.save(post);
-        return postMapper.toResponse(updatedPost);
+        return toResponseWithLiked(updatedPost, user.getUserId());
     }
 
     @Override
@@ -197,7 +199,7 @@ public class PostServiceImpl implements PostService {
         Pageable pageable = PageRequest.of(page, size);
         PostStatus status = PostStatus.APPROVED;
         Slice<Post> newsfeedSlice = postRepository.findNewsfeed(currentUser, status, pageable);
-        return newsfeedSlice.map(postMapper::toResponse);
+        return newsfeedSlice.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
@@ -261,18 +263,19 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<PostResponse> getMyPosts(Pageable pageable) {
+    public Slice<PostResponse> getMyPosts(Pageable pageable, PostStatus status) {
         User currentUser = userService.getCurrentUser();
-        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), PostStatus.APPROVED,
+        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), status,
                 pageable);
-        return posts.map(postMapper::toResponse);
+        return posts.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
     @Transactional(readOnly = true)
     public Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable) {
+        User currentUser = userService.getCurrentUser();
         Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(userId, PostStatus.APPROVED, pageable);
-        return posts.map(postMapper::toResponse);
+        return posts.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
@@ -281,8 +284,9 @@ public class PostServiceImpl implements PostService {
         if (!hotspotRepository.existsById(hotspotId)) {
             throw new BusinessException("Địa điểm không tồn tại với ID: " + hotspotId);
         }
+        User currentUser = userService.getCurrentUser();
         Slice<Post> posts = postRepository.findByHotspotIdAndStatus(hotspotId, PostStatus.APPROVED, pageable);
-        return posts.map(postMapper::toResponse);
+        return posts.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
@@ -331,7 +335,7 @@ public class PostServiceImpl implements PostService {
 
         postActionRepository.save(commentActionBuilder.build());
         post = postRepository.findById(id).orElse(post);
-        return postMapper.toResponse(post);
+        return toResponseWithLiked(post, currentUser.getUserId());
     }
 
     @Override
@@ -361,7 +365,7 @@ public class PostServiceImpl implements PostService {
                 .build();
 
         Post savedPost = postRepository.save(sharedPost);
-        return postMapper.toResponse(savedPost);
+        return toResponseWithLiked(savedPost, currentUser.getUserId());
     }
 
     @Override
@@ -376,6 +380,21 @@ public class PostServiceImpl implements PostService {
                 .findByPost_PostIdAndActionTypeAndParentActionIsNullOrderByCreatedAtAsc(id, PostActionType.COMMENT, pageable);
 
         return rootComments.map(this::mapToCommentResponse);
+    }
+
+    private PostResponse toResponseWithLiked(Post post, Long currentUserId) {
+        PostResponse response = postMapper.toResponse(post);
+        response.setIsLiked(isLikedBy(post, currentUserId));
+        if (response.getSharedPost() != null && post.getSharedPost() != null) {
+            response.getSharedPost().setIsLiked(isLikedBy(post.getSharedPost(), currentUserId));
+        }
+        return response;
+    }
+
+    private boolean isLikedBy(Post post, Long userId) {
+        return post.getPostActions() != null && post.getPostActions().stream()
+                .anyMatch(a -> a.getActionType() == PostActionType.LIKE
+                        && a.getUser().getUserId().equals(userId));
     }
 
     private CommentResponse mapToCommentResponse(PostAction action) {

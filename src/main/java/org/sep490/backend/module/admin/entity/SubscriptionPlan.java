@@ -9,6 +9,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
+import org.sep490.backend.module.admin.entity.enumeration.PlanType;
 import org.sep490.backend.module.admin.entity.enumeration.SubscriptionPlanStatus;
 
 import java.time.LocalDateTime;
@@ -42,6 +43,10 @@ public class SubscriptionPlan {
     @Column(name = "config_limit", columnDefinition = "jsonb")
     @JdbcTypeCode(SqlTypes.JSON)
     private String configLimit;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan_type", nullable = false)
+    private PlanType planType;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

@@ -26,7 +26,7 @@ public interface PostService {
     PostResponse approvePost(Long id);
     PostResponse rejectPost(Long id, RejectPostRequest request);
     PostResponse banPostByAdmin(Long id, DeletePostRequest request);
-    Slice<PostResponse> getMyPosts(Pageable pageable);
+    Slice<PostResponse> getMyPosts(Pageable pageable, PostStatus status);
     Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable);
     Slice<PostResponse> getPostsByHotspotId(Long hotspotId, Pageable pageable);
     void toggleLikePost(Long id);

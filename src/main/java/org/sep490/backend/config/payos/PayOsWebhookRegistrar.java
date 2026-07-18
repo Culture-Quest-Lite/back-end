@@ -37,7 +37,7 @@ public class PayOsWebhookRegistrar implements ApplicationRunner {
             payOS.webhooks().confirm(webhookUrl);
             log.info("[PayOS] Đã đăng ký webhook thành công: {}", webhookUrl);
         } catch (Exception e) {
-            log.error("[PayOS] Đăng ký webhook thất bại cho URL {}: {}", webhookUrl, e.getMessage());
+            // Lỗi confirm không được làm chết app và không cần log (thường xảy ra khi ngrok chưa chạy)
         }
     }
 }

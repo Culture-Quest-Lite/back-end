@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.admin.dto.filter.SubscriptionPlanFilterRequest;
 import org.sep490.backend.module.admin.dto.request.SubscriptionPlanRequest;
 import org.sep490.backend.module.admin.dto.response.SubscriptionPlanResponse;
+import org.sep490.backend.module.admin.entity.enumeration.PlanType;
 import org.sep490.backend.module.admin.service.SubscriptionPlanService;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
@@ -24,8 +25,9 @@ public class SubscriptionPlanController {
 
     @GetMapping
     public ResponseEntity<Page<SubscriptionPlanResponse>> getAll(
-            @Valid @ParameterObject @ModelAttribute SubscriptionPlanFilterRequest filter) {
-        return ResponseEntity.ok(subscriptionPlanService.getAllWithFilter(filter));
+            @Valid @ParameterObject @ModelAttribute SubscriptionPlanFilterRequest filter,
+            @RequestParam(required = false) PlanType planType) {
+        return ResponseEntity.ok(subscriptionPlanService.getAllWithFilter(filter, planType));
     }
 
     @PostMapping
