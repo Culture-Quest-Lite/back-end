@@ -15,13 +15,19 @@ import java.util.List;
 
 public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecificationExecutor<Story> {
 
-    Collection<Story> findByHotspot_HotspotId(Long hotspotId);
+    List<Story> findByHotspot_HotspotIdAndStatus(Long hotspotId, ContentStatus status);
 
     Integer countByHotspot_HotspotId(Long hotspotId);
 
     List<Story> findByRoute_RouteIdOrderByOrderIndexAsc(Long routeId);
 
     List<Story> findByRoute_RouteId(Long routeId);
+
+    List<Story> findByRoute_RouteIdAndStatus(Long routeId, ContentStatus status);
+
+    List<Story> findByRoute_RouteIdAndHotspot_HotspotIdAndStatus(Long routeId, Long hotspotId, ContentStatus status);
+
+    List<Story> findByStatus(ContentStatus status);
 
     void deleteByRoute_RouteId(Long routeId);
 

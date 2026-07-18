@@ -112,16 +112,27 @@ public class StoryServiceImpl implements StoryService {
     @Transactional(readOnly = true)
     public List<StoryResponse> getByHotspot(Long hotspotId, Long routeId) {
         List<Story> stories;
-        if (routeId != null) {
-            List<Long> routeTagIds = storyRepository.findTagIdsByRouteId(routeId);
-            if (!routeTagIds.isEmpty()) {
-                stories = storyRepository.findByHotspotOrderedByRouteTag(hotspotId, routeTagIds);
-            } else {
-                stories = storyRepository.findByHotspotOrderedByIndex(hotspotId);
-            }
+//        if (routeId != null) {
+//            List<Long> routeTagIds = storyRepository.findTagIdsByRouteId(routeId);
+//            if (!routeTagIds.isEmpty()) {
+//                stories = storyRepository.findByHotspotOrderedByRouteTag(hotspotId, routeTagIds);
+//            } else {
+//                stories = storyRepository.findByHotspotOrderedByIndex(hotspotId);
+//            }
+//        } else {
+//            stories = storyRepository.findByHotspotOrderedByIndex(hotspotId);
+//        }
+
+        if (hotspotId == null && routeId == null) {
+            throw new BusinessException("Cần cung cấp ít nhất một trong hai tham số: hotspotId hoặc routeId");
+        } else if (hotspotId == null) {
+            stories = storyRepository.findByRoute_RouteIdAndStatus(routeId, ContentStatus.PUBLISHED);
+        } else if (routeId == null) {
+            stories = storyRepository.findByHotspot_HotspotIdAndStatus(hotspotId, ContentStatus.PUBLISHED);
         } else {
-            stories = storyRepository.findByHotspotOrderedByIndex(hotspotId);
+            stories = storyRepository.findByRoute_RouteIdAndHotspot_HotspotIdAndStatus(routeId, hotspotId, ContentStatus.PUBLISHED);
         }
+
         return stories.stream()
                 .map(storyMapper::toResponse)
                 .toList();
