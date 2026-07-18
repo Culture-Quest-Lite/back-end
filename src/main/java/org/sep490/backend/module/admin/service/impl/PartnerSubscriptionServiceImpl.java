@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.service.PayOsInvoicePaymentService;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.config.payos.PayOsProperties;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
@@ -74,6 +75,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     private final PayOsProperties payOsProperties;
     private final PayOS payOS;
     private final PlanRuleRepository planRuleRepository;
+    private final PayOsInvoicePaymentService payOsInvoicePaymentService;
     @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
     @NonFinal
     String frontendUrl;
@@ -156,6 +158,10 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     public PartnerSubscriptionResponse verifiedSubscription(Long subscriptionId, boolean isApproved) {
         Invoice invoice = invoiceRepository.findById(subscriptionId)
                 .orElseThrow(() -> new BusinessException("Hóa đơn đăng ký gói không tồn tại"));
+
+        if (invoice.getUser() != null) {
+            throw new BusinessException("Hóa đơn Premium không cần Admin duyệt");
+        }
 
         if (!InvoiceStatus.PENDING.equals(invoice.getStatus())) {
             throw new BusinessException("Chỉ có thể duyệt hóa đơn dịch vụ đang ở trạng thái chờ duyệt");
@@ -250,8 +256,8 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     @Transactional(readOnly = true)
     public List<PartnerSubscriptionResponse> getAllSubscriptions(InvoiceStatus status) {
         List<Invoice> invoices = status != null
-                ? invoiceRepository.findByStatusOrderByCreatedAtDesc(status)
-                : invoiceRepository.findAllByOrderByCreatedAtDesc();
+                ? invoiceRepository.findByPartnerInfoIsNotNullAndStatusOrderByCreatedAtDesc(status)
+                : invoiceRepository.findByPartnerInfoIsNotNullOrderByCreatedAtDesc();
         return invoices.stream()
                 .map(this::toResponseWithMedia)
                 .toList();
@@ -275,6 +281,10 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         Invoice invoice = invoiceRepository.findById(subscriptionId)
                 .orElseThrow(() -> new BusinessException("Hóa đơn không tồn tại"));
 
+        if (invoice.getPartnerInfo() == null) {
+            throw new BusinessException("Hóa đơn này không thuộc luồng đối tác");
+        }
+
         if (!invoice.getPartnerInfo().getUser().getUserId().equals(currentUser.getUserId())) {
             throw new BusinessException("Bạn không có quyền thực hiện thao tác này.");
         }
@@ -288,7 +298,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         if (!"PAYOS".equalsIgnoreCase(gateway)) {
             throw new BusinessException("Cổng thanh toán không được hỗ trợ: " + gateway);
         }
-        return initiatePayOsPayment(invoice, redirectUrl);
+        return payOsInvoicePaymentService.initiatePayOsPayment(invoice, redirectUrl);
     }
 
     @Override
@@ -317,7 +327,24 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                 invoice.setPaymentStatus(InvoicePaymentStatus.PAID);
                 invoice.setPayosTransactionId(data.getReference());
                 invoice.setPaidAt(LocalDateTime.now());
-                invoice.setStatus(InvoiceStatus.PENDING);
+
+                if (invoice.getUser() != null) {
+                    User buyer = invoice.getUser();
+                    LocalDateTime now = LocalDateTime.now();
+                    LocalDateTime start = invoiceRepository
+                            .findFirstByUser_UserIdAndStatusOrderByEndDateDesc(buyer.getUserId(), InvoiceStatus.ACTIVE)
+                            .map(Invoice::getEndDate)
+                            .filter(d -> d.isAfter(now))
+                            .orElse(now);
+                    invoice.setStatus(InvoiceStatus.ACTIVE);
+                    invoice.setStartDate(start);
+                    invoice.setEndDate(BillingCycleEnum.MONTHLY.equals(invoice.getBillingCycle())
+                            ? start.plusMonths(1) : start.plusYears(1));
+                    buyer.setIsPremium(true);
+                    userRepository.save(buyer);
+                } else {
+                    invoice.setStatus(InvoiceStatus.PENDING);
+                }
                 invoiceRepository.save(invoice);
 
                 if (transaction != null) {
@@ -340,51 +367,6 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         }
     }
 
-    private PaymentInitResponse initiatePayOsPayment(Invoice invoice, String redirectUrl) {
-        long orderCode = System.currentTimeMillis() / 1000;
-        String description = "SUB" + invoice.getInvoiceId();
-        String effectiveReturnUrl = (redirectUrl != null && !redirectUrl.isBlank())
-                ? redirectUrl
-                : payOsProperties.getReturnUrl();
-
-        CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
-                .orderCode(orderCode)
-                .amount(invoice.getPaidAmount())
-                .description(description)
-                .returnUrl(effectiveReturnUrl)
-                .cancelUrl(payOsProperties.getCancelUrl())
-                .build();
-
-        try {
-            CreatePaymentLinkResponse response = payOS.paymentRequests().create(paymentData);
-            invoice.setPayosOrderCode(orderCode);
-            invoice.setPayosPaymentLinkId(response.getPaymentLinkId());
-            invoice.setPaymentGateway(PaymentGateway.PAYOS);
-            invoiceRepository.save(invoice);
-
-            SystemTransaction paymentTrans = SystemTransaction.builder()
-                    .invoice(invoice)
-                    .transactionType(SystemTransactionType.PAYMENT)
-                    .amount(invoice.getPaidAmount())
-                    .status(SystemTransactionStatus.PENDING)
-                    .gatewayRef(String.valueOf(orderCode))
-                    .notes("Khởi tạo thanh toán qua PayOS")
-                    .build();
-            systemTransactionRepository.save(paymentTrans);
-
-            return PaymentInitResponse.builder()
-                    .subscriptionId(invoice.getInvoiceId())
-                    .gateway(PaymentGateway.PAYOS)
-                    .checkoutUrl(response.getCheckoutUrl())
-                    .qrCode(response.getQrCode())
-                    .amount(invoice.getPaidAmount())
-                    .orderInfo(description)
-                    .build();
-        } catch (PayOSException e) {
-            log.error("[PayOS] Tạo link thanh toán thất bại: {}", e.getMessage());
-            throw new BusinessException("Không thể tạo link thanh toán PayOS: " + e.getMessage());
-        }
-    }
 
     private void createPartnerSubAccount(Invoice invoice) {
         User owner = invoice.getPartnerInfo().getUser();
