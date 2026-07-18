@@ -1,8 +1,6 @@
 package org.sep490.backend.module.admin.service;
 
-import org.sep490.backend.module.admin.dto.request.MomoIpnRequest;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
-import org.sep490.backend.module.admin.dto.response.MomoPaymentInitResponse;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
 import org.sep490.backend.module.admin.dto.response.PaymentInitResponse;
 import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
@@ -16,9 +14,6 @@ public interface PartnerSubscriptionService {
     List<PartnerSubscriptionResponse> getMySubscriptions();
     List<PartnerSubscriptionResponse> getSubscriptionsByPartnerId(Long partnerId);
     List<PartnerSubscriptionResponse> getAllSubscriptions(InvoiceStatus status);
-
-    MomoPaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl);
-    void handleMomoIpn(MomoIpnRequest request);
 
     PaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl, String gateway);
     void handlePayOsWebhook(Map<String, Object> body);

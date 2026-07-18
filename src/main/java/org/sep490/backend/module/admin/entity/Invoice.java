@@ -64,18 +64,6 @@ public class Invoice {
     @Column(name = "paid_at")
     LocalDateTime paidAt;
 
-//    @Column(name = "reference_id", length = 255)
-//    String referenceId;
-
-    @Column(name = "momo_order_id", unique = true)
-    private String momoOrderId;
-
-    @Column(name = "momo_request_id")
-    private String momoRequestId;
-
-    @Column(name = "momo_trans_id")
-    private String momoTransId;
-
     @Column(name = "payos_order_code")
     private Long payosOrderCode;
 
