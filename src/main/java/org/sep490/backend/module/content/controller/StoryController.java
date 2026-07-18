@@ -61,9 +61,9 @@ public class StoryController {
         return ResponseEntity.ok("Deleted");
     }
 
-    @GetMapping("/hotspot/{hotspotId}")
+    @GetMapping("/hotspot")
     public ResponseEntity<List<StoryResponse>> getByHotspot(
-            @PathVariable Long hotspotId,
+            @RequestParam(required = false) Long hotspotId,
             @RequestParam(required = false) Long routeId) {
         List<StoryResponse> response = storyService.getByHotspot(hotspotId, routeId);
         return ResponseEntity.ok(response);

@@ -465,8 +465,12 @@ public class RouteServiceImpl implements RouteService {
             return new ArrayList<>();
         }
 
-        List<Story> stories = storyRepository.findAllByStoryIdIn(storyIds);
-        List<Hotspot> hotspots = hotspotRepository.findAllByStoryIn(stories);
+        List<Story> stories = storyRepository.findAllById(storyIds);
+        List<Long> hotspotIds = new ArrayList<>();
+        for (int i = 0; i < stories.size(); i++) {
+            hotspotIds.add(stories.get(i).getHotspot().getHotspotId());
+        }
+        List<Hotspot> hotspots = hotspotRepository.findAllById(hotspotIds);
 
         long uniqueHotspotCount = hotspots.stream()
                 .map(Hotspot::getHotspotId)
