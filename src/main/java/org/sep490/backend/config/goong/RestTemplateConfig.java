@@ -1,4 +1,4 @@
-package org.sep490.backend.config.momo;
+package org.sep490.backend.config.goong;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
