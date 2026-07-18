@@ -22,6 +22,7 @@ import org.sep490.backend.module.content.mapper.HotspotMapper;
 import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.content.mapper.RouteMapper;
 import org.sep490.backend.module.content.mapper.StoryMapper;
+import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
@@ -49,6 +50,7 @@ public class RouteServiceImpl implements RouteService {
     RouteRepository routeRepository;
     RouteMapper routeMapper;
     StoryRepository storyRepository;
+    HotspotRepository hotspotRepository;
     HotspotService hotspotService;
     UserService userService;
     MediaService mediaService;
@@ -464,6 +466,17 @@ public class RouteServiceImpl implements RouteService {
         }
 
         List<Story> stories = storyRepository.findAllByStoryIdIn(storyIds);
+        List<Hotspot> hotspots = hotspotRepository.findAllByStoryIn(stories);
+
+        long uniqueHotspotCount = hotspots.stream()
+                .map(Hotspot::getHotspotId)
+                .distinct()
+                .count();
+
+        if(uniqueHotspotCount < hotspots.size()) {
+            throw new BusinessException("KHông thể chọn 2 Câu chuyện trong cùng 1 địa điểm");
+        }
+
         // update index
         for (int i = 0; i < storyIds.size(); i++) {
             Story story = stories.get(i);
