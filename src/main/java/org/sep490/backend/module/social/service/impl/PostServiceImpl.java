@@ -261,9 +261,9 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<PostResponse> getMyPosts(Pageable pageable) {
+    public Slice<PostResponse> getMyPosts(Pageable pageable, PostStatus status) {
         User currentUser = userService.getCurrentUser();
-        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), PostStatus.APPROVED,
+        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), status,
                 pageable);
         return posts.map(postMapper::toResponse);
     }
