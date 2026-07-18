@@ -2,6 +2,7 @@ package org.sep490.backend.module.content.repository;
 
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.exploration.dto.projection.HotspotCheckInProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -13,13 +14,19 @@ import java.util.List;
 
 public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecificationExecutor<Story> {
 
-    Collection<Story> findByHotspot_HotspotId(Long hotspotId);
+    List<Story> findByHotspot_HotspotIdAndStatus(Long hotspotId, ContentStatus status);
 
     Integer countByHotspot_HotspotId(Long hotspotId);
 
     List<Story> findByRoute_RouteIdOrderByOrderIndexAsc(Long routeId);
 
     List<Story> findByRoute_RouteId(Long routeId);
+
+    List<Story> findByRoute_RouteIdAndStatus(Long routeId, ContentStatus status);
+
+    List<Story> findByRoute_RouteIdAndHotspot_HotspotIdAndStatus(Long routeId, Long hotspotId, ContentStatus status);
+
+    List<Story> findByStatus(ContentStatus status);
 
     void deleteByRoute_RouteId(Long routeId);
 
@@ -76,5 +83,4 @@ public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecific
     @Query("SELECT DISTINCT s.tag.tagId FROM Story s WHERE s.route.routeId = :routeId")
     List<Long> findTagIdsByRouteId(@Param("routeId") Long routeId);
 
-    List<Story> findAllByStoryIdIn(List<Long> storyIds);
 }

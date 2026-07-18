@@ -1,6 +1,5 @@
 package org.sep490.backend.module.content.repository;
 
-import org.locationtech.jts.geom.Point;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
