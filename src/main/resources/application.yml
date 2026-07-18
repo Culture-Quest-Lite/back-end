@@ -19,6 +19,7 @@ spring:
     properties:
       hibernate:
         format_sql: false
+        default_batch_fetch_size: 100
 
   security:
     oauth2:
@@ -43,6 +44,19 @@ spring:
           starttls:
             enable: true
 
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      base-url: ${OPENAI_BASE_URL:https://api.groq.com/openai}
+      chat:
+        options:
+          model: ${OPENAI_MODEL}
+          temperature: 0.2
+
+goong:
+  api-key: ${GOONG_API_KEY}
+  base-url: ${GOONG_BASE_URL}
+
 keycloak:
   auth-server-url: ${IDP_URL}
   realm: ${REALM}
@@ -65,14 +79,6 @@ aws:
   credentials:
     access-key: ${AWS_ACCESS_KEY_ID}
     secret-key: ${AWS_SECRET_ACCESS_KEY}
-
-momo:
-  partner-code: ${MOMO_PARTNER_CODE}
-  access-key: ${MOMO_ACCESS_KEY}
-  secret-key: ${MOMO_SECRET_KEY}
-  endpoint: ${MOMO_ENDPOINT}
-  redirect-url: ${MOMO_REDIRECT_URL}
-  ipn-url: ${MOMO_IPN_URL}
 
 payos:
   client-id: ${PAYOS_CLIENT_ID}

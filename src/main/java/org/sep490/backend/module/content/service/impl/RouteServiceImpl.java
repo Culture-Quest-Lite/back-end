@@ -447,10 +447,10 @@ public class RouteServiceImpl implements RouteService {
             Story story = stories.get(i);
             if (i < stories.size() - 1) {
                 Story nextStory = stories.get(i + 1);
-                double distanceInMeters = SpatialUtils.calculateDistanceInMeters(
+                double distanceKm = SpatialUtils.calculateDistanceInMeters(
                         story.getHotspot().getLocation(),
-                        nextStory.getHotspot().getLocation());
-                story.setDistanceToNext(distanceInMeters);
+                        nextStory.getHotspot().getLocation()) / 1000.0;
+                story.setDistanceToNext(distanceKm);
             } else {
                 story.setDistanceToNext(0.0);
             }
@@ -608,11 +608,11 @@ public class RouteServiceImpl implements RouteService {
             if (targetIndex < stories.size() - 1) {
                 Story nextStory = stories.get(targetIndex + 1);
 
-                double newDistance = SpatialUtils.calculateDistanceInMeters(
+                double newDistanceKm = SpatialUtils.calculateDistanceInMeters(
                         prevStory.getHotspot().getLocation(),
                         nextStory.getHotspot().getLocation()
-                );
-                prevStory.setDistanceToNext(newDistance);
+                ) / 1000.0;
+                prevStory.setDistanceToNext(newDistanceKm);
             } else {
                 prevStory.setDistanceToNext(0.0);
             }
