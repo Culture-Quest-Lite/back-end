@@ -68,7 +68,7 @@ public class AuthenticationController {
         public ResponseEntity<?> login(
                         @Valid @RequestBody LoginRequest request,
                         @RequestHeader(value = CLIENT_TYPE_HEADER, defaultValue = "web") String clientType) {
-                LoginResponse loginResponse = authService.login(request);
+                LoginResponse loginResponse = authService.login(request, clientType);
                 return buildTokenResponse(loginResponse, clientType);
         }
 
@@ -76,7 +76,8 @@ public class AuthenticationController {
         public ResponseEntity<?> loginGoogle(
                         @Valid @RequestBody SocialLoginRequest request,
                         @RequestHeader(value = CLIENT_TYPE_HEADER, defaultValue = "web") String clientType) {
-                LoginResponse loginResponse = authService.loginGoogle(request.getCode(), request.getRedirectUri());
+                LoginResponse loginResponse = authService.loginGoogle(request.getCode(), request.getRedirectUri(),
+                                clientType);
                 return buildTokenResponse(loginResponse, clientType);
         }
 

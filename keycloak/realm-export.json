@@ -1685,7 +1685,7 @@
       "addReadTokenRoleOnCreate": false,
       "authenticateByDefault": false,
       "linkOnly": false,
-      "firstBrokerLoginFlowAlias": "first broker login",
+      "firstBrokerLoginFlowAlias": "first-broker-login-auto-link",
       "config": {
         "hideOnLoginPage": "false",
         "clientId": "712713452929-pc8vhlmal3cpu6a6kbe8a2o24d45og7l.apps.googleusercontent.com",
@@ -1888,6 +1888,32 @@
   "internationalizationEnabled": false,
   "supportedLocales": [],
   "authenticationFlows": [
+    {
+      "id": "9fa9affd-818e-4690-898f-f2d989d45b69",
+      "alias": "first-broker-login-auto-link",
+      "description": "First broker login that auto-links existing accounts by trusted email",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "idp-create-user-if-unique",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 0,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "idp-auto-link",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 1,
+          "autheticatorFlow": false,
+          "userSetupAllowed": false
+        }
+      ]
+    },
     {
       "id": "01cf3750-e915-42bb-a195-6b1d25883295",
       "alias": "Account verification options",

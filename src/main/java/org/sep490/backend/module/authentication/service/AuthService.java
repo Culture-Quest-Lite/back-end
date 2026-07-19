@@ -8,12 +8,12 @@ public interface AuthService {
     UserProfileResponse register(RegistrationRequest request);
     void verifyEmailWithOtp(VerifyOtpRequest request);
     void resendOtp(SendOtpRequest request);
-    LoginResponse login(LoginRequest request);
+    LoginResponse login(LoginRequest request, String clientType);
     LoginResponse refreshToken(String refreshToken);
     void logout(String refreshToken);
     void forgotPassword(ForgotPasswordRequest request);
     void resetPassword(ResetPasswordRequest request);
     void changePassword(String keycloakUserId, ChangePasswordRequest request);
-    LoginResponse loginGoogle(String code, String redirectUri);
+    LoginResponse loginGoogle(String code, String redirectUri, String clientType);
     LoginResponse loginFacebook(String code, String redirectUri);
 }
