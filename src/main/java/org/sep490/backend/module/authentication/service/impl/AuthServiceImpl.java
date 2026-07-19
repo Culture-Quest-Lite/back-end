@@ -28,6 +28,7 @@ import org.sep490.backend.module.authentication.service.AuthService;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpStatus;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -44,6 +45,8 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class AuthServiceImpl implements AuthService {
+
+    private static final Set<String> WEB_ALLOWED_ROLES = Set.of("ADMIN", "CURATOR", "PARTNER");
 
     private final UserRepository userRepository;
     private final KeyCloakAuthClient keyCloakAuthClient;
@@ -132,7 +135,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, String clientType) {
         if (request.getUsername() == null || request.getPassword() == null) {
             throw new BusinessException("Thiếu thông tin đăng nhập");
         }
@@ -162,6 +165,8 @@ public class AuthServiceImpl implements AuthService {
                     request.getUsername(), roles);
             throw new BusinessException("Tài khoản không có quyền truy cập cửa hàng này");
         }
+
+        enforceWebRoleAccess(roles, clientType, tokenResponse);
 
         User user = userRepository.findByKeycloakUserId(keycloakUserId)
                 .orElseThrow(() -> new BusinessException("Tên đăng nhập hoặc mật khẩu không chính xác"));
@@ -277,7 +282,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public LoginResponse loginGoogle(String code, String redirectUri) {
+    public LoginResponse loginGoogle(String code, String redirectUri, String clientType) {
         KeyCloakTokenResponse tokenResponse = keyCloakAuthClient.exchangeCode(code, redirectUri);
         if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
             throw new BusinessException("Không thể trao đổi mã xác thực để lấy Token từ Keycloak");
@@ -293,6 +298,11 @@ public class AuthServiceImpl implements AuthService {
         if (keycloakUserId == null || email == null) {
             throw new BusinessException("Token không hợp lệ hoặc thiếu thông tin định danh");
         }
+
+        Map<String, Object> realmAccess = (Map<String, Object>) payload.get("realm_access");
+        List<String> roles = realmAccess != null ? (List<String>) realmAccess.get("roles") : List.of();
+        enforceWebRoleAccess(roles, clientType, tokenResponse);
+
         Optional<User> userOpt = userRepository.findByKeycloakUserId(keycloakUserId);
         if (userOpt.isEmpty()) {
             try {
@@ -383,6 +393,27 @@ public class AuthServiceImpl implements AuthService {
             }
         }
         return buildLoginResponse(tokenResponse);
+    }
+
+    /**
+     * Website chỉ dành cho ADMIN/CURATOR/PARTNER. Khi từ chối phải hủy luôn
+     * SSO session trên Keycloak, nếu không lần đăng nhập Google tiếp theo
+     * Keycloak sẽ tự động trả về đúng account bị chặn.
+     */
+    private void enforceWebRoleAccess(List<String> roles, String clientType, KeyCloakTokenResponse tokenResponse) {
+        if (!isWebClient(clientType) || roles.stream().anyMatch(WEB_ALLOWED_ROLES::contains)) {
+            return;
+        }
+        try {
+            keyCloakAuthClient.logout(tokenResponse.getRefreshToken());
+        } catch (Exception e) {
+            log.warn("Không thể logout Keycloak session khi từ chối truy cập: {}", e.getMessage());
+        }
+        throw new BusinessException(HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập");
+    }
+
+    private boolean isWebClient(String clientType) {
+        return !"mobile".equalsIgnoreCase(clientType);
     }
 
     private LoginResponse buildLoginResponse(KeyCloakTokenResponse tokenResponse) {
