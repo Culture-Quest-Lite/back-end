@@ -99,9 +99,8 @@ public class PostController {
     }
 
     @PostMapping("/{id}/like")
-    public ResponseEntity<String> toggleLikePost(@PathVariable Long id) {
-        postService.toggleLikePost(id);
-        return ResponseEntity.ok("Toggled like successfully");
+    public ResponseEntity<PostResponse> toggleLikePost(@PathVariable Long id) {
+        return ResponseEntity.ok(postService.toggleLikePost(id));
     }
 
     @PostMapping("/{id}/comment")
