@@ -291,7 +291,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public void toggleLikePost(Long id) {
+    public PostResponse toggleLikePost(Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
         User currentUser = userService.getCurrentUser();
@@ -300,15 +300,21 @@ public class PostServiceImpl implements PostService {
                 id, currentUser.getUserId(), PostActionType.LIKE);
 
         if (existingLike.isPresent()) {
-            postActionRepository.delete(existingLike.get());
+            Long likeActionId = existingLike.get().getPostActionId();
+            post.getPostActions().removeIf(action -> likeActionId.equals(action.getPostActionId()));
+            post.setIsLiked(false);
         } else {
             PostAction likeAction = PostAction.builder()
                     .post(post)
                     .user(currentUser)
                     .actionType(PostActionType.LIKE)
                     .build();
-            postActionRepository.save(likeAction);
+            post.getPostActions().add(likeAction);
+            post.setIsLiked(true);
         }
+        postRepository.save(post);
+
+        return toResponseWithLiked(post, currentUser.getUserId());
     }
 
     @Override

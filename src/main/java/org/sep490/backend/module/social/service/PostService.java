@@ -29,7 +29,7 @@ public interface PostService {
     Slice<PostResponse> getMyPosts(Pageable pageable, PostStatus status);
     Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable);
     Slice<PostResponse> getPostsByHotspotId(Long hotspotId, Pageable pageable);
-    void toggleLikePost(Long id);
+    PostResponse toggleLikePost(Long id);
     PostResponse commentPost(Long id, CommentRequest request);
     PostResponse sharePost(Long id, ShareRequest request);
     Slice<CommentResponse> getCommentsByPostId(Long id, int page, int size);

@@ -57,6 +57,9 @@ public class Post {
     @Column(name = "status")
     PostStatus status;
 
+    @Column(name = "is_liked")
+    Boolean isLiked;
+
     @Column(name = "reject_reason", nullable = true)
     String reason;
 
