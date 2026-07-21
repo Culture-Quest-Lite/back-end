@@ -107,6 +107,10 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("Bạn không thể tự theo dõi chính mình");
         }
 
+        if (userFollowRepository.existsByFollowerAndFollowing(follower, following)) {
+            throw new BusinessException("Bạn đã theo dõi người dùng này rồi");
+        }
+
         UserFollow userFollow = UserFollow.builder()
                 .follower(follower)
                 .following(following)
@@ -185,6 +189,12 @@ public class UserServiceImpl implements UserService {
         if (user.getStatus() == UserStatus.INACTIVE) {
             throw new BusinessException("Tài khoản này đã bị khóa từ trước");
         }
+        if (isCurrentUser(user)) {
+            throw new BusinessException("Bạn không thể tự khóa tài khoản của chính mình");
+        }
+        if (user.getRole() == UserRole.ADMIN) {
+            throw new BusinessException("Không thể khóa tài khoản quản trị viên khác");
+        }
 
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
@@ -232,6 +242,12 @@ public class UserServiceImpl implements UserService {
         if (user.getRole() == role) {
             throw new BusinessException("Người dùng đã có vai trò này, không cần cập nhật");
         }
+        if (isCurrentUser(user)) {
+            throw new BusinessException("Bạn không thể tự thay đổi vai trò của chính mình");
+        }
+        if (user.getRole() == UserRole.ADMIN) {
+            throw new BusinessException("Không thể thay đổi vai trò của tài khoản quản trị viên khác");
+        }
 
         user.setRole(role);
         userRepository.save(user);
@@ -263,6 +279,12 @@ public class UserServiceImpl implements UserService {
     public User getUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+    }
+
+    private boolean isCurrentUser(User user) {
+        return SecurityUtils.getCurrentUserKeyCloakId()
+                .map(keycloakUserId -> keycloakUserId.equals(user.getKeycloakUserId()))
+                .orElse(false);
     }
 
     private UserProfileResponse enrichProfileResponse(User user) {
