@@ -97,7 +97,7 @@ public class AuthServiceImpl implements AuthService {
         String email = request.getEmail().trim();
         String userOtp = request.getOtpCode().trim();
 
-        EmailOtp emailOtp = emailOtpRepository.findFirstByEmailOrderByExpiryDateDesc(email)
+        EmailOtp emailOtp = emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc(email)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy yêu cầu xác thực OTP"));
 
         if (!emailOtp.getOtpCode().equals(userOtp)) {
@@ -113,7 +113,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new BusinessException("Không tìm thấy người dùng khớp với email này"));
         user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
-        emailOtpRepository.deleteByEmail(email);
+        emailOtpRepository.deleteByEmailIgnoreCase(email);
     }
 
     @Override
@@ -121,7 +121,7 @@ public class AuthServiceImpl implements AuthService {
     public void resendOtp(SendOtpRequest request) {
         String email = request.getEmail().trim();
 
-        Optional<EmailOtp> existingOtp = emailOtpRepository.findFirstByEmailOrderByExpiryDateDesc(email);
+        Optional<EmailOtp> existingOtp = emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc(email);
         if (existingOtp.isPresent()) {
             EmailOtp emailOtp = existingOtp.get();
             long secondsSinceLastOtp = Duration.between(emailOtp.getCreatedAt(), LocalDateTime.now()).getSeconds();
@@ -202,7 +202,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
         User user = userRepository.findByEmailIgnoreCase(request.getEmail().trim())
-                .orElseThrow(() -> new BusinessException("Không tìm thấy email"));
+                .orElseThrow(() -> new BusinessException("Vui lòng kiểm tra lại email"));
 
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessException("Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa");
@@ -440,9 +440,11 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    private void sendVerificationOtp(String email) {
+    private void sendVerificationOtp(String rawEmail) {
+        String email = rawEmail.trim();
         String otpCode = String.format("%06d", new Random().nextInt(1000000));
-        emailOtpRepository.deleteByEmail(email);
+        emailOtpRepository.deleteByEmailIgnoreCase(email);
+        emailOtpRepository.flush();
         EmailOtp emailOtp = new EmailOtp(email, otpCode, 2);
         emailOtpRepository.save(emailOtp);
 
