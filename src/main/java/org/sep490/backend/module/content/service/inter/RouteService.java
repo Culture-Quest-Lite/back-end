@@ -1,6 +1,7 @@
 package org.sep490.backend.module.content.service.inter;
 
 import org.sep490.backend.common.filter.dto.SearchRequest;
+import org.sep490.backend.module.content.dto.request.FinalizeCustomRouteRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequestV2;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
@@ -26,6 +27,7 @@ public interface RouteService {
     Route findRecordingCustomRouteByUserId(Long userId);
     List<RouteResponse> getByHotspotId(Long hotspotId, RouteStatus routeStatus);
     RouteResponse addHotspotToEndOfCustomRoute(Long routeId, Long hotspotId, Long userId);
-    RouteResponse finalizeCustomRoute(Long routeId);
+    RouteResponse finalizeCustomRoute(FinalizeCustomRouteRequest request);
     List<RouteResponse> getMyJourney(RouteStatus routeStatus);
+    String generateInviteLink(Long routeId);
 }

@@ -65,8 +65,8 @@ public class HotspotController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<HotspotResponse> updateHotspot(@PathVariable Long id, @Valid @RequestBody HotspotRequest hotspotRequest) {
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<HotspotResponse> updateHotspot(@PathVariable Long id, @Valid @ModelAttribute HotspotRequest hotspotRequest) {
         HotspotResponse response = hotspotService.update(id, hotspotRequest);
         return ResponseEntity.ok(response);
     }

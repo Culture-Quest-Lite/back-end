@@ -65,7 +65,7 @@ public class Route {
     @Column(name = "total_stops", nullable = false)
     Integer totalStops;
 
-    @Column(name = "share_token")
+    @Column(name = "share_token", length = 10)
     String shareToken;
 
     @Column(name = "share_expired_at")
