@@ -14,4 +14,5 @@ public interface RouteParticipantService {
     Page<RouteParticipantResponse> getAll(RouteParticipantFilter filter);
     RouteParticipantDetailResponse getRouteProgress(Long progressId);
     RouteParticipant getById(Long progressId);
+    HashMap<Integer, RouteParticipantResponse> joinRouteFromLink(String token);
 }

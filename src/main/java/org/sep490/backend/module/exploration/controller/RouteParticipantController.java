@@ -47,4 +47,12 @@ public class RouteParticipantController {
         RouteParticipantDetailResponse response = routeParticipantService.getRouteProgress(routeParticipantId);
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/join/{token}")
+    public ResponseEntity<RouteParticipantResponse> join(@PathVariable("token") String token) {
+        HashMap<Integer, RouteParticipantResponse> response = routeParticipantService.joinRouteFromLink(token);
+        return response.containsKey(201)
+                ? ResponseEntity.status(HttpStatus.CREATED).body(response.get(201))
+                : ResponseEntity.ok(response.get(200));
+    }
 }

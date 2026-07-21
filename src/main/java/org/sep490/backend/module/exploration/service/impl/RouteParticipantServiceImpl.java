@@ -4,6 +4,8 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.utils.SecurityUtils;
+import org.sep490.backend.common.utils.ShareTokenUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
@@ -50,6 +52,7 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
     ApplicationEventPublisher eventPublisher;
 
     @Override
+    @Transactional
     public HashMap<Integer, RouteParticipantResponse> startRouteProgress(Long routeId) {
         User user = userService.getCurrentUser();
         Route route = routeService.getById(routeId);
@@ -203,5 +206,13 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
     public RouteParticipant getById(Long progressId) {
         return routeParticipantRepository.findById(progressId)
                 .orElseThrow(() -> new BusinessException("User route progress not found"));
+    }
+
+    @Override
+    @Transactional
+    public HashMap<Integer, RouteParticipantResponse> joinRouteFromLink(String token) {
+        Long routeId = ShareTokenUtils.parseToken(token).id();
+        HashMap<Integer, RouteParticipantResponse> result = startRouteProgress(routeId);
+        return null;
     }
 }

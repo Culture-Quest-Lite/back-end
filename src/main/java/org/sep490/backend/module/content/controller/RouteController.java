@@ -95,4 +95,10 @@ public class RouteController {
     public ResponseEntity<List<RouteResponse>> getMyJourney(@RequestParam(required = false) RouteStatus routeStatus) {
         return ResponseEntity.ok(routeService.getMyJourney(routeStatus));
     }
+
+    @PutMapping("/{routeid}/generate-link")
+    public ResponseEntity<String> generateLink(@PathVariable Long routeid) {
+        String link = routeService.generateInviteLink(routeid);
+        return ResponseEntity.ok(link);
+    }
 }
