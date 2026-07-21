@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 public class UpdateProfileRequest {
 
-    @Size(max = 100, message = "Tên hiển thị không được vượt quá 100 ký tự")
+    @Size(max = 20, message = "Tên hiển thị không được vượt quá 20 ký tự")
     private String displayName;
 
     private String avatarUrl;
