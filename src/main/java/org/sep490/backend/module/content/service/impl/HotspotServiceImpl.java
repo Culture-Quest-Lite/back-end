@@ -95,6 +95,15 @@ public class HotspotServiceImpl implements HotspotService {
         //unsetStoriesFromHotspot(hotspot.getHotspotId());
         //assignStoriesToHotspot(hotspot, request.getStoryIds());
 
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.HOTSPOT, hotspot.getHotspotId());
+                // response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
         return buildHotspotResponse(hotspot);
     }
 
