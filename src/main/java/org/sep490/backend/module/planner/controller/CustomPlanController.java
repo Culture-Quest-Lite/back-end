@@ -74,4 +74,10 @@ public class CustomPlanController {
     public ResponseEntity<UserPlanResponse> start(@PathVariable Long planId) {
         return ResponseEntity.ok(userPlanService.start(planId));
     }
+
+    @DeleteMapping("/{planId}")
+    public ResponseEntity<Void> delete(@PathVariable Long planId) {
+        userPlanService.delete(planId);
+        return ResponseEntity.noContent().build();
+    }
 }
