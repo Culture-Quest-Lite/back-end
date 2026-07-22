@@ -9,6 +9,8 @@ import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.springframework.beans.factory.annotation.Value;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.module.admin.entity.enumeration.AuditAction;
+import org.sep490.backend.module.admin.service.AuditLogService;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
@@ -45,6 +47,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -60,6 +63,7 @@ public class PostServiceImpl implements PostService {
     UserService userService;
     RewardTransactionService rewardTransactionService;
     MediaService mediaService;
+    AuditLogService auditLogService;
 
     @NonFinal
     @Value("${app.points.create-post:20}")
@@ -255,9 +259,15 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại hoặc đã bị xóa"));
 
+        PostStatus oldStatus = post.getStatus();
         post.setStatus(PostStatus.DELETED);
         post.setReason(request.getReason());
         Post savedPost = postRepository.save(post);
+
+        auditLogService.log(AuditAction.BAN_POST, "posts", String.valueOf(id),
+                Map.of("status", oldStatus),
+                Map.of("status", PostStatus.DELETED, "reason", String.valueOf(request.getReason())));
+
         return postMapper.toResponse(savedPost);
     }
 
