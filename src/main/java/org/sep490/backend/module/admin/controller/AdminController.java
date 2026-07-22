@@ -2,7 +2,9 @@ package org.sep490.backend.module.admin.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.sep490.backend.module.admin.annotation.Auditable;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
+import org.sep490.backend.module.admin.entity.enumeration.AuditAction;
 import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
 import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
 import org.sep490.backend.module.social.dto.request.DeletePostRequest;
@@ -40,6 +42,7 @@ public class AdminController {
     }
 
     @PutMapping("/{id}/lock")
+    @Auditable(value = AuditAction.LOCK_USER, tableName = "users", skipAspect = true)
     public ResponseEntity<Map<String, String>> lockUser(@PathVariable Long id) {
         userService.lockUser(id);
         Map<String, String> response = new HashMap<>();
@@ -48,6 +51,7 @@ public class AdminController {
     }
 
     @PutMapping("/{id}/unlock")
+    @Auditable(value = AuditAction.UNLOCK_USER, tableName = "users", skipAspect = true)
     public ResponseEntity<Map<String, String>> unlockUser(@PathVariable Long id) {
         userService.unlockUser(id);
         Map<String, String> response = new HashMap<>();
@@ -56,6 +60,7 @@ public class AdminController {
     }
 
     @PutMapping("/{id}/role")
+    @Auditable(value = AuditAction.UPDATE_USER_ROLE, tableName = "users", skipAspect = true)
     public ResponseEntity<Map<String, String>> updateUserRole(
             @PathVariable Long id,
             @RequestBody @Valid UpdateUserRoleRequest request
@@ -67,12 +72,14 @@ public class AdminController {
     }
 
     @PutMapping("/post/{id}/approve")
+    @Auditable(value = AuditAction.APPROVE_POST, tableName = "posts")
     public ResponseEntity<PostResponse> approvePost(@PathVariable Long id) {
         PostResponse response = postService.approvePost(id);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/post/{id}/reject")
+    @Auditable(value = AuditAction.REJECT_POST, tableName = "posts")
     public ResponseEntity<PostResponse> rejectPost(
             @PathVariable Long id,
             @RequestBody @Valid RejectPostRequest  request
@@ -82,6 +89,7 @@ public class AdminController {
     }
 
     @PutMapping("/{id}/ban")
+    @Auditable(value = AuditAction.BAN_POST, tableName = "posts", skipAspect = true)
     public ResponseEntity<PostResponse> banPost(
             @PathVariable Long id,
             @RequestBody @Valid DeletePostRequest request
@@ -98,6 +106,7 @@ public class AdminController {
     }
 
     @PatchMapping("/subscription/{id}/verify")
+    @Auditable(value = AuditAction.VERIFY_SUBSCRIPTION, tableName = "invoice")
     public ResponseEntity<PartnerSubscriptionResponse> verifiedSubscription(
             @PathVariable Long id,
             @RequestParam boolean isApproved) {

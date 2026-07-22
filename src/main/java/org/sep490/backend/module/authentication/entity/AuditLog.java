@@ -6,11 +6,17 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.sep490.backend.module.admin.entity.enumeration.AuditAction;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "audit_logs")
+@Table(name = "audit_logs", indexes = {
+        //Index cho cột thời gian vì danh sách log luôn sắp xếp mới nhất trước
+        @Index(name = "idx_audit_created_at", columnList = "created_at"),
+        //Composite index để lọc log theo người thực hiện và loại hành động
+        @Index(name = "idx_audit_user_action", columnList = "user_id, action")
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,11 +32,15 @@ public class AuditLog {
     @JoinColumn(name = "user_id", nullable = true)
     private User user;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private String action; //xác định các action để sửa thành enum
+    private AuditAction action;
 
     @Column(name = "table_name", length = 50)
     private String tableName;
+
+    @Column(name = "endpoint", length = 255)
+    private String endpoint;
 
     @Column(name = "record_id")
     private String recordId;

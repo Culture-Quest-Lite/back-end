@@ -13,6 +13,9 @@ public class TagResponse {
     Long tagId;
     String tagName;
     TagStatus tagStatus;
+    Long routeCount;
+    Long hotspotCount;
+    Long storyCount;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 }

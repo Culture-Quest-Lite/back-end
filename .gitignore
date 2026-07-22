@@ -40,3 +40,6 @@ src/main/resources/firebase-service-account.json
 
 ### implementation notes ###
 implementation_plan.md
+
+### Claude Code ###
+.claude/settings.local.json
