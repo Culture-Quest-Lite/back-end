@@ -1,5 +1,6 @@
 package org.sep490.backend.module.exploration.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -24,6 +25,7 @@ public class RouteParticipantController {
     RouteParticipantService routeParticipantService;
 
     @PostMapping("/start/{id}")
+    @Operation(summary = "Start route progress for a participant", description = "Input id is routeId")
     public ResponseEntity<RouteParticipantResponse> start(@PathVariable("id") Long routeId) {
         HashMap<Integer, RouteParticipantResponse> response = routeParticipantService.startRouteProgress(routeId);
         return response.containsKey(201)
@@ -32,12 +34,14 @@ public class RouteParticipantController {
     }
 
     @PutMapping("/abandon/{id}")
+    @Operation(summary = "Abandon route progress for a participant", description = "Input id is routeId")
     public ResponseEntity<RouteParticipantResponse> abandon(@PathVariable("id") Long routeId) {
         RouteParticipantResponse response = routeParticipantService.abandonRouteProgress(routeId);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping
+    @Operation(summary = "Get all explorer's route participants with optional filtering")
     public ResponseEntity<Page<RouteParticipantResponse>> getAll(@ModelAttribute RouteParticipantFilter filter) {
         Page<RouteParticipantResponse> response = routeParticipantService.getAll(filter);
         return ResponseEntity.ok(response);
