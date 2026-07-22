@@ -7,7 +7,8 @@ import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantA
 
 import java.util.List;
 
-public interface GroupParticipantService {
+public interface
+GroupParticipantService {
     GroupParticipant addUserToGroup(User user, Group group);
     GroupParticipant addLeaderToGroup(User user, Group group);
     GroupParticipant updateAction(User user, Group group, GroupParticipantAction action);

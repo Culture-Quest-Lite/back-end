@@ -6,6 +6,8 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
+import org.sep490.backend.common.utils.SecurityUtils;
+import org.sep490.backend.common.utils.ShareTokenUtils;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.dto.request.FinalizeCustomRouteRequest;
@@ -40,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -421,8 +424,24 @@ public class RouteServiceImpl implements RouteService {
 
     @Override
     public String generateInviteLink(Long routeId) {
+        String keyCloakId = SecurityUtils.getCurrentUserKeyCloakId()
+                .orElseThrow(() -> new BusinessException("Người dùng chưa đăng nhập"));
+
+        User user = userService.getCurrentUser();
         Route route = getById(routeId);
-        return "https://yourapp.com/invite/" + route.getShareToken();
+
+        if(!route.getCreatedBy().equals(user)) {
+            throw new BusinessException("Người dùng chỉ có thể tạo link mời cho hành trình cá nhân của mình");
+        }
+
+        String code = ShareTokenUtils.generateToken(route.getRouteId());
+        String path = "/api/v1/route-participants/join/" + code;
+
+        route.setShareToken(code);
+        route.setShareExpiredAt(LocalDateTime.now().plusDays(30));
+        routeRepository.save(route);
+
+        return path;
     }
 
     private List<Story> processRouteStories(Route route, List<Long> hotspotIds) {
