@@ -1,6 +1,7 @@
 package org.sep490.backend.module.exploration.service.inter;
 
 import org.sep490.backend.module.exploration.dto.filter.RouteParticipantFilter;
+import org.sep490.backend.module.exploration.dto.request.StartGroupQuestRoute;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantDetailResponse;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantResponse;
 import org.sep490.backend.module.exploration.entity.RouteParticipant;
@@ -15,4 +16,5 @@ public interface RouteParticipantService {
     RouteParticipantDetailResponse getRouteProgress(Long progressId);
     RouteParticipant getById(Long progressId);
     HashMap<Integer, RouteParticipantResponse> joinRouteFromLink(String token);
+    void startGroupQuest(StartGroupQuestRoute request);
 }

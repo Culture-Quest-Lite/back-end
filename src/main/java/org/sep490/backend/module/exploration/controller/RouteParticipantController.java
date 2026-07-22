@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.exploration.dto.filter.RouteParticipantFilter;
+import org.sep490.backend.module.exploration.dto.request.StartGroupQuestRoute;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantDetailResponse;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantResponse;
 import org.sep490.backend.module.exploration.service.inter.RouteParticipantService;
@@ -54,5 +55,11 @@ public class RouteParticipantController {
         return response.containsKey(201)
                 ? ResponseEntity.status(HttpStatus.CREATED).body(response.get(201))
                 : ResponseEntity.ok(response.get(200));
+    }
+
+    @PostMapping("/join/group-quest")
+    public ResponseEntity<Void> startGroupQuest(@RequestBody StartGroupQuestRoute request) {
+        routeParticipantService.startGroupQuest(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

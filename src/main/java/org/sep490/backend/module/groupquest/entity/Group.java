@@ -40,7 +40,7 @@ public class Group {
     @Column(name = "share_token", length = 10)
     String shareToken;
 
-    @Column(name = "expired_at", nullable = false)
+    @Column(name = "expired_at")
     LocalDateTime expireAt;
 
     @Enumerated(EnumType.STRING)

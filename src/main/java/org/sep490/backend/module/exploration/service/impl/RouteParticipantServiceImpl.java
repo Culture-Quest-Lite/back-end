@@ -12,6 +12,7 @@ import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.exploration.dto.filter.RouteParticipantFilter;
+import org.sep490.backend.module.exploration.dto.request.StartGroupQuestRoute;
 import org.sep490.backend.module.exploration.dto.response.HotspotProgressInRouteResponse;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantDetailResponse;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantResponse;
@@ -23,6 +24,11 @@ import org.sep490.backend.module.exploration.repository.RouteParticipantReposito
 import org.sep490.backend.module.exploration.repository.UserHotspotProgressRepository;
 import org.sep490.backend.module.exploration.service.inter.RouteParticipantService;
 import org.sep490.backend.module.exploration.specification.RouteParticipantSpecification;
+import org.sep490.backend.module.groupquest.entity.Group;
+import org.sep490.backend.module.groupquest.entity.GroupParticipant;
+import org.sep490.backend.module.groupquest.entity.enumuration.GroupStatus;
+import org.sep490.backend.module.groupquest.service.inter.GroupParticipantService;
+import org.sep490.backend.module.groupquest.service.inter.GroupService;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -34,6 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -48,6 +55,8 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
     StoryRepository storyRepository;
     UserService userService;
     RouteService routeService;
+    GroupService groupService;
+    GroupParticipantService groupParticipantService;
     RouteParticipantMapper routeParticipantMapper;
     ApplicationEventPublisher eventPublisher;
 
@@ -214,5 +223,87 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
         Long routeId = ShareTokenUtils.parseToken(token).id();
         HashMap<Integer, RouteParticipantResponse> result = startRouteProgress(routeId);
         return null;
+    }
+
+    @Override
+    @Transactional
+    public void startGroupQuest(StartGroupQuestRoute request) {
+
+        User leader = userService.getCurrentUser();
+        Group group = groupService.getGroup(request.getGroupId());
+
+        if (!groupParticipantService.isLeader(leader, group)) {
+            throw new BusinessException("Bạn không phải là trưởng nhóm, không thể bắt đầu hành trình nhóm");
+        }
+
+        Route route = routeService.getById(request.getRouteId());
+        List<Hotspot> hotspots = storyRepository.findHotspotsByRouteIdOrderByIndexAsc(route.getRouteId());
+        int totalStops = route.getTotalStops();
+
+        List<GroupParticipant> gps = groupParticipantService.getGroupParticipants(group.getGroupId());
+
+        List<User> members = gps.stream()
+                .filter(gp -> GroupStatus.ACTIVE.equals(gp.getStatus()))
+                .map(GroupParticipant::getUser)
+                .toList();
+
+        List<RouteParticipant> activeParticipants = routeParticipantRepository
+                .findByUserInAndStatus(members, ProgressStatus.IN_PROGRESS);
+
+        List<RouteParticipant> targetRouteParticipants = routeParticipantRepository
+                .findByUserInAndRoute(members, route);
+
+        List<Object[]> countHotspotByUser = userHotspotProgressRepository.countCompletedHotspotsRaw(members, hotspots);
+
+        List<RouteParticipant> newParticipants = new ArrayList<>();
+
+        for (User member : members) {
+
+            RouteParticipant currentActive = activeParticipants.stream()
+                    .filter(rp -> rp.getUser().getUserId().equals(member.getUserId()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (currentActive != null) {
+                if (currentActive.getRoute().getRouteId().equals(route.getRouteId())) {
+                    continue;
+                } else {
+                    currentActive.setStatus(ProgressStatus.ON_HOLD);
+                }
+            }
+
+            Object[] count = countHotspotByUser.stream()
+                    .filter(c -> ((Long) c[0]).equals(member.getUserId()))
+                    .findFirst()
+                    .orElse(new Object[]{member.getUserId(), 0});
+
+            int completedStops = ((Number) count[1]).intValue();
+            double progress = totalStops == 0 ? 0.0 : ((double) completedStops / totalStops) * 100;
+
+            RouteParticipant existingTargetRecord = targetRouteParticipants.stream()
+                    .filter(rp -> rp.getUser().getUserId().equals(member.getUserId()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (existingTargetRecord != null) {
+                existingTargetRecord.setStatus(ProgressStatus.IN_PROGRESS);
+                existingTargetRecord.setCompletedStops(completedStops);
+                existingTargetRecord.setProgressPercentage(progress);
+            } else {
+                RouteParticipant newRp = RouteParticipant.builder()
+                        .route(route)
+                        .user(member)
+                        .totalStops(totalStops)
+                        .completedStops(completedStops)
+                        .progressPercentage(progress)
+                        .status(ProgressStatus.IN_PROGRESS)
+                        .build();
+                newParticipants.add(newRp);
+            }
+        }
+
+        if (!newParticipants.isEmpty()) {
+            routeParticipantRepository.saveAll(newParticipants);
+        }
     }
 }

@@ -2,6 +2,7 @@ package org.sep490.backend.module.groupquest.repository;
 
 import org.sep490.backend.module.groupquest.entity.GroupParticipant;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantAction;
+import org.sep490.backend.module.groupquest.entity.enumuration.GroupRole;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -13,4 +14,8 @@ public interface GroupParticipantRepository extends JpaRepository<GroupParticipa
     Boolean existsByGroup_GroupIdAndUser_UserId(Long groupId, Long userId);
     List<GroupParticipant> findAllByUser_UserIdAndActionAndStatus(Long userId, GroupParticipantAction action, GroupStatus status);
     List<GroupParticipant> findAllByGroup_GroupId(Long groupId);
+
+    List<GroupParticipant> findAllByGroup_GroupIdAndStatus(Long groupId, GroupStatus status);
+
+
 }
