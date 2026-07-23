@@ -14,8 +14,4 @@ public interface GroupParticipantRepository extends JpaRepository<GroupParticipa
     Boolean existsByGroup_GroupIdAndUser_UserId(Long groupId, Long userId);
     List<GroupParticipant> findAllByUser_UserIdAndActionAndStatus(Long userId, GroupParticipantAction action, GroupStatus status);
     List<GroupParticipant> findAllByGroup_GroupId(Long groupId);
-
-    List<GroupParticipant> findAllByGroup_GroupIdAndStatus(Long groupId, GroupStatus status);
-
-
 }
