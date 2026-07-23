@@ -239,6 +239,7 @@ public class GroupServiceImpl implements GroupService {
     public List<GroupParticipantResponse> getGroupParticipants(Long groupId) {
 
         return groupParticipantService.getGroupParticipants(groupId).stream()
+                .filter(gp -> gp.getAction() == GroupParticipantAction.JOIN)
                 .map(groupParticipantMapper::toResponse)
                 .toList();
     }
