@@ -11,6 +11,8 @@ import org.sep490.backend.module.gamification.entity.RewardTransaction;
 import org.sep490.backend.module.gamification.mapper.RewardTransactionMapper;
 import org.sep490.backend.module.gamification.repository.RewardTransactionRepository;
 import org.sep490.backend.module.gamification.service.RewardTransactionService;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.FcmService;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
 import org.sep490.backend.module.user.entity.Level;
 import org.sep490.backend.module.user.entity.LevelProgress;
@@ -38,6 +40,7 @@ public class RewardTransactionServiceImpl implements RewardTransactionService {
     RewardTransactionMapper rewardTransactionMapper;
     LevelRepository levelRepository;
     LevelProgressRepository levelProgressRepository;
+    FcmService fcmService;
 
     @Override
     @Transactional(readOnly = true)
@@ -85,7 +88,15 @@ public class RewardTransactionServiceImpl implements RewardTransactionService {
                             .xpAtUnlock((int) newXp)
                             .unlockedAt(LocalDateTime.now())
                             .build();
-                    levelProgressRepository.save(levelProgress);
+                    levelProgress = levelProgressRepository.save(levelProgress);
+                    // push noti if level up
+                    fcmService.sendPushNotification(
+                            user.getFcmToken(),
+                            "Chúc mừng! Bạn đã đạt cấp độ mới: " + newLevel.getName(),
+                            "Bạn đã đạt cấp độ " + newLevel.getName() + ". Hãy tiếp tục khám phá để nhận thêm phần thưởng!",
+                            NotificationType.LEVEL_UP,
+                            levelProgress.getLevelProgressId()
+                    );
                 }
             }
         }
