@@ -1,10 +1,13 @@
 package org.sep490.backend.module.user.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.filter.dto.BaseFilterRequest;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.common.utils.SecurityUtils;
+import org.sep490.backend.module.admin.entity.enumeration.AuditAction;
+import org.sep490.backend.module.admin.service.AuditLogService;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
@@ -23,11 +26,14 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
@@ -36,6 +42,7 @@ public class UserServiceImpl implements UserService {
     private final UserFollowRepository userFollowRepository;
     private final KeyCloakAuthClient keyCloakAuthClient;
     private final PostRepository postRepository;
+    private final AuditLogService auditLogService;
 
     @Override
     @Transactional(readOnly = true)
@@ -196,14 +203,14 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("Không thể khóa tài khoản quản trị viên khác");
         }
 
+        UserStatus oldStatus = user.getStatus();
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
 
-        try {
-            keyCloakAuthClient.updateUserEnabledStatus(user.getKeycloakUserId(), false);
-        } catch (Exception e) {
-            throw new BusinessException("Đồng bộ trạng thái khóa lên hệ thống bảo mật thất bại: " + e.getMessage());
-        }
+        syncKeycloakEnabledStatus(user, false, "khóa");
+
+        auditLogService.log(AuditAction.LOCK_USER, "users", String.valueOf(id),
+                Map.of("status", oldStatus), Map.of("status", UserStatus.INACTIVE));
     }
 
     @Override
@@ -217,14 +224,14 @@ public class UserServiceImpl implements UserService {
         if (user.getStatus() == UserStatus.ACTIVE) {
             throw new BusinessException("Tài khoản này hiện đang hoạt động bình thường, không cần mở khóa");
         }
+        UserStatus oldStatus = user.getStatus();
         user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
 
-        try {
-            keyCloakAuthClient.updateUserEnabledStatus(user.getKeycloakUserId(), true);
-        } catch (Exception e) {
-            throw new BusinessException("Đồng bộ trạng thái mở khóa lên hệ thống bảo mật thất bại: " + e.getMessage());
-        }
+        syncKeycloakEnabledStatus(user, true, "mở khóa");
+
+        auditLogService.log(AuditAction.UNLOCK_USER, "users", String.valueOf(id),
+                Map.of("status", oldStatus), Map.of("status", UserStatus.ACTIVE));
     }
 
     @Override
@@ -249,6 +256,7 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("Không thể thay đổi vai trò của tài khoản quản trị viên khác");
         }
 
+        UserRole oldRole = user.getRole();
         user.setRole(role);
         userRepository.save(user);
 
@@ -257,6 +265,9 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             throw new BusinessException("Đồng bộ vai trò lên hệ thống bảo mật thất bại: " + e.getMessage());
         }
+
+        auditLogService.log(AuditAction.UPDATE_USER_ROLE, "users", String.valueOf(userId),
+                Map.of("role", oldRole), Map.of("role", role));
     }
 
     @Override
@@ -279,6 +290,30 @@ public class UserServiceImpl implements UserService {
     public User getUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+    }
+
+    //Tài khoản PENDING (hoặc dữ liệu lệch với Keycloak) có thể không còn tồn tại bên Keycloak.
+    //Khi đó vẫn cho phép admin khóa/mở khóa trong hệ thống thay vì chặn toàn bộ thao tác.
+    private void syncKeycloakEnabledStatus(User user, boolean enabled, String actionLabel) {
+        String keycloakUserId = user.getKeycloakUserId();
+        if (keycloakUserId == null || keycloakUserId.isBlank()) {
+            log.warn("Bỏ qua đồng bộ {} lên Keycloak: user {} chưa có keycloakUserId", actionLabel, user.getUserId());
+            return;
+        }
+        try {
+            keyCloakAuthClient.updateUserEnabledStatus(keycloakUserId, enabled);
+        } catch (BusinessException e) {
+            if (e.getStatus() == HttpStatus.NOT_FOUND) {
+                log.warn("Bỏ qua đồng bộ {} lên Keycloak: không tìm thấy user {} (keycloakUserId {})",
+                        actionLabel, user.getUserId(), keycloakUserId);
+                return;
+            }
+            throw new BusinessException("Đồng bộ trạng thái " + actionLabel
+                    + " lên hệ thống bảo mật thất bại: " + e.getMessage());
+        } catch (Exception e) {
+            throw new BusinessException("Đồng bộ trạng thái " + actionLabel
+                    + " lên hệ thống bảo mật thất bại: " + e.getMessage());
+        }
     }
 
     private boolean isCurrentUser(User user) {
