@@ -30,13 +30,22 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
     @Transactional
     public GroupParticipant addUserToGroup(User user, Group group) {
 
-        GroupParticipant groupParticipant = GroupParticipant.builder()
-                .user(user)
-                .group(group)
-                .role(GroupRole.MEMBER)
-                .action(GroupParticipantAction.JOIN)
-                .status(GroupStatus.ACTIVE)
-                .build();
+        GroupParticipant groupParticipant = new GroupParticipant();
+
+        if(!repository.existsByGroup_GroupIdAndUser_UserId(group.getGroupId(), user.getUserId())) {
+            groupParticipant.setUser(user);
+            groupParticipant.setGroup(group);
+            groupParticipant.setRole(GroupRole.MEMBER);
+            groupParticipant.setAction(GroupParticipantAction.JOIN);
+            groupParticipant.setStatus(GroupStatus.ACTIVE);
+        } else {
+            groupParticipant = getGroupParticipant(group.getGroupId(), user.getUserId());
+            if(groupParticipant.getAction() != GroupParticipantAction.JOIN) {
+                groupParticipant.setAction(GroupParticipantAction.JOIN);
+                groupParticipant.setRole(GroupRole.MEMBER);
+                groupParticipant.setStatus(GroupStatus.ACTIVE);
+            }
+        }
 
         return repository.save(groupParticipant);
     }

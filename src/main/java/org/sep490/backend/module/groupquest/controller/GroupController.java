@@ -63,4 +63,10 @@ public class GroupController {
         List<GroupParticipantResponse> groupParticipants = groupService.getGroupParticipants(groupId);
         return ResponseEntity.ok(groupParticipants);
     }
+
+    @PostMapping("/{id}/add/{userId}")
+    public ResponseEntity<GroupResponse> addMember(@PathVariable("id") Long groupId, @PathVariable("userId") Long userId) {
+        GroupResponse groupResponse = groupService.addUserToGroup(userId, groupId);
+        return ResponseEntity.ok(groupResponse);
+    }
 }
