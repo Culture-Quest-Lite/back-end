@@ -15,6 +15,7 @@ import org.sep490.backend.module.groupquest.entity.GroupParticipant;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantAction;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupRole;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupStatus;
+import org.sep490.backend.module.groupquest.entity.enumuration.JoinGroupType;
 import org.sep490.backend.module.groupquest.mapper.GroupMapper;
 import org.sep490.backend.module.groupquest.mapper.GroupParticipantMapper;
 import org.sep490.backend.module.groupquest.repository.GroupParticipantRepository;
@@ -141,7 +142,7 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
-    public GroupResponse joinGroup(String shareToken) {
+    public GroupResponse joinGroup(String shareToken) { // join through link
 
         isLoggedIn("joinGroup");
 
@@ -154,7 +155,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Token đã hết hạn");
         }
 
-        groupParticipantService.addUserToGroup(user, group);
+        groupParticipantService.addUserToGroup(user, group, JoinGroupType.LINK);
 
         group.setTotalMembers(group.getTotalMembers() + 1);
         groupRepository.save(group);
@@ -165,13 +166,21 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
-    public GroupResponse addUserToGroup(Long userId, Long groupId) {
+    public GroupResponse addUserToGroup(Long userId, Long groupId) { // leader add
 
         isLoggedIn("addUserToGroup");
 
         Group group = getGroup(groupId);
         User currentUser = userService.getCurrentUser();
         User addUser = userService.getUserById(userId);
+
+        if(!currentUser.equals(group.getCreatedBy())) {
+            throw new BusinessException("Chỉ có trưởng nhóm mới có thể add thành viên");
+        }
+
+        if(!currentUser.getUserId().equals(addUser.getUserId())) {
+            throw new BusinessException("Không thể add chính mình vào nhóm");
+        }
 
         boolean isFollowed = userFollowRepository.existsByFollowerAndFollowing(currentUser, addUser)
                 && userFollowRepository.existsByFollowerAndFollowing(addUser, currentUser);
@@ -180,7 +189,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Cả 2 phải theo dõi nhau để add vào group");
         }
 
-        groupParticipantService.addUserToGroup(addUser, group);
+        groupParticipantService.addUserToGroup(addUser, group, JoinGroupType.ADD);
 
         group.setTotalMembers(group.getTotalMembers() + 1);
         groupRepository.save(group);

@@ -10,6 +10,7 @@ import org.sep490.backend.module.groupquest.entity.GroupParticipant;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantAction;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupRole;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupStatus;
+import org.sep490.backend.module.groupquest.entity.enumuration.JoinGroupType;
 import org.sep490.backend.module.groupquest.repository.GroupParticipantRepository;
 import org.sep490.backend.module.groupquest.service.inter.GroupParticipantService;
 import org.sep490.backend.module.user.service.UserService;
@@ -28,20 +29,28 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
 
     @Override
     @Transactional
-    public GroupParticipant addUserToGroup(User user, Group group) {
+    public GroupParticipant addUserToGroup(User user, Group group, JoinGroupType type) {
 
         GroupParticipant groupParticipant = new GroupParticipant();
 
-        if(!repository.existsByGroup_GroupIdAndUser_UserId(group.getGroupId(), user.getUserId())) {
+        GroupParticipantAction action;
+
+        if(group.getRequiredApproval() && type.equals(JoinGroupType.LINK)) {
+            action = GroupParticipantAction.PENDING;
+        } else {
+            action = GroupParticipantAction.JOIN;
+        }
+
+        if(!repository.existsByGroup_GroupIdAndUser_UserId(group.getGroupId(), user.getUserId())) { // join lần đầu
             groupParticipant.setUser(user);
             groupParticipant.setGroup(group);
             groupParticipant.setRole(GroupRole.MEMBER);
-            groupParticipant.setAction(GroupParticipantAction.JOIN);
+            groupParticipant.setAction(action);
             groupParticipant.setStatus(GroupStatus.ACTIVE);
         } else {
             groupParticipant = getGroupParticipant(group.getGroupId(), user.getUserId());
             if(groupParticipant.getAction() != GroupParticipantAction.JOIN) {
-                groupParticipant.setAction(GroupParticipantAction.JOIN);
+                groupParticipant.setAction(action);
                 groupParticipant.setRole(GroupRole.MEMBER);
                 groupParticipant.setStatus(GroupStatus.ACTIVE);
             }
