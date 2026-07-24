@@ -5,8 +5,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.exploration.dto.request.StartGroupQuestRoute;
 import org.sep490.backend.module.groupquest.dto.request.GroupRequest;
+import org.sep490.backend.module.groupquest.dto.request.GroupUpdateRequest;
 import org.sep490.backend.module.groupquest.dto.response.GroupParticipantResponse;
 import org.sep490.backend.module.groupquest.dto.response.GroupResponse;
+import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantAction;
 import org.sep490.backend.module.groupquest.service.inter.GroupService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,8 +61,9 @@ public class GroupController {
     }
 
     @GetMapping("/{id}/member")
-    public ResponseEntity<List<GroupParticipantResponse>> getMembers(@PathVariable("id") Long groupId) {
-        List<GroupParticipantResponse> groupParticipants = groupService.getGroupParticipants(groupId);
+    public ResponseEntity<List<GroupParticipantResponse>> getMembers(@PathVariable("id") Long groupId,
+                                                                     @RequestParam(required = false) GroupParticipantAction action) {
+        List<GroupParticipantResponse> groupParticipants = groupService.getGroupParticipantsByAction(groupId, action);
         return ResponseEntity.ok(groupParticipants);
     }
 
@@ -68,5 +71,22 @@ public class GroupController {
     public ResponseEntity<GroupResponse> addMember(@PathVariable("id") Long groupId, @PathVariable("userId") Long userId) {
         GroupResponse groupResponse = groupService.addUserToGroup(userId, groupId);
         return ResponseEntity.ok(groupResponse);
+    }
+
+    @GetMapping()
+    public ResponseEntity<List<GroupResponse>> getMyGroups() {
+        List<GroupResponse> groups = groupService.getMyGroups();
+        return ResponseEntity.ok(groups);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<GroupResponse> updateGroup(@PathVariable("id") Long groupId, @RequestBody GroupUpdateRequest groupRequest) {
+        GroupResponse groupResponse = groupService.updateGroup(groupId, groupRequest);
+        return ResponseEntity.ok(groupResponse);
+    }
+
+    @PutMapping("/participant/{participantId}")
+    public ResponseEntity<GroupParticipantResponse> updateParticipantStatus(@PathVariable("participantId") Long gpId, @RequestParam GroupParticipantAction action) {
+        return ResponseEntity.ok(groupService.updateGroupParticipantAction(gpId, action));
     }
 }

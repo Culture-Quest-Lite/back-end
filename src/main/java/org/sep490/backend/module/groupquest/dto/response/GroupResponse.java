@@ -17,4 +17,7 @@ public class GroupResponse {
     GroupStatus status;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
+    String inviteLink;
+    Boolean requiredApproval;
+    String groupName;
 }
