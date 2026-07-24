@@ -261,9 +261,9 @@ public class GroupServiceImpl implements GroupService {
         User user = userService.getCurrentUser();
         Group group = getGroup(groupId);
 
-        if(!group.getCreatedBy().equals(user)) {
-            throw new BusinessException("Chỉ có trưởng nhóm mới có thể tạo mới invite code");
-        }
+//        if(!group.getCreatedBy().equals(user)) {
+//            throw new BusinessException("Chỉ có trưởng nhóm mới có thể tạo mới invite code");
+//        }
 
         String shareToken = GroupUtils.generateToken(group.getGroupId());
         LocalDateTime expireTime = LocalDateTime.now().plusDays(1); // expired after 24 hours

@@ -8,8 +8,3 @@ public enum GroupParticipantAction {
     KICKED,
     DISMISSED // group was deleted
 }
-
-// 1. ai cũng refresh và copy đc link invite
-// 2. api get GP pending
-// 3. api approve/deny GP pending
-// 4. api get all group for explorer
