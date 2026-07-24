@@ -36,6 +36,7 @@ public class PostResponse {
     Long likeCount;
     Long commentCount;
     Long shareCount;
+    Boolean isLiked;
     PostResponse sharedPost;
 
     @Data

@@ -13,6 +13,7 @@ import org.sep490.backend.module.admin.dto.request.SubscriptionPlanRequest;
 import org.sep490.backend.module.admin.dto.response.SubscriptionPlanResponse;
 import org.sep490.backend.module.admin.entity.SubscriptionPlan;
 import org.sep490.backend.module.admin.entity.PlanRule;
+import org.sep490.backend.module.admin.entity.enumeration.PlanType;
 import org.sep490.backend.module.admin.entity.enumeration.SubscriptionPlanStatus;
 import org.sep490.backend.module.admin.mapper.SubscriptionPlanMapper;
 import org.sep490.backend.module.admin.repository.SubscriptionPlanRepository;
@@ -44,6 +45,9 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
             throw new BusinessException("Gói dịch vụ với tên \"" + request.getSubscriptionPlanName() + "\" đã tồn tại");
         }
         SubscriptionPlan plan = subscriptionPlanMapper.toEntity(request);
+        if (plan.getPlanType() == null) {
+            plan.setPlanType(PlanType.PARTNER);
+        }
         plan.setStatus(SubscriptionPlanStatus.ACTIVE);
         plan = subscriptionPlanRepository.save(plan);
         syncPlanRules(plan, request.getConfigLimit());
@@ -96,13 +100,13 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<SubscriptionPlanResponse> getAllWithFilter(SubscriptionPlanFilterRequest filter) {
+    public Page<SubscriptionPlanResponse> getAllWithFilter(SubscriptionPlanFilterRequest filter, PlanType planType) {
         Sort sort = filter.getSortDir().equalsIgnoreCase(Sort.Direction.ASC.name())
                 ? Sort.by(filter.getSortBy()).ascending()
                 : Sort.by(filter.getSortBy()).descending();
         Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
         Specification<SubscriptionPlan> spec = SubscriptionPlanSpecification.filter(
-                filter.getSearch(), filter.getStatus());
+                filter.getSearch(), filter.getStatus(), planType);
         return subscriptionPlanRepository.findAll(spec, pageable).map(subscriptionPlanMapper::toResponse);
     }
 
@@ -127,5 +131,13 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
                     "Gói dịch vụ với id " + id + " đã bị xóa");
         }
         return plan;
+    }
+
+    @Override
+    public List<SubscriptionPlanResponse> getActivePlanByType(PlanType type) {
+        return subscriptionPlanRepository.findByPlanTypeAndStatusOrderByPriceMonthlyAsc(type, SubscriptionPlanStatus.ACTIVE)
+                .stream()
+                .map(subscriptionPlanMapper::toResponse)
+                .toList();
     }
 }

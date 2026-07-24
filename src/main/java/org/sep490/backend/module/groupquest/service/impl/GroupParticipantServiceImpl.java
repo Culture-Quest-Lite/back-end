@@ -5,11 +5,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.groupquest.dto.response.GroupParticipantResponse;
 import org.sep490.backend.module.groupquest.entity.Group;
 import org.sep490.backend.module.groupquest.entity.GroupParticipant;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantAction;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupRole;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupStatus;
+import org.sep490.backend.module.groupquest.entity.enumuration.JoinGroupType;
+import org.sep490.backend.module.groupquest.mapper.GroupParticipantMapper;
 import org.sep490.backend.module.groupquest.repository.GroupParticipantRepository;
 import org.sep490.backend.module.groupquest.service.inter.GroupParticipantService;
 import org.sep490.backend.module.user.service.UserService;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,18 +29,40 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
 
     GroupParticipantRepository repository;
     UserService userService;
+    GroupParticipantMapper mapper;
 
     @Override
     @Transactional
-    public GroupParticipant addUserToGroup(User user, Group group) {
+    public GroupParticipant addUserToGroup(User user, Group group, JoinGroupType type) {
 
-        GroupParticipant groupParticipant = GroupParticipant.builder()
-                .user(user)
-                .group(group)
-                .role(GroupRole.MEMBER)
-                .action(GroupParticipantAction.JOIN)
-                .status(GroupStatus.ACTIVE)
-                .build();
+        GroupParticipant groupParticipant = new GroupParticipant();
+
+        GroupParticipantAction action;
+
+        if(repository.existsByGroup_GroupIdAndUser_UserId_AndAction(group.getGroupId(), user.getUserId(), GroupParticipantAction.JOIN)) {
+            throw new BusinessException("Người dùng đã là thành viên của nhóm");
+        }
+
+        if(group.getRequiredApproval() && type.equals(JoinGroupType.LINK)) {
+            action = GroupParticipantAction.PENDING;
+        } else {
+            action = GroupParticipantAction.JOIN;
+        }
+
+        if(!repository.existsByGroup_GroupIdAndUser_UserId(group.getGroupId(), user.getUserId())) { // join lần đầu
+            groupParticipant.setUser(user);
+            groupParticipant.setGroup(group);
+            groupParticipant.setRole(GroupRole.MEMBER);
+            groupParticipant.setAction(action);
+            groupParticipant.setStatus(GroupStatus.ACTIVE);
+        } else {
+            groupParticipant = getGroupParticipant(group.getGroupId(), user.getUserId());
+            if(groupParticipant.getAction() != GroupParticipantAction.JOIN) {
+                groupParticipant.setAction(action);
+                groupParticipant.setRole(GroupRole.MEMBER);
+                groupParticipant.setStatus(GroupStatus.ACTIVE);
+            }
+        }
 
         return repository.save(groupParticipant);
     }
@@ -111,5 +137,29 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
     @Override
     public Boolean isParticipant(User user, Group group) {
         return repository.existsByGroup_GroupIdAndUser_UserId(group.getGroupId(), user.getUserId());
+    }
+
+    @Override
+    public List<GroupParticipantResponse> getGroupParticipantByAction(Long groupId, GroupParticipantAction action) {
+        return repository.findAllByGroup_GroupIdAndAction(groupId, action).stream()
+                .map(mapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public GroupParticipantResponse updateAction(Long groupParticipantId, GroupParticipantAction action) {
+        GroupParticipant participant = getGroupParticipant(groupParticipantId);
+        Group group = participant.getGroup();
+        User user = participant.getUser();
+
+        if(repository.existsByGroup_GroupIdAndUser_UserIdAndRole(group.getGroupId(), user.getUserId(), GroupRole.LEADER)) {
+            throw new BusinessException("Bạn không phải là trưởng nhóm");
+        }
+
+        participant.setAction(action);
+        participant = repository.save(participant);
+
+        return mapper.toResponse(participant);
     }
 }

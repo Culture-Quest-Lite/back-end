@@ -6,8 +6,11 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
+import org.sep490.backend.common.utils.SecurityUtils;
+import org.sep490.backend.common.utils.ShareTokenUtils;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.content.dto.request.FinalizeCustomRouteRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequestV2;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
@@ -22,6 +25,7 @@ import org.sep490.backend.module.content.mapper.HotspotMapper;
 import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.content.mapper.RouteMapper;
 import org.sep490.backend.module.content.mapper.StoryMapper;
+import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
@@ -38,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -49,6 +54,7 @@ public class RouteServiceImpl implements RouteService {
     RouteRepository routeRepository;
     RouteMapper routeMapper;
     StoryRepository storyRepository;
+    HotspotRepository hotspotRepository;
     HotspotService hotspotService;
     UserService userService;
     MediaService mediaService;
@@ -317,6 +323,10 @@ public class RouteServiceImpl implements RouteService {
         User user = userService.getCurrentUser();
         Route route = findRecordingCustomRouteByUserId(user.getUserId());
 
+        if(route.getStories().size() < 4) {
+            throw new BusinessException("Hành trình cá nhân phải có ít nhất 4 điểm dừng (Hotspot)");
+        }
+
         route.setStatus(RouteStatus.DRAFT); // wait for user to finalize their custom route
         route = routeRepository.save(route);
 
@@ -365,9 +375,9 @@ public class RouteServiceImpl implements RouteService {
 
     @Override
     @Transactional
-    public RouteResponse finalizeCustomRoute(Long routeId) {
+    public RouteResponse finalizeCustomRoute(FinalizeCustomRouteRequest request) {
 
-        Route route = getById(routeId);
+        Route route = getById(request.getRouteId());
         User user = userService.getCurrentUser();
 
         if(!route.getStatus().equals(RouteStatus.DRAFT)) {
@@ -382,7 +392,8 @@ public class RouteServiceImpl implements RouteService {
             throw new BusinessException("Người dùng chỉ được hoàn thành hành trình cá nhân của mình");
         }
 
-        route.setStatus(RouteStatus.TRIAL);
+        route.setStatus(RouteStatus.PUBLISHED);
+        route.setDescription(request.getDescription());
         route = routeRepository.save(route);
 
         return buildRouteResponse(route, route.getStories());
@@ -409,6 +420,28 @@ public class RouteServiceImpl implements RouteService {
         return routes.stream()
                 .map(route -> buildRouteResponse(route, route.getStories()))
                 .toList();
+    }
+
+    @Override
+    public String generateInviteLink(Long routeId) {
+        String keyCloakId = SecurityUtils.getCurrentUserKeyCloakId()
+                .orElseThrow(() -> new BusinessException("Người dùng chưa đăng nhập"));
+
+        User user = userService.getCurrentUser();
+        Route route = getById(routeId);
+
+        if(!route.getCreatedBy().equals(user)) {
+            throw new BusinessException("Người dùng chỉ có thể tạo link mời cho hành trình cá nhân của mình");
+        }
+
+        String code = ShareTokenUtils.generateToken(route.getRouteId());
+        String path = "/api/v1/route-participants/join/" + code;
+
+        route.setShareToken(code);
+        route.setShareExpiredAt(LocalDateTime.now().plusDays(30));
+        routeRepository.save(route);
+
+        return path;
     }
 
     private List<Story> processRouteStories(Route route, List<Long> hotspotIds) {
@@ -463,7 +496,22 @@ public class RouteServiceImpl implements RouteService {
             return new ArrayList<>();
         }
 
-        List<Story> stories = storyRepository.findAllByStoryIdIn(storyIds);
+        List<Story> stories = storyRepository.findAllById(storyIds);
+        List<Long> hotspotIds = new ArrayList<>();
+        for (int i = 0; i < stories.size(); i++) {
+            hotspotIds.add(stories.get(i).getHotspot().getHotspotId());
+        }
+        List<Hotspot> hotspots = hotspotRepository.findAllById(hotspotIds);
+
+        long uniqueHotspotCount = hotspots.stream()
+                .map(Hotspot::getHotspotId)
+                .distinct()
+                .count();
+
+        if(uniqueHotspotCount < hotspots.size()) {
+            throw new BusinessException("KHông thể chọn 2 Câu chuyện trong cùng 1 địa điểm");
+        }
+
         // update index
         for (int i = 0; i < storyIds.size(); i++) {
             Story story = stories.get(i);
@@ -625,19 +673,24 @@ public class RouteServiceImpl implements RouteService {
             }
         }
 
-        // create new story, user have to edit later for publish
-        Story storyToAdd = Story.builder()
+        // create story for purely connect between route and hotspot
+        Story story = Story.builder()
                 .tag(route.getTag())
                 .hotspot(hotspot)
                 .route(route)
                 .createdBy(user)
+                .orderIndex(null)
+                .distanceToNext(null)
                 .title("Câu chuyện cho hành trình cá nhân của " + user.getDisplayName())
-                .content("Đây là câu chuyện mặc định cho điểm dừng " + hotspot.getHotspotName() + " trong hành trình cá nhân của bạn. Hãy chỉnh sửa nội dung này để tạo trải nghiệm thú vị hơn cho người dùng.")
+                .content(null)
+                .audioScript(null)
+                .medias(null)
                 .status(ContentStatus.DRAFT)
                 .build();
 
+        storyRepository.save(story);
         // update story and route fields
-        calculateIndexAndDistance(route, hotspot, stories, storyToAdd);
+        // calculateIndexAndDistance(route, hotspot, stories, storyToAdd);
     }
 
     private void calculateIndexAndDistance(Route route, Hotspot hotspot, List<Story> stories, Story storyToAdd) {

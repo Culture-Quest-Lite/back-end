@@ -81,9 +81,10 @@ public class PostController {
     @GetMapping("/my-posts")
     public ResponseEntity<Slice<PostResponse>> getMyPosts(
             @ParameterObject @PageableDefault(size = 10, sort = "createdAt",
-            direction = Sort.Direction.DESC) Pageable pageable
+            direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) PostStatus status
     ) {
-        Slice<PostResponse> responses = postService.getMyPosts(pageable);
+        Slice<PostResponse> responses = postService.getMyPosts(pageable, status);
         return ResponseEntity.ok(responses);
     }
 
@@ -98,9 +99,8 @@ public class PostController {
     }
 
     @PostMapping("/{id}/like")
-    public ResponseEntity<String> toggleLikePost(@PathVariable Long id) {
-        postService.toggleLikePost(id);
-        return ResponseEntity.ok("Toggled like successfully");
+    public ResponseEntity<PostResponse> toggleLikePost(@PathVariable Long id) {
+        return ResponseEntity.ok(postService.toggleLikePost(id));
     }
 
     @PostMapping("/{id}/comment")

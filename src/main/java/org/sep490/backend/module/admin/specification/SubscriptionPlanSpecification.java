@@ -3,6 +3,7 @@ package org.sep490.backend.module.admin.specification;
 import jakarta.persistence.criteria.Predicate;
 import lombok.NoArgsConstructor;
 import org.sep490.backend.module.admin.entity.SubscriptionPlan;
+import org.sep490.backend.module.admin.entity.enumeration.PlanType;
 import org.sep490.backend.module.admin.entity.enumeration.SubscriptionPlanStatus;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
@@ -13,7 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 public class SubscriptionPlanSpecification {
 
-    public static Specification<SubscriptionPlan> filter(String search, SubscriptionPlanStatus status) {
+    public static Specification<SubscriptionPlan> filter(String search, SubscriptionPlanStatus status, PlanType planType) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -31,6 +32,10 @@ public class SubscriptionPlanSpecification {
                 predicates.add(cb.equal(root.get("status"), status));
             } else {
                 predicates.add(cb.notEqual(root.get("status"), SubscriptionPlanStatus.DELETED));
+            }
+
+            if (planType != null) {
+                predicates.add(cb.equal(root.get("planType"), planType));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

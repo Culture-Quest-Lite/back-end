@@ -1,7 +1,9 @@
 package org.sep490.backend.module.content.repository;
 
+import org.sep490.backend.module.content.dto.projection.TagStoryCountProjection;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
+import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.exploration.dto.projection.HotspotCheckInProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -13,13 +15,19 @@ import java.util.List;
 
 public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecificationExecutor<Story> {
 
-    Collection<Story> findByHotspot_HotspotId(Long hotspotId);
+    List<Story> findByHotspot_HotspotIdAndStatus(Long hotspotId, ContentStatus status);
 
     Integer countByHotspot_HotspotId(Long hotspotId);
 
     List<Story> findByRoute_RouteIdOrderByOrderIndexAsc(Long routeId);
 
     List<Story> findByRoute_RouteId(Long routeId);
+
+    List<Story> findByRoute_RouteIdAndStatus(Long routeId, ContentStatus status);
+
+    List<Story> findByRoute_RouteIdAndHotspot_HotspotIdAndStatus(Long routeId, Long hotspotId, ContentStatus status);
+
+    List<Story> findByStatus(ContentStatus status);
 
     void deleteByRoute_RouteId(Long routeId);
 
@@ -77,4 +85,18 @@ public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecific
     List<Long> findTagIdsByRouteId(@Param("routeId") Long routeId);
 
     List<Story> findAllByStoryIdIn(List<Long> storyIds);
+
+    long countByTag_TagIdAndStatusNot(Long tagId, ContentStatus status);
+
+    @Query("SELECT COUNT(DISTINCT s.hotspot.hotspotId) FROM Story s " +
+            "WHERE s.tag.tagId = :tagId AND s.status <> :excludedStatus")
+    long countDistinctHotspotsByTagId(@Param("tagId") Long tagId,
+                                      @Param("excludedStatus") ContentStatus excludedStatus);
+
+    @Query("SELECT s.tag.tagId AS tagId, COUNT(s) AS storyCount, " +
+            "COUNT(DISTINCT s.hotspot.hotspotId) AS hotspotCount FROM Story s " +
+            "WHERE s.tag.tagId IN :tagIds AND s.status <> :excludedStatus " +
+            "GROUP BY s.tag.tagId")
+    List<TagStoryCountProjection> countStoriesAndHotspotsByTagIds(@Param("tagIds") List<Long> tagIds,
+                                                                  @Param("excludedStatus") ContentStatus excludedStatus);
 }

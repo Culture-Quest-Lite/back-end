@@ -1,9 +1,11 @@
 package org.sep490.backend.module.exploration.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.exploration.dto.filter.RouteParticipantFilter;
+import org.sep490.backend.module.exploration.dto.request.StartGroupQuestRoute;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantDetailResponse;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantResponse;
 import org.sep490.backend.module.exploration.service.inter.RouteParticipantService;
@@ -23,6 +25,7 @@ public class RouteParticipantController {
     RouteParticipantService routeParticipantService;
 
     @PostMapping("/start/{id}")
+    @Operation(summary = "Start route progress for a participant", description = "Input id is routeId")
     public ResponseEntity<RouteParticipantResponse> start(@PathVariable("id") Long routeId) {
         HashMap<Integer, RouteParticipantResponse> response = routeParticipantService.startRouteProgress(routeId);
         return response.containsKey(201)
@@ -31,12 +34,14 @@ public class RouteParticipantController {
     }
 
     @PutMapping("/abandon/{id}")
+    @Operation(summary = "Abandon route progress for a participant", description = "Input id is routeId")
     public ResponseEntity<RouteParticipantResponse> abandon(@PathVariable("id") Long routeId) {
         RouteParticipantResponse response = routeParticipantService.abandonRouteProgress(routeId);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping
+    @Operation(summary = "Get all explorer's route participants with optional filtering")
     public ResponseEntity<Page<RouteParticipantResponse>> getAll(@ModelAttribute RouteParticipantFilter filter) {
         Page<RouteParticipantResponse> response = routeParticipantService.getAll(filter);
         return ResponseEntity.ok(response);
@@ -46,5 +51,19 @@ public class RouteParticipantController {
     public ResponseEntity<RouteParticipantDetailResponse> getById(@PathVariable("id") Long routeParticipantId) {
         RouteParticipantDetailResponse response = routeParticipantService.getRouteProgress(routeParticipantId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/join/{token}")
+    public ResponseEntity<RouteParticipantResponse> join(@PathVariable("token") String token) {
+        HashMap<Integer, RouteParticipantResponse> response = routeParticipantService.joinRouteFromLink(token);
+        return response.containsKey(201)
+                ? ResponseEntity.status(HttpStatus.CREATED).body(response.get(201))
+                : ResponseEntity.ok(response.get(200));
+    }
+
+    @PostMapping("/join/group-quest")
+    public ResponseEntity<Void> startGroupQuest(@RequestBody StartGroupQuestRoute request) {
+        routeParticipantService.startGroupQuest(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

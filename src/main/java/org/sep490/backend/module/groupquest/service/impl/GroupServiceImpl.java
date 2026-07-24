@@ -8,6 +8,7 @@ import org.sep490.backend.common.utils.GroupUtils;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.groupquest.dto.request.GroupRequest;
+import org.sep490.backend.module.groupquest.dto.request.GroupUpdateRequest;
 import org.sep490.backend.module.groupquest.dto.response.GroupParticipantResponse;
 import org.sep490.backend.module.groupquest.dto.response.GroupResponse;
 import org.sep490.backend.module.groupquest.entity.Group;
@@ -15,6 +16,7 @@ import org.sep490.backend.module.groupquest.entity.GroupParticipant;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantAction;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupRole;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupStatus;
+import org.sep490.backend.module.groupquest.entity.enumuration.JoinGroupType;
 import org.sep490.backend.module.groupquest.mapper.GroupMapper;
 import org.sep490.backend.module.groupquest.mapper.GroupParticipantMapper;
 import org.sep490.backend.module.groupquest.repository.GroupParticipantRepository;
@@ -41,6 +43,7 @@ public class GroupServiceImpl implements GroupService {
     GroupParticipantService groupParticipantService;
     GroupMapper groupMapper;
     GroupParticipantMapper groupParticipantMapper;
+    GroupParticipantRepository groupParticipantRepository;
 
     @Override
     @Transactional
@@ -75,11 +78,12 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
-    public GroupResponse updateGroup(Long groupId, GroupRequest request) {
+    public GroupResponse updateGroup(Long groupId, GroupUpdateRequest request) {
 
         Group group = getGroup(groupId);
 
         group.setGroupName(request.getGroupName());
+        group.setRequiredApproval(request.getRequiredApproval());
 
         groupRepository.save(group);
 
@@ -141,7 +145,7 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
-    public GroupResponse joinGroup(String shareToken) {
+    public GroupResponse joinGroup(String shareToken) { // join through link
 
         isLoggedIn("joinGroup");
 
@@ -154,7 +158,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Token đã hết hạn");
         }
 
-        groupParticipantService.addUserToGroup(user, group);
+        groupParticipantService.addUserToGroup(user, group, JoinGroupType.LINK);
 
         group.setTotalMembers(group.getTotalMembers() + 1);
         groupRepository.save(group);
@@ -165,13 +169,21 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
-    public GroupResponse addUserToGroup(Long userId, Long groupId) {
+    public GroupResponse addUserToGroup(Long userId, Long groupId) { // leader add
 
         isLoggedIn("addUserToGroup");
 
         Group group = getGroup(groupId);
         User currentUser = userService.getCurrentUser();
         User addUser = userService.getUserById(userId);
+
+        if(!currentUser.equals(group.getCreatedBy())) {
+            throw new BusinessException("Chỉ có trưởng nhóm mới có thể add thành viên");
+        }
+
+        if(!currentUser.getUserId().equals(addUser.getUserId())) {
+            throw new BusinessException("Không thể add chính mình vào nhóm");
+        }
 
         boolean isFollowed = userFollowRepository.existsByFollowerAndFollowing(currentUser, addUser)
                 && userFollowRepository.existsByFollowerAndFollowing(addUser, currentUser);
@@ -180,7 +192,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Cả 2 phải theo dõi nhau để add vào group");
         }
 
-        groupParticipantService.addUserToGroup(addUser, group);
+        groupParticipantService.addUserToGroup(addUser, group, JoinGroupType.ADD);
 
         group.setTotalMembers(group.getTotalMembers() + 1);
         groupRepository.save(group);
@@ -233,14 +245,24 @@ public class GroupServiceImpl implements GroupService {
         return groupMapper.toResponse(group);
     }
 
-
     @Override
     @Transactional(readOnly = true)
-    public List<GroupParticipantResponse> getGroupParticipants(Long groupId) {
+    public List<GroupParticipantResponse> getGroupParticipantsByAction(Long groupId, GroupParticipantAction action) {
 
-        return groupParticipantService.getGroupParticipants(groupId).stream()
-                .map(groupParticipantMapper::toResponse)
-                .toList();
+        User user = userService.getCurrentUser();
+
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId(groupId, user.getUserId())) {
+            throw new BusinessException("Người dùng không phải là thành viên của nhóm");
+        }
+
+        if(action == null) {
+            return groupParticipantService.getGroupParticipants(groupId).stream()
+                    .filter(gp -> gp.getAction() == GroupParticipantAction.JOIN)
+                    .map(groupParticipantMapper::toResponse)
+                    .toList();
+        } else {
+            return groupParticipantService.getGroupParticipantByAction(groupId, action);
+        }
     }
 
     @Override
@@ -251,9 +273,9 @@ public class GroupServiceImpl implements GroupService {
         User user = userService.getCurrentUser();
         Group group = getGroup(groupId);
 
-        if(!group.getCreatedBy().equals(user)) {
-            throw new BusinessException("Chỉ có trưởng nhóm mới có thể tạo mới invite code");
-        }
+//        if(!group.getCreatedBy().equals(user)) {
+//            throw new BusinessException("Chỉ có trưởng nhóm mới có thể tạo mới invite code");
+//        }
 
         String shareToken = GroupUtils.generateToken(group.getGroupId());
         LocalDateTime expireTime = LocalDateTime.now().plusDays(1); // expired after 24 hours
@@ -263,6 +285,12 @@ public class GroupServiceImpl implements GroupService {
         groupRepository.save(group);
 
         return groupMapper.toResponse(group);
+    }
+
+    @Override
+    @Transactional
+    public GroupParticipantResponse updateGroupParticipantAction(Long groupParticipantId, GroupParticipantAction action) {
+        return groupParticipantService.updateAction(groupParticipantId, action);
     }
 
 

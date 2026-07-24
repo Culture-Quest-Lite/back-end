@@ -9,6 +9,8 @@ import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.springframework.beans.factory.annotation.Value;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.module.admin.entity.enumeration.AuditAction;
+import org.sep490.backend.module.admin.service.AuditLogService;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
@@ -45,6 +47,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -60,6 +63,7 @@ public class PostServiceImpl implements PostService {
     UserService userService;
     RewardTransactionService rewardTransactionService;
     MediaService mediaService;
+    AuditLogService auditLogService;
 
     @NonFinal
     @Value("${app.points.create-post:20}")
@@ -106,7 +110,7 @@ public class PostServiceImpl implements PostService {
 
         post = postRepository.saveAndFlush(post);
 
-        PostResponse response = postMapper.toResponse(post);
+        PostResponse response = toResponseWithLiked(post, user.getUserId());
         if (request.getFiles() != null && request.getFiles().length > 0) {
             try {
                 List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
@@ -122,9 +126,10 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public Slice<PostResponse> getPosts(PostStatus status, int page, int size) {
+        User currentUser = userService.getCurrentUser();
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Slice<Post> postSlice = postRepository.findByStatusOptional(status, pageable);
-        return postSlice.map(postMapper::toResponse);
+        return postSlice.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
@@ -133,7 +138,8 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
 
-        return postMapper.toResponse(post);
+        User currentUser = userService.getCurrentUser();
+        return toResponseWithLiked(post, currentUser.getUserId());
     }
 
     @Override
@@ -158,7 +164,7 @@ public class PostServiceImpl implements PostService {
         }
 
         Post updatedPost = postRepository.save(post);
-        return postMapper.toResponse(updatedPost);
+        return toResponseWithLiked(updatedPost, user.getUserId());
     }
 
     @Override
@@ -197,7 +203,7 @@ public class PostServiceImpl implements PostService {
         Pageable pageable = PageRequest.of(page, size);
         PostStatus status = PostStatus.APPROVED;
         Slice<Post> newsfeedSlice = postRepository.findNewsfeed(currentUser, status, pageable);
-        return newsfeedSlice.map(postMapper::toResponse);
+        return newsfeedSlice.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
@@ -253,26 +259,33 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại hoặc đã bị xóa"));
 
+        PostStatus oldStatus = post.getStatus();
         post.setStatus(PostStatus.DELETED);
         post.setReason(request.getReason());
         Post savedPost = postRepository.save(post);
+
+        auditLogService.log(AuditAction.BAN_POST, "posts", String.valueOf(id),
+                Map.of("status", oldStatus),
+                Map.of("status", PostStatus.DELETED, "reason", String.valueOf(request.getReason())));
+
         return postMapper.toResponse(savedPost);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<PostResponse> getMyPosts(Pageable pageable) {
+    public Slice<PostResponse> getMyPosts(Pageable pageable, PostStatus status) {
         User currentUser = userService.getCurrentUser();
-        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), PostStatus.APPROVED,
+        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), status,
                 pageable);
-        return posts.map(postMapper::toResponse);
+        return posts.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
     @Transactional(readOnly = true)
     public Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable) {
+        User currentUser = userService.getCurrentUser();
         Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(userId, PostStatus.APPROVED, pageable);
-        return posts.map(postMapper::toResponse);
+        return posts.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
@@ -281,13 +294,14 @@ public class PostServiceImpl implements PostService {
         if (!hotspotRepository.existsById(hotspotId)) {
             throw new BusinessException("Địa điểm không tồn tại với ID: " + hotspotId);
         }
+        User currentUser = userService.getCurrentUser();
         Slice<Post> posts = postRepository.findByHotspotIdAndStatus(hotspotId, PostStatus.APPROVED, pageable);
-        return posts.map(postMapper::toResponse);
+        return posts.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
     @Transactional
-    public void toggleLikePost(Long id) {
+    public PostResponse toggleLikePost(Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
         User currentUser = userService.getCurrentUser();
@@ -296,15 +310,21 @@ public class PostServiceImpl implements PostService {
                 id, currentUser.getUserId(), PostActionType.LIKE);
 
         if (existingLike.isPresent()) {
-            postActionRepository.delete(existingLike.get());
+            Long likeActionId = existingLike.get().getPostActionId();
+            post.getPostActions().removeIf(action -> likeActionId.equals(action.getPostActionId()));
+            post.setIsLiked(false);
         } else {
             PostAction likeAction = PostAction.builder()
                     .post(post)
                     .user(currentUser)
                     .actionType(PostActionType.LIKE)
                     .build();
-            postActionRepository.save(likeAction);
+            post.getPostActions().add(likeAction);
+            post.setIsLiked(true);
         }
+        postRepository.save(post);
+
+        return toResponseWithLiked(post, currentUser.getUserId());
     }
 
     @Override
@@ -331,7 +351,7 @@ public class PostServiceImpl implements PostService {
 
         postActionRepository.save(commentActionBuilder.build());
         post = postRepository.findById(id).orElse(post);
-        return postMapper.toResponse(post);
+        return toResponseWithLiked(post, currentUser.getUserId());
     }
 
     @Override
@@ -361,7 +381,7 @@ public class PostServiceImpl implements PostService {
                 .build();
 
         Post savedPost = postRepository.save(sharedPost);
-        return postMapper.toResponse(savedPost);
+        return toResponseWithLiked(savedPost, currentUser.getUserId());
     }
 
     @Override
@@ -376,6 +396,21 @@ public class PostServiceImpl implements PostService {
                 .findByPost_PostIdAndActionTypeAndParentActionIsNullOrderByCreatedAtAsc(id, PostActionType.COMMENT, pageable);
 
         return rootComments.map(this::mapToCommentResponse);
+    }
+
+    private PostResponse toResponseWithLiked(Post post, Long currentUserId) {
+        PostResponse response = postMapper.toResponse(post);
+        response.setIsLiked(isLikedBy(post, currentUserId));
+        if (response.getSharedPost() != null && post.getSharedPost() != null) {
+            response.getSharedPost().setIsLiked(isLikedBy(post.getSharedPost(), currentUserId));
+        }
+        return response;
+    }
+
+    private boolean isLikedBy(Post post, Long userId) {
+        return post.getPostActions() != null && post.getPostActions().stream()
+                .anyMatch(a -> a.getActionType() == PostActionType.LIKE
+                        && a.getUser().getUserId().equals(userId));
     }
 
     private CommentResponse mapToCommentResponse(PostAction action) {

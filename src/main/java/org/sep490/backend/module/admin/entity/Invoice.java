@@ -8,6 +8,7 @@ import org.sep490.backend.module.admin.entity.enumeration.BillingCycleEnum;
 import org.sep490.backend.module.admin.entity.enumeration.InvoicePaymentStatus;
 import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
 import org.sep490.backend.module.admin.entity.enumeration.PaymentGateway;
+import org.sep490.backend.module.authentication.entity.User;
 
 import java.time.LocalDateTime;
 
@@ -26,8 +27,12 @@ public class Invoice {
     Long invoiceId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "partner_info_id", nullable = false)
+    @JoinColumn(name = "partner_info_id")
     PartnerInfo partnerInfo;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subscription_plan_id", nullable = false)
