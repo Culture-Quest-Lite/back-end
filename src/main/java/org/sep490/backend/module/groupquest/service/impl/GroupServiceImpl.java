@@ -8,6 +8,7 @@ import org.sep490.backend.common.utils.GroupUtils;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.groupquest.dto.request.GroupRequest;
+import org.sep490.backend.module.groupquest.dto.request.GroupUpdateRequest;
 import org.sep490.backend.module.groupquest.dto.response.GroupParticipantResponse;
 import org.sep490.backend.module.groupquest.dto.response.GroupResponse;
 import org.sep490.backend.module.groupquest.entity.Group;
@@ -42,6 +43,7 @@ public class GroupServiceImpl implements GroupService {
     GroupParticipantService groupParticipantService;
     GroupMapper groupMapper;
     GroupParticipantMapper groupParticipantMapper;
+    GroupParticipantRepository groupParticipantRepository;
 
     @Override
     @Transactional
@@ -76,11 +78,12 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
-    public GroupResponse updateGroup(Long groupId, GroupRequest request) {
+    public GroupResponse updateGroup(Long groupId, GroupUpdateRequest request) {
 
         Group group = getGroup(groupId);
 
         group.setGroupName(request.getGroupName());
+        group.setRequiredApproval(request.getRequiredApproval());
 
         groupRepository.save(group);
 
@@ -242,15 +245,24 @@ public class GroupServiceImpl implements GroupService {
         return groupMapper.toResponse(group);
     }
 
-
     @Override
     @Transactional(readOnly = true)
-    public List<GroupParticipantResponse> getGroupParticipants(Long groupId) {
+    public List<GroupParticipantResponse> getGroupParticipantsByAction(Long groupId, GroupParticipantAction action) {
 
-        return groupParticipantService.getGroupParticipants(groupId).stream()
-                .filter(gp -> gp.getAction() == GroupParticipantAction.JOIN)
-                .map(groupParticipantMapper::toResponse)
-                .toList();
+        User user = userService.getCurrentUser();
+
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId(groupId, user.getUserId())) {
+            throw new BusinessException("Người dùng không phải là thành viên của nhóm");
+        }
+
+        if(action == null) {
+            return groupParticipantService.getGroupParticipants(groupId).stream()
+                    .filter(gp -> gp.getAction() == GroupParticipantAction.JOIN)
+                    .map(groupParticipantMapper::toResponse)
+                    .toList();
+        } else {
+            return groupParticipantService.getGroupParticipantByAction(groupId, action);
+        }
     }
 
     @Override
@@ -273,6 +285,12 @@ public class GroupServiceImpl implements GroupService {
         groupRepository.save(group);
 
         return groupMapper.toResponse(group);
+    }
+
+    @Override
+    @Transactional
+    public GroupParticipantResponse updateGroupParticipantAction(Long groupParticipantId, GroupParticipantAction action) {
+        return groupParticipantService.updateAction(groupParticipantId, action);
     }
 
 

@@ -1,6 +1,7 @@
 package org.sep490.backend.module.groupquest.service.inter;
 
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.groupquest.dto.response.GroupParticipantResponse;
 import org.sep490.backend.module.groupquest.entity.Group;
 import org.sep490.backend.module.groupquest.entity.GroupParticipant;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantAction;
@@ -19,4 +20,6 @@ GroupParticipantService {
     List<GroupParticipant> getGroupParticipants(Long groupId);
     Boolean isLeader(User user, Group group);
     Boolean isParticipant(User user, Group group);
+    List<GroupParticipantResponse> getGroupParticipantByAction(Long groupId, GroupParticipantAction action);
+    GroupParticipantResponse updateAction(Long groupParticipantId, GroupParticipantAction action);
 }

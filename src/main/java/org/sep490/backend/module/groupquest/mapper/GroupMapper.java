@@ -12,5 +12,6 @@ import org.sep490.backend.module.groupquest.entity.Group;
 )
 public interface GroupMapper {
     @Mapping(target = "createdBy", source = "createdBy.userId")
+    @Mapping(target = "inviteLink", expression = "java(group.getShareToken() != null ? \"https://api.culturequestlite.com/api/v1/groups/join/\" + group.getShareToken() : null)")
     GroupResponse toResponse(Group group);
 }
