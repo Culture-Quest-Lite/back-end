@@ -151,9 +151,9 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
     public GroupParticipantResponse updateAction(Long groupParticipantId, GroupParticipantAction action) {
         GroupParticipant participant = getGroupParticipant(groupParticipantId);
         Group group = participant.getGroup();
-        User user = participant.getUser();
+        User user = userService.getCurrentUser();
 
-        if(repository.existsByGroup_GroupIdAndUser_UserIdAndRole(group.getGroupId(), user.getUserId(), GroupRole.LEADER)) {
+        if(!repository.existsByGroup_GroupIdAndUser_UserIdAndRole(group.getGroupId(), user.getUserId(), GroupRole.LEADER)) {
             throw new BusinessException("Bạn không phải là trưởng nhóm");
         }
 
