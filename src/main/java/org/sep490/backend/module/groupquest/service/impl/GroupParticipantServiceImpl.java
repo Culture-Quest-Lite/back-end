@@ -14,6 +14,7 @@ import org.sep490.backend.module.groupquest.entity.enumuration.GroupStatus;
 import org.sep490.backend.module.groupquest.entity.enumuration.JoinGroupType;
 import org.sep490.backend.module.groupquest.mapper.GroupParticipantMapper;
 import org.sep490.backend.module.groupquest.repository.GroupParticipantRepository;
+import org.sep490.backend.module.groupquest.repository.GroupRepository;
 import org.sep490.backend.module.groupquest.service.inter.GroupParticipantService;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 public class GroupParticipantServiceImpl implements GroupParticipantService {
 
     GroupParticipantRepository repository;
+    GroupRepository groupRepository;
     UserService userService;
     GroupParticipantMapper mapper;
 
@@ -62,6 +64,11 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
                 groupParticipant.setRole(GroupRole.MEMBER);
                 groupParticipant.setStatus(GroupStatus.ACTIVE);
             }
+        }
+
+        if(action.equals(GroupParticipantAction.JOIN)) {
+            group.setTotalMembers(group.getTotalMembers() + 1);
+            groupRepository.save(group);
         }
 
         return repository.save(groupParticipant);
@@ -159,6 +166,11 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
 
         participant.setAction(action);
         participant = repository.save(participant);
+
+        if(action.equals(GroupParticipantAction.JOIN)) {
+            group.setTotalMembers(group.getTotalMembers() + 1);
+            groupRepository.save(group);
+        }
 
         return mapper.toResponse(participant);
     }

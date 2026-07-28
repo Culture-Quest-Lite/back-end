@@ -154,14 +154,22 @@ public class GroupServiceImpl implements GroupService {
         Long groupId = tokenInfo.groupId();
         Group group = getGroup(groupId);
 
+        if(!group.getStatus().equals(GroupStatus.ACTIVE)) {
+            throw new BusinessException("Explorer không thể tham gia nhóm");
+        }
+
+        if(!group.getShareToken().equals(shareToken)){
+            throw new BusinessException("Token không hợp lệ");
+        }
+
         if(LocalDateTime.now().isAfter(group.getExpireAt())) {
             throw new BusinessException("Token đã hết hạn");
         }
 
         groupParticipantService.addUserToGroup(user, group, JoinGroupType.LINK);
 
-        group.setTotalMembers(group.getTotalMembers() + 1);
-        groupRepository.save(group);
+//        group.setTotalMembers(group.getTotalMembers() + 1);
+//        groupRepository.save(group);
 
         return groupMapper.toResponse(group);
     }
@@ -194,8 +202,8 @@ public class GroupServiceImpl implements GroupService {
 
         groupParticipantService.addUserToGroup(addUser, group, JoinGroupType.ADD);
 
-        group.setTotalMembers(group.getTotalMembers() + 1);
-        groupRepository.save(group);
+//        group.setTotalMembers(group.getTotalMembers() + 1);
+//        groupRepository.save(group);
 
         return groupMapper.toResponse(group);
     }
@@ -270,7 +278,7 @@ public class GroupServiceImpl implements GroupService {
 
         isLoggedIn("refreshSharedToken");
 
-        User user = userService.getCurrentUser();
+//        User user = userService.getCurrentUser();
         Group group = getGroup(groupId);
 
 //        if(!group.getCreatedBy().equals(user)) {
@@ -279,6 +287,10 @@ public class GroupServiceImpl implements GroupService {
 
         String shareToken = GroupUtils.generateToken(group.getGroupId());
         LocalDateTime expireTime = LocalDateTime.now().plusDays(1); // expired after 24 hours
+
+        if(shareToken.equals(group.getShareToken())) {
+            throw new BusinessException("Gặp lỗi khi generate lại token. Hãy thử lại");
+        }
 
         group.setExpireAt(expireTime);
         group.setShareToken(shareToken);
