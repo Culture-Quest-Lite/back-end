@@ -54,7 +54,7 @@ public class GroupServiceImpl implements GroupService {
         User user = userService.getCurrentUser();
         Group group = Group.builder()
                 .createdBy(user)
-                .groupName(request.getGroupName())
+                .groupName(request.getGroupName().trim())
                 .totalMembers(1)
                 .shareToken(null)
                 .expireAt(null)
