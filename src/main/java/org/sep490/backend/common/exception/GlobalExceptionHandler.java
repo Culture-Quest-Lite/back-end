@@ -1,8 +1,10 @@
 package org.sep490.backend.common.exception;
 
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -12,6 +14,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.beans.PropertyEditorSupport;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -60,6 +63,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleException(Exception ex) {
         log.error("Unhandled exception: ", ex);
         return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Đã xảy ra lỗi hệ thống");
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> handleHttpMessageNotReadableException(HttpMessageNotReadableException ex) {
+
+        String errorMessage = "Định dạng JSON trong request body không hợp lệ.";
+
+        if (ex.getCause() instanceof MismatchedInputException mismatchedInputEx) {
+
+            if (!mismatchedInputEx.getPath().isEmpty()) {
+                String fieldName = mismatchedInputEx.getPath().get(0).getFieldName();
+                errorMessage = "Dữ liệu truyền vào trường '" + fieldName + "' bị sai kiểu dữ liệu. Phải là kiều (String).";
+            }
+        }
+
+        Map<String, String> errorResponse = new HashMap<>();
+        errorResponse.put("error", "Bad Request");
+        errorResponse.put("message", errorMessage);
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
     protected ResponseEntity<ApiErrorResponse> errorResponse(HttpStatus status, String code, String message) {

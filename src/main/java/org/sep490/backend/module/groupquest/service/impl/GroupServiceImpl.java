@@ -54,7 +54,7 @@ public class GroupServiceImpl implements GroupService {
         User user = userService.getCurrentUser();
         Group group = Group.builder()
                 .createdBy(user)
-                .groupName(request.getGroupName())
+                .groupName(request.getGroupName().trim())
                 .totalMembers(1)
                 .shareToken(null)
                 .expireAt(null)
@@ -72,7 +72,8 @@ public class GroupServiceImpl implements GroupService {
 
         groupParticipantService.addLeaderToGroup(user, group);
 
-        return groupMapper.toResponse(group);
+        Long leaderId = getLeaderFromGroup(group.getGroupId());
+        return groupMapper.toResponse(group, leaderId);
     }
 
 
@@ -87,7 +88,8 @@ public class GroupServiceImpl implements GroupService {
 
         groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        Long leaderId = getLeaderFromGroup(groupId);
+        return groupMapper.toResponse(group, leaderId);
     }
 
 
@@ -102,7 +104,8 @@ public class GroupServiceImpl implements GroupService {
         groupRepository.save(group);
         // implement update GP.action to dismiss
 
-        return groupMapper.toResponse(group);
+        Long leaderId = getLeaderFromGroup(groupId);
+        return groupMapper.toResponse(group, leaderId);
     }
 
 
@@ -119,7 +122,7 @@ public class GroupServiceImpl implements GroupService {
                 .toList();
 
         return groups.stream()
-                .map(groupMapper::toResponse)
+                .map(group -> groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId())))
                 .collect(Collectors.toList());
     }
 
@@ -130,7 +133,7 @@ public class GroupServiceImpl implements GroupService {
 
         Group group = getGroup(groupId);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(groupId));
     }
 
 
@@ -154,16 +157,24 @@ public class GroupServiceImpl implements GroupService {
         Long groupId = tokenInfo.groupId();
         Group group = getGroup(groupId);
 
+        if(!group.getStatus().equals(GroupStatus.ACTIVE)) {
+            throw new BusinessException("Explorer không thể tham gia nhóm");
+        }
+
+        if(!group.getShareToken().equals(shareToken)){
+            throw new BusinessException("Token không hợp lệ");
+        }
+
         if(LocalDateTime.now().isAfter(group.getExpireAt())) {
             throw new BusinessException("Token đã hết hạn");
         }
 
         groupParticipantService.addUserToGroup(user, group, JoinGroupType.LINK);
 
-        group.setTotalMembers(group.getTotalMembers() + 1);
-        groupRepository.save(group);
+//        group.setTotalMembers(group.getTotalMembers() + 1);
+//        groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
     }
 
 
@@ -194,10 +205,10 @@ public class GroupServiceImpl implements GroupService {
 
         groupParticipantService.addUserToGroup(addUser, group, JoinGroupType.ADD);
 
-        group.setTotalMembers(group.getTotalMembers() + 1);
-        groupRepository.save(group);
+//        group.setTotalMembers(group.getTotalMembers() + 1);
+//        groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
     }
 
 
@@ -220,7 +231,7 @@ public class GroupServiceImpl implements GroupService {
         group.setTotalMembers(group.getTotalMembers() - 1);
         groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
     }
 
 
@@ -242,7 +253,7 @@ public class GroupServiceImpl implements GroupService {
         group.setTotalMembers(group.getTotalMembers() - 1);
         groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
     }
 
     @Override
@@ -273,18 +284,22 @@ public class GroupServiceImpl implements GroupService {
         User user = userService.getCurrentUser();
         Group group = getGroup(groupId);
 
-//        if(!group.getCreatedBy().equals(user)) {
-//            throw new BusinessException("Chỉ có trưởng nhóm mới có thể tạo mới invite code");
-//        }
+        if(!group.getCreatedBy().equals(user)) {
+            throw new BusinessException("Chỉ có trưởng nhóm mới có thể tạo mới invite code");
+        }
 
         String shareToken = GroupUtils.generateToken(group.getGroupId());
         LocalDateTime expireTime = LocalDateTime.now().plusDays(1); // expired after 24 hours
+
+        if(shareToken.equals(group.getShareToken())) {
+            throw new BusinessException("Gặp lỗi khi generate lại token. Hãy thử lại");
+        }
 
         group.setExpireAt(expireTime);
         group.setShareToken(shareToken);
         groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
     }
 
     @Override
@@ -300,5 +315,10 @@ public class GroupServiceImpl implements GroupService {
         if (!isLoggedIn) {
             throw new BusinessException("Người dùng chưa đăng nhập: " + methodName);
         }
+    }
+
+    private Long getLeaderFromGroup(Long groupId) {
+        GroupParticipant gp = groupParticipantRepository.findByGroup_GroupIdAndRole(groupId, GroupRole.LEADER);
+        return gp != null ? gp.getUser().getUserId() : null;
     }
 }
