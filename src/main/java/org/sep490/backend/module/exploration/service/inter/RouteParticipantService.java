@@ -10,7 +10,8 @@ import org.springframework.data.domain.Page;
 import java.util.HashMap;
 
 public interface RouteParticipantService {
-    HashMap<Integer, RouteParticipantResponse> startRouteProgress(Long routeId);
+    HashMap<Integer, RouteParticipantResponse>
+    startRouteProgress(Long routeId);
     RouteParticipantResponse abandonRouteProgress(Long routeId);
     Page<RouteParticipantResponse> getAll(RouteParticipantFilter filter);
     RouteParticipantDetailResponse getRouteProgress(Long progressId);

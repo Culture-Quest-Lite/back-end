@@ -190,9 +190,6 @@ public class UserServiceImpl implements UserService {
     public void lockUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
-        if (user.getStatus() == UserStatus.DELETED) {
-            throw new BusinessException("Tài khoản đã bị xóa khỏi hệ thống");
-        }
         if (user.getStatus() == UserStatus.INACTIVE) {
             throw new BusinessException("Tài khoản này đã bị khóa từ trước");
         }
@@ -218,9 +215,6 @@ public class UserServiceImpl implements UserService {
     public void unlockUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
-        if (user.getStatus() == UserStatus.DELETED) {
-            throw new BusinessException("Tài khoản đã bị xóa khỏi hệ thống");
-        }
         if (user.getStatus() == UserStatus.ACTIVE) {
             throw new BusinessException("Tài khoản này hiện đang hoạt động bình thường, không cần mở khóa");
         }
@@ -240,9 +234,6 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
 
-        if (user.getStatus() == UserStatus.DELETED) {
-            throw new BusinessException("Tài khoản đã bị xóa khỏi hệ thống");
-        }
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessException("Tài khoản người dùng này hiện đang bị khóa hoặc chưa được kích hoạt");
         }

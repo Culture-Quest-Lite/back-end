@@ -163,7 +163,7 @@ public class AuthServiceImpl implements AuthService {
         if (!hasAllowedRole) {
             log.warn("Login denied for user '{}': no allowed role found in realm_access.roles = {}",
                     request.getUsername(), roles);
-            throw new BusinessException("Tài khoản không có quyền truy cập cửa hàng này");
+            throw new BusinessException("Tài khoản không có quyền truy cập");
         }
 
         enforceWebRoleAccess(roles, clientType, tokenResponse);
