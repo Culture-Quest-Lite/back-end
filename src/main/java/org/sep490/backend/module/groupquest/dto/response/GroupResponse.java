@@ -20,4 +20,5 @@ public class GroupResponse {
     String inviteLink;
     Boolean requiredApproval;
     String groupName;
+    Long leaderId;
 }

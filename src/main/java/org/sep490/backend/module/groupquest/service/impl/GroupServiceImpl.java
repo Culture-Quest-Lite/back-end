@@ -72,7 +72,8 @@ public class GroupServiceImpl implements GroupService {
 
         groupParticipantService.addLeaderToGroup(user, group);
 
-        return groupMapper.toResponse(group);
+        Long leaderId = getLeaderFromGroup(group.getGroupId());
+        return groupMapper.toResponse(group, leaderId);
     }
 
 
@@ -87,7 +88,8 @@ public class GroupServiceImpl implements GroupService {
 
         groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        Long leaderId = getLeaderFromGroup(groupId);
+        return groupMapper.toResponse(group, leaderId);
     }
 
 
@@ -102,7 +104,8 @@ public class GroupServiceImpl implements GroupService {
         groupRepository.save(group);
         // implement update GP.action to dismiss
 
-        return groupMapper.toResponse(group);
+        Long leaderId = getLeaderFromGroup(groupId);
+        return groupMapper.toResponse(group, leaderId);
     }
 
 
@@ -119,7 +122,7 @@ public class GroupServiceImpl implements GroupService {
                 .toList();
 
         return groups.stream()
-                .map(groupMapper::toResponse)
+                .map(group -> groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId())))
                 .collect(Collectors.toList());
     }
 
@@ -130,7 +133,7 @@ public class GroupServiceImpl implements GroupService {
 
         Group group = getGroup(groupId);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(groupId));
     }
 
 
@@ -171,7 +174,7 @@ public class GroupServiceImpl implements GroupService {
 //        group.setTotalMembers(group.getTotalMembers() + 1);
 //        groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
     }
 
 
@@ -205,7 +208,7 @@ public class GroupServiceImpl implements GroupService {
 //        group.setTotalMembers(group.getTotalMembers() + 1);
 //        groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
     }
 
 
@@ -228,7 +231,7 @@ public class GroupServiceImpl implements GroupService {
         group.setTotalMembers(group.getTotalMembers() - 1);
         groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
     }
 
 
@@ -250,7 +253,7 @@ public class GroupServiceImpl implements GroupService {
         group.setTotalMembers(group.getTotalMembers() - 1);
         groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
     }
 
     @Override
@@ -296,7 +299,7 @@ public class GroupServiceImpl implements GroupService {
         group.setShareToken(shareToken);
         groupRepository.save(group);
 
-        return groupMapper.toResponse(group);
+        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
     }
 
     @Override
@@ -312,5 +315,10 @@ public class GroupServiceImpl implements GroupService {
         if (!isLoggedIn) {
             throw new BusinessException("Người dùng chưa đăng nhập: " + methodName);
         }
+    }
+
+    private Long getLeaderFromGroup(Long groupId) {
+        GroupParticipant gp = groupParticipantRepository.findByGroup_GroupIdAndRole(groupId, GroupRole.LEADER);
+        return gp != null ? gp.getUser().getUserId() : null;
     }
 }
