@@ -11,7 +11,8 @@ import org.sep490.backend.module.groupquest.entity.Group;
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface GroupMapper {
-    @Mapping(target = "createdBy", source = "createdBy.userId")
+    @Mapping(target = "createdBy", source = "group.createdBy.userId")
     @Mapping(target = "inviteLink", expression = "java(group.getShareToken() != null ? \"https://api.culturequestlite.com/api/v1/groups/join/\" + group.getShareToken() : null)")
-    GroupResponse toResponse(Group group);
+    @Mapping(target = "leaderId", source = "leaderId")
+    GroupResponse toResponse(Group group, Long leaderId);
 }

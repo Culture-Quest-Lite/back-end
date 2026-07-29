@@ -222,7 +222,7 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
     public HashMap<Integer, RouteParticipantResponse> joinRouteFromLink(String token) {
         Long routeId = ShareTokenUtils.parseToken(token).id();
         HashMap<Integer, RouteParticipantResponse> result = startRouteProgress(routeId);
-        return null;
+        return result;
     }
 
     @Override
