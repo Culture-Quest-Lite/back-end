@@ -66,12 +66,13 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
             }
         }
 
-        if(action.equals(GroupParticipantAction.JOIN)) {
-            group.setTotalMembers(group.getTotalMembers() + 1);
-            groupRepository.save(group);
-        }
+        groupParticipant = repository.save(groupParticipant);
 
-        return repository.save(groupParticipant);
+        group.setTotalMembers(countMember(group.getGroupId()));
+        groupRepository.save(group);
+
+
+        return groupParticipant;
     }
 
     @Override
@@ -167,11 +168,14 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
         participant.setAction(action);
         participant = repository.save(participant);
 
-        if(action.equals(GroupParticipantAction.JOIN)) {
-            group.setTotalMembers(group.getTotalMembers() + 1);
-            groupRepository.save(group);
-        }
+        group.setTotalMembers(countMember(group.getGroupId()));
+        groupRepository.save(group);
+
 
         return mapper.toResponse(participant);
+    }
+
+    private Integer countMember(long groupId) {
+        return repository.findAllByGroup_GroupIdAndAction(groupId, GroupParticipantAction.JOIN).size();
     }
 }

@@ -231,7 +231,7 @@ public class GroupServiceImpl implements GroupService {
 
         groupParticipantService.updateAction(member, group, GroupParticipantAction.KICKED);
 
-        group.setTotalMembers(group.getTotalMembers() - 1);
+        group.setTotalMembers(countMember(group.getGroupId()));
         groupRepository.save(group);
 
         return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
@@ -253,7 +253,7 @@ public class GroupServiceImpl implements GroupService {
 
         groupParticipantService.updateAction(user, group, GroupParticipantAction.KICKED);
 
-        group.setTotalMembers(group.getTotalMembers() - 1);
+        group.setTotalMembers(countMember(group.getGroupId()));
         groupRepository.save(group);
 
         return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
@@ -323,5 +323,9 @@ public class GroupServiceImpl implements GroupService {
     private Long getLeaderFromGroup(Long groupId) {
         GroupParticipant gp = groupParticipantRepository.findByGroup_GroupIdAndRole(groupId, GroupRole.LEADER);
         return gp != null ? gp.getUser().getUserId() : null;
+    }
+
+    private Integer countMember(long groupId) {
+        return groupParticipantRepository.findAllByGroup_GroupIdAndAction(groupId, GroupParticipantAction.JOIN).size();
     }
 }
