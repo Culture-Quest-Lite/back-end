@@ -45,6 +45,10 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
             throw new BusinessException("Người dùng đã là thành viên của nhóm");
         }
 
+        if(repository.existsByGroup_GroupIdAndUser_UserId_AndAction(group.getGroupId(), user.getUserId(), GroupParticipantAction.PENDING)) {
+            throw new BusinessException("Người dùng đã gửi yêu cầu tham gia nhóm. Hãy đợi trưởng nhóm duyệt");
+        }
+
         if(group.getRequiredApproval() && type.equals(JoinGroupType.LINK)) {
             action = GroupParticipantAction.PENDING;
         } else {
