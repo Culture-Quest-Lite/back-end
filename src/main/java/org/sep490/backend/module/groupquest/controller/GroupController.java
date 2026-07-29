@@ -1,9 +1,9 @@
 package org.sep490.backend.module.groupquest.controller;
 
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.sep490.backend.module.exploration.dto.request.StartGroupQuestRoute;
 import org.sep490.backend.module.groupquest.dto.request.GroupRequest;
 import org.sep490.backend.module.groupquest.dto.request.GroupUpdateRequest;
 import org.sep490.backend.module.groupquest.dto.response.GroupParticipantResponse;
@@ -25,7 +25,7 @@ public class GroupController {
     GroupService groupService;
 
     @PostMapping
-    public ResponseEntity<GroupResponse> createGroup(@RequestBody GroupRequest groupRequest) {
+    public ResponseEntity<GroupResponse> createGroup(@RequestBody @Valid GroupRequest groupRequest) {
         GroupResponse groupResponse = groupService.createGroup(groupRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(groupResponse);
     }
@@ -80,7 +80,7 @@ public class GroupController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<GroupResponse> updateGroup(@PathVariable("id") Long groupId, @RequestBody GroupUpdateRequest groupRequest) {
+    public ResponseEntity<GroupResponse> updateGroup(@PathVariable("id") Long groupId, @RequestBody @Valid GroupUpdateRequest groupRequest) {
         GroupResponse groupResponse = groupService.updateGroup(groupId, groupRequest);
         return ResponseEntity.ok(groupResponse);
     }
