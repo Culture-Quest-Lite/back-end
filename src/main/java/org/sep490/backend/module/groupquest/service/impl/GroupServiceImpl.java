@@ -84,7 +84,10 @@ public class GroupServiceImpl implements GroupService {
         Group group = getGroup(groupId);
 
         group.setGroupName(request.getGroupName());
-        group.setRequiredApproval(request.getRequiredApproval());
+
+        if(request.getRequiredApproval() != null) {
+            group.setRequiredApproval(request.getRequiredApproval());
+        }
 
         groupRepository.save(group);
 
