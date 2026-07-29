@@ -219,7 +219,7 @@ public class GroupServiceImpl implements GroupService {
             throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể add thành viên");
         }
 
-        if(!currentUser.getUserId().equals(addUser.getUserId())) {
+        if(currentUser.getUserId().equals(addUser.getUserId())) {
             throw new BusinessException("Không thể add chính mình vào nhóm");
         }
 
@@ -289,11 +289,13 @@ public class GroupServiceImpl implements GroupService {
 
         User user = userService.getCurrentUser();
 
-        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId(groupId, user.getUserId())) {
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
             throw new GroupAuthorizeException("Người dùng không phải là thành viên của nhóm");
         }
 
-        if(action == null) {
+        boolean isLeader = groupParticipantRepository.existsByGroup_GroupIdAndUser_UserIdAndRole(groupId, user.getUserId(), GroupRole.LEADER);
+
+        if(action == null || !isLeader) {
             return groupParticipantService.getGroupParticipants(groupId).stream()
                     .filter(gp -> gp.getAction() == GroupParticipantAction.JOIN)
                     .map(groupParticipantMapper::toResponse)
