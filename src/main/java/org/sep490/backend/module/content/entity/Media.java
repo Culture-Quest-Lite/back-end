@@ -50,6 +50,10 @@ public class Media {
     @JoinColumn(name = "route_id")
     Route route;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "review_id")
+    Review review;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type")
     MediaType mediaType;
