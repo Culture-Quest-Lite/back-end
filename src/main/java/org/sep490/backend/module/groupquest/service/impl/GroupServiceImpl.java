@@ -134,6 +134,12 @@ public class GroupServiceImpl implements GroupService {
     @Transactional(readOnly = true)
     public GroupResponse getDetails(Long groupId) {
 
+        User user = userService.getCurrentUser();
+
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
+            throw new BusinessException("Bạn không phải là thành viên của nhóm");
+        }
+
         Group group = getGroup(groupId);
 
         return groupMapper.toResponse(group, getLeaderFromGroup(groupId));
