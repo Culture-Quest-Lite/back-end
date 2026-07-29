@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.exception.GroupAuthorizeException;
 import org.sep490.backend.common.utils.GroupUtils;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
@@ -25,6 +26,7 @@ import org.sep490.backend.module.groupquest.service.inter.GroupParticipantServic
 import org.sep490.backend.module.groupquest.service.inter.GroupService;
 import org.sep490.backend.module.user.repository.UserFollowRepository;
 import org.sep490.backend.module.user.service.UserService;
+import org.springframework.security.access.AuthorizationServiceException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -81,6 +83,12 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse updateGroup(Long groupId, GroupUpdateRequest request) {
 
+        User user = userService.getCurrentUser();
+
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserIdAndRole(groupId, user.getUserId(), GroupRole.LEADER)) {
+            throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể update thông tin nhóm");
+        }
+
         Group group = getGroup(groupId);
 
         group.setGroupName(request.getGroupName());
@@ -99,6 +107,12 @@ public class GroupServiceImpl implements GroupService {
     @Override
     @Transactional
     public GroupResponse deleteGroup(Long groupId) {
+
+        User user = userService.getCurrentUser();
+
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserIdAndRole(groupId, user.getUserId(), GroupRole.LEADER)) {
+            throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể xóa nhóm");
+        }
 
         Group group = getGroup(groupId);
 
@@ -137,7 +151,7 @@ public class GroupServiceImpl implements GroupService {
         User user = userService.getCurrentUser();
 
         if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
-            throw new BusinessException("Bạn không phải là thành viên của nhóm");
+            throw new GroupAuthorizeException("Bạn không phải là thành viên của nhóm");
         }
 
         Group group = getGroup(groupId);
@@ -202,10 +216,10 @@ public class GroupServiceImpl implements GroupService {
         }
 
         if(!currentUser.equals(group.getCreatedBy())) {
-            throw new BusinessException("Chỉ có trưởng nhóm mới có thể add thành viên");
+            throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể add thành viên");
         }
 
-        if(!currentUser.getUserId().equals(addUser.getUserId())) {
+        if(currentUser.getUserId().equals(addUser.getUserId())) {
             throw new BusinessException("Không thể add chính mình vào nhóm");
         }
 
@@ -236,7 +250,7 @@ public class GroupServiceImpl implements GroupService {
         User member = userService.getUserById(userId);
 
         if(!groupParticipantService.isLeader(leader, group)) {
-            throw new BusinessException("Chỉ có trưởng nhóm mới có thể kick thành viên");
+            throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể kick thành viên");
         }
 
         groupParticipantService.updateAction(member, group, GroupParticipantAction.KICKED);
@@ -258,7 +272,7 @@ public class GroupServiceImpl implements GroupService {
         User user = userService.getCurrentUser();
 
         if(!groupParticipantService.isParticipant(user, group)) {
-            throw new BusinessException("Người dùng không phải là thành viên của nhóm");
+            throw new GroupAuthorizeException("Người dùng không phải là thành viên của nhóm");
         }
 
         groupParticipantService.updateAction(user, group, GroupParticipantAction.KICKED);
@@ -275,11 +289,13 @@ public class GroupServiceImpl implements GroupService {
 
         User user = userService.getCurrentUser();
 
-        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId(groupId, user.getUserId())) {
-            throw new BusinessException("Người dùng không phải là thành viên của nhóm");
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
+            throw new GroupAuthorizeException("Người dùng không phải là thành viên của nhóm");
         }
 
-        if(action == null) {
+        boolean isLeader = groupParticipantRepository.existsByGroup_GroupIdAndUser_UserIdAndRole(groupId, user.getUserId(), GroupRole.LEADER);
+
+        if(action == null || !isLeader) {
             return groupParticipantService.getGroupParticipants(groupId).stream()
                     .filter(gp -> gp.getAction() == GroupParticipantAction.JOIN)
                     .map(groupParticipantMapper::toResponse)
@@ -298,7 +314,7 @@ public class GroupServiceImpl implements GroupService {
         Group group = getGroup(groupId);
 
         if(!group.getCreatedBy().equals(user)) {
-            throw new BusinessException("Chỉ có trưởng nhóm mới có thể tạo mới invite code");
+            throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể tạo mới invite code");
         }
 
         String shareToken = GroupUtils.generateToken(group.getGroupId());
