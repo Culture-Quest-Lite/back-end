@@ -191,6 +191,10 @@ public class GroupServiceImpl implements GroupService {
         User currentUser = userService.getCurrentUser();
         User addUser = userService.getUserById(userId);
 
+        if(!group.getStatus().equals(GroupStatus.ACTIVE)) {
+            throw new BusinessException("Không thể add thành viên khi nhóm đã bị xóa");
+        }
+
         if(!currentUser.equals(group.getCreatedBy())) {
             throw new BusinessException("Chỉ có trưởng nhóm mới có thể add thành viên");
         }
