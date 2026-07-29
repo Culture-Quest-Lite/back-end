@@ -85,6 +85,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
+    @ExceptionHandler(GroupAuthorizeException.class)
+    public ResponseEntity<ApiErrorResponse> handleGroupAuthorizeException(GroupAuthorizeException ex) {
+        return errorResponse(ex.getStatus(), ex.getErrorCode(), ex.getMessage());
+    }
+
     protected ResponseEntity<ApiErrorResponse> errorResponse(HttpStatus status, String code, String message) {
         return ResponseEntity.status(status).body(ApiErrorResponse.of(status.value(), code, message));
     }
