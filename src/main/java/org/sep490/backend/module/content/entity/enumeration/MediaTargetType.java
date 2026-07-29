@@ -6,6 +6,7 @@ public enum MediaTargetType {
     POST,
     PARTNER_SUBSCRIPTION,
     VOUCHER,
-    ROUTE
+    ROUTE,
+    REVIEW
 }
 
