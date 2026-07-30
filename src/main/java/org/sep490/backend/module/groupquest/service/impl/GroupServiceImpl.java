@@ -360,11 +360,11 @@ public class GroupServiceImpl implements GroupService {
 
     private List<User> validateListMember(Long leaderId, List<Long> memberIds, String groupName) {
 
-        if(memberIds == null || memberIds.isEmpty()) {
-            throw new BusinessException("Bạn cần ít nhất 1 thành viên để tạo nhóm");
-        }
-
         List<Long> valid = userFollowRepository.findMutualFollowerIds(leaderId, memberIds);
+
+        if(valid == null || valid.isEmpty() || valid.size() < 2) {
+            throw new BusinessException("Bạn cần ít nhất 3 thành viên follow nhau để tạo nhóm");
+        }
 
 //          để show notification cho leader khi tạo nhóm
         List<Long> invalid = new ArrayList<>(memberIds);
