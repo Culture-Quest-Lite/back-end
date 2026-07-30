@@ -362,8 +362,8 @@ public class GroupServiceImpl implements GroupService {
 
         List<Long> valid = userFollowRepository.findMutualFollowerIds(leaderId, memberIds);
 
-        if(valid == null || valid.isEmpty() || valid.size() < 2) {
-            throw new BusinessException("Bạn cần ít nhất 3 thành viên follow nhau để tạo nhóm");
+        if(valid == null || valid.isEmpty() || valid.size() < 1) {
+            throw new BusinessException("Bạn cần ít nhất 2 thành viên follow nhau để tạo nhóm");
         }
 
 //          để show notification cho leader khi tạo nhóm
