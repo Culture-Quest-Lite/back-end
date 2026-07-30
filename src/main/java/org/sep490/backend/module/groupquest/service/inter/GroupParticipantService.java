@@ -12,6 +12,7 @@ import java.util.List;
 public interface
 GroupParticipantService {
     GroupParticipant addUserToGroup(User user, Group group, JoinGroupType type);
+    List<GroupParticipant> addUsersToGroup(List<User> users, Group group);
     GroupParticipant addLeaderToGroup(User user, Group group);
     GroupParticipant updateAction(User user, Group group, GroupParticipantAction action);
     GroupParticipant getGroupParticipant(Long groupId, Long userId);
