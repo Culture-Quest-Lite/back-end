@@ -24,13 +24,15 @@ import org.sep490.backend.module.groupquest.repository.GroupParticipantRepositor
 import org.sep490.backend.module.groupquest.repository.GroupRepository;
 import org.sep490.backend.module.groupquest.service.inter.GroupParticipantService;
 import org.sep490.backend.module.groupquest.service.inter.GroupService;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.FcmService;
 import org.sep490.backend.module.user.repository.UserFollowRepository;
 import org.sep490.backend.module.user.service.UserService;
-import org.springframework.security.access.AuthorizationServiceException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -46,6 +48,7 @@ public class GroupServiceImpl implements GroupService {
     GroupMapper groupMapper;
     GroupParticipantMapper groupParticipantMapper;
     GroupParticipantRepository groupParticipantRepository;
+    FcmService fcmService;
 
     @Override
     @Transactional
@@ -54,10 +57,12 @@ public class GroupServiceImpl implements GroupService {
         isLoggedIn("createGroup");
 
         User user = userService.getCurrentUser();
+        List<User> members = validateListMember(user.getUserId(), request.getUserIds(), request.getGroupName());
+
         Group group = Group.builder()
                 .createdBy(user)
                 .groupName(request.getGroupName().trim())
-                .totalMembers(1)
+                .totalMembers(members.size() + 1)
                 .shareToken(null)
                 .expireAt(null)
                 .status(GroupStatus.ACTIVE)
@@ -73,6 +78,7 @@ public class GroupServiceImpl implements GroupService {
         groupRepository.save(group);
 
         groupParticipantService.addLeaderToGroup(user, group);
+        groupParticipantService.addUsersToGroup(members, group);
 
         Long leaderId = getLeaderFromGroup(group.getGroupId());
         return groupMapper.toResponse(group, leaderId);
@@ -223,10 +229,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Không thể add chính mình vào nhóm");
         }
 
-        boolean isFollowed = userFollowRepository.existsByFollowerAndFollowing(currentUser, addUser)
-                && userFollowRepository.existsByFollowerAndFollowing(addUser, currentUser);
-
-        if(!isFollowed) {
+        if (!validateFollowEachOther(currentUser, addUser)) {
             throw new BusinessException("Cả 2 phải theo dõi nhau để add vào group");
         }
 
@@ -353,5 +356,45 @@ public class GroupServiceImpl implements GroupService {
 
     private Integer countMember(long groupId) {
         return groupParticipantRepository.findAllByGroup_GroupIdAndAction(groupId, GroupParticipantAction.JOIN).size();
+    }
+
+    private List<User> validateListMember(Long leaderId, List<Long> memberIds, String groupName) {
+
+        if(memberIds == null || memberIds.isEmpty()) {
+            throw new BusinessException("Bạn cần ít nhất 1 thành viên để tạo nhóm");
+        }
+
+        List<Long> valid = userFollowRepository.findMutualFollowerIds(leaderId, memberIds);
+
+//          để show notification cho leader khi tạo nhóm
+        List<Long> invalid = new ArrayList<>(memberIds);
+        invalid.removeAll(valid);
+        if(!invalid.isEmpty()) {
+            pushNotiForInvalidMember(leaderId, invalid, groupName);
+        }
+
+        List<User> members = userService.getUsersByIds(valid);
+
+        return members;
+    }
+
+    private boolean validateFollowEachOther(User followingUser, User followerUser) {
+        return userFollowRepository.existsByFollowerAndFollowing(followerUser, followingUser)
+                && userFollowRepository.existsByFollowerAndFollowing(followingUser, followerUser);
+    }
+
+    private void pushNotiForInvalidMember(Long leaderId, List<Long> invalidIds, String groupName) {
+        User leader = userService.getUserById(leaderId);
+        List<String> invalidUsername = userService.getUsersByIds(invalidIds).stream().map(User::getUsername).toList();
+        StringBuilder stringBuilder = new StringBuilder();
+        invalidUsername.forEach(username -> stringBuilder.append(username).append(", "));
+
+        fcmService.sendPushNotification(
+                leader.getFcmToken(),
+                "Không thể add " + invalidIds.size() + " thành viên vào nhóm " + groupName,
+                "Những người dùng sau không theo dõi bạn hoặc bạn không theo dõi họ: " + stringBuilder.toString() + "vì vậy không thể add vào nhóm",
+                NotificationType.GROUP,
+                leaderId
+        );
     }
 }

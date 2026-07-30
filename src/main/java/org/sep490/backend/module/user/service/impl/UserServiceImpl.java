@@ -292,6 +292,11 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
     }
 
+    @Override
+    public List<User> getUsersByIds(List<Long> ids) {
+        return userRepository.findAllById(ids);
+    }
+
     //Tài khoản PENDING (hoặc dữ liệu lệch với Keycloak) có thể không còn tồn tại bên Keycloak.
     //Khi đó vẫn cho phép admin khóa/mở khóa trong hệ thống thay vì chặn toàn bộ thao tác.
     private void syncKeycloakEnabledStatus(User user, boolean enabled, String actionLabel) {
