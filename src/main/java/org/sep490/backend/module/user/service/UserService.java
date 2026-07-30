@@ -24,4 +24,5 @@ public interface UserService {
     void updateUserRole(Long userId, UserRole role);
     User getCurrentUser();
     User getUserById(Long id);
+    List<User> getUsersByIds(List<Long> ids);
 }

@@ -20,6 +20,7 @@ import org.sep490.backend.module.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -77,6 +78,23 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
 
 
         return groupParticipant;
+    }
+
+    @Override
+    @Transactional
+    public List<GroupParticipant> addUsersToGroup(List<User> users, Group group) {
+        List<GroupParticipant> gps = new ArrayList<>();
+        for (User user : users) {
+            GroupParticipant groupParticipant = GroupParticipant.builder()
+                    .user(user)
+                    .group(group)
+                    .role(GroupRole.MEMBER)
+                    .action(GroupParticipantAction.JOIN)
+                    .status(GroupStatus.ACTIVE)
+                    .build();
+            gps.add(groupParticipant);
+        }
+        return repository.saveAll(gps);
     }
 
     @Override
