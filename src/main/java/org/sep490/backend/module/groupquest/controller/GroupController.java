@@ -89,4 +89,10 @@ public class GroupController {
     public ResponseEntity<GroupParticipantResponse> updateParticipantStatus(@PathVariable("participantId") Long gpId, @RequestParam GroupParticipantAction action) {
         return ResponseEntity.ok(groupService.updateGroupParticipantAction(gpId, action));
     }
+
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<GroupResponse> deleteGroup(@PathVariable("id") Long groupId) {
+        GroupResponse groupResponse = groupService.deleteGroup(groupId);
+        return ResponseEntity.ok(groupResponse);
+    }
 }

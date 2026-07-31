@@ -97,6 +97,10 @@ public class GroupServiceImpl implements GroupService {
 
         Group group = getGroup(groupId);
 
+        if(group.getStatus().equals(GroupStatus.DELETED)) {
+            throw new BusinessException("Nhóm đã bị xóa");
+        }
+
         group.setGroupName(request.getGroupName());
 
         if(request.getRequiredApproval() != null) {
@@ -122,10 +126,25 @@ public class GroupServiceImpl implements GroupService {
 
         Group group = getGroup(groupId);
 
-        group.setStatus(GroupStatus.DELETED);
+        if(group.getStatus().equals(GroupStatus.DELETED)) {
+            throw new BusinessException("Nhóm đã bị xóa");
+        }
 
+        group.setStatus(GroupStatus.DELETED);
         groupRepository.save(group);
+
         // implement update GP.action to dismiss
+        List<GroupParticipant> gps = groupParticipantService.getGroupParticipants(groupId);
+
+        for(GroupParticipant gp : gps) {
+            if(gp.getAction().equals(GroupParticipantAction.JOIN) || gp.getAction().equals(GroupParticipantAction.PENDING)) {
+                gp.setAction(GroupParticipantAction.DISMISSED);
+                gp.setStatus(GroupStatus.DELETED);
+            }
+        }
+
+        groupParticipantRepository.saveAll(gps);
+
 
         Long leaderId = getLeaderFromGroup(groupId);
         return groupMapper.toResponse(group, leaderId);
@@ -154,13 +173,17 @@ public class GroupServiceImpl implements GroupService {
     @Transactional(readOnly = true)
     public GroupResponse getDetails(Long groupId) {
 
+        Group group = getGroup(groupId);
+
+        if(group.getStatus().equals(GroupStatus.DELETED)) {
+            throw new BusinessException("Nhóm đã bị xóa");
+        }
+
         User user = userService.getCurrentUser();
 
         if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
             throw new GroupAuthorizeException("Bạn không phải là thành viên của nhóm");
         }
-
-        Group group = getGroup(groupId);
 
         return groupMapper.toResponse(group, getLeaderFromGroup(groupId));
     }
@@ -186,8 +209,8 @@ public class GroupServiceImpl implements GroupService {
         Long groupId = tokenInfo.groupId();
         Group group = getGroup(groupId);
 
-        if(!group.getStatus().equals(GroupStatus.ACTIVE)) {
-            throw new BusinessException("Explorer không thể tham gia nhóm");
+        if(group.getStatus().equals(GroupStatus.DELETED)) {
+            throw new BusinessException("Nhóm đã bị xóa");
         }
 
         if(!group.getShareToken().equals(shareToken)){
@@ -217,7 +240,7 @@ public class GroupServiceImpl implements GroupService {
         User currentUser = userService.getCurrentUser();
         User addUser = userService.getUserById(userId);
 
-        if(!group.getStatus().equals(GroupStatus.ACTIVE)) {
+        if(group.getStatus().equals(GroupStatus.DELETED)) {
             throw new BusinessException("Không thể add thành viên khi nhóm đã bị xóa");
         }
 
@@ -252,8 +275,16 @@ public class GroupServiceImpl implements GroupService {
         User leader = userService.getCurrentUser();
         User member = userService.getUserById(userId);
 
+        if(group.getStatus().equals(GroupStatus.DELETED)) {
+            throw new BusinessException("Nhóm đã bị xóa");
+        }
+
         if(!groupParticipantService.isLeader(leader, group)) {
             throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể kick thành viên");
+        }
+
+        if(member.getUserId().equals(leader.getUserId())) {
+            throw new BusinessException("Bạn không thể kick chính mình");
         }
 
         groupParticipantService.updateAction(member, group, GroupParticipantAction.KICKED);
@@ -274,8 +305,16 @@ public class GroupServiceImpl implements GroupService {
         Group group = getGroup(groupId);
         User user = userService.getCurrentUser();
 
+        if(group.getStatus().equals(GroupStatus.DELETED)) {
+            throw new BusinessException("Nhóm đã bị xóa");
+        }
+
         if(!groupParticipantService.isParticipant(user, group)) {
             throw new GroupAuthorizeException("Người dùng không phải là thành viên của nhóm");
+        }
+
+        if(groupParticipantService.isLeader(user, group)) {
+            throw new BusinessException("Trưởng nhóm không thể rời nhóm. Hãy chuyển quyền trưởng nhóm cho người khác trước khi rời nhóm");
         }
 
         groupParticipantService.updateAction(user, group, GroupParticipantAction.KICKED);
@@ -291,6 +330,11 @@ public class GroupServiceImpl implements GroupService {
     public List<GroupParticipantResponse> getGroupParticipantsByAction(Long groupId, GroupParticipantAction action) {
 
         User user = userService.getCurrentUser();
+        Group group = getGroup(groupId);
+
+        if(group.getStatus().equals(GroupStatus.DELETED)) {
+            throw new BusinessException("Nhóm đã bị xóa");
+        }
 
         if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
             throw new GroupAuthorizeException("Người dùng không phải là thành viên của nhóm");
@@ -315,6 +359,10 @@ public class GroupServiceImpl implements GroupService {
 
         User user = userService.getCurrentUser();
         Group group = getGroup(groupId);
+
+        if(group.getStatus().equals(GroupStatus.DELETED)) {
+            throw new BusinessException("Nhóm đã bị xóa");
+        }
 
         if(!group.getCreatedBy().equals(user)) {
             throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể tạo mới invite code");
