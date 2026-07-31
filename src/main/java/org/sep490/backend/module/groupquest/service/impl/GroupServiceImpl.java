@@ -287,6 +287,10 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Bạn không thể kick chính mình");
         }
 
+        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, userId, GroupParticipantAction.KICKED)) {
+            throw new BusinessException("Thành viên này đã bị kick khỏi nhóm");
+        }
+
         groupParticipantService.updateAction(member, group, GroupParticipantAction.KICKED);
 
         group.setTotalMembers(countMember(group.getGroupId()));
@@ -317,7 +321,15 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Trưởng nhóm không thể rời nhóm. Hãy chuyển quyền trưởng nhóm cho người khác trước khi rời nhóm");
         }
 
-        groupParticipantService.updateAction(user, group, GroupParticipantAction.KICKED);
+        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.LEAVE)) {
+            throw new BusinessException("Bạn đã rời nhóm này");
+        }
+
+        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.PENDING)) {
+            throw new BusinessException("Bạn chưa là thành viên để rời nhóm này");
+        }
+
+        groupParticipantService.updateAction(user, group, GroupParticipantAction.LEAVE);
 
         group.setTotalMembers(countMember(group.getGroupId()));
         groupRepository.save(group);
@@ -359,12 +371,13 @@ public class GroupServiceImpl implements GroupService {
 
         User user = userService.getCurrentUser();
         Group group = getGroup(groupId);
+        GroupParticipant leaderGp = groupParticipantRepository.findByGroup_GroupIdAndUser_UserId(groupId, user.getUserId()).orElse(null);
 
         if(group.getStatus().equals(GroupStatus.DELETED)) {
             throw new BusinessException("Nhóm đã bị xóa");
         }
 
-        if(!group.getCreatedBy().equals(user)) {
+        if(leaderGp == null || leaderGp.getRole() != GroupRole.LEADER) {
             throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể tạo mới invite code");
         }
 
