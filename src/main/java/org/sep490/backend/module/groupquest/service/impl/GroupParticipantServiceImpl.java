@@ -4,6 +4,8 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.exception.GroupAuthorizeException;
+import org.sep490.backend.common.exception.GroupConflictException;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.groupquest.dto.response.GroupParticipantResponse;
 import org.sep490.backend.module.groupquest.entity.Group;
@@ -184,7 +186,15 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
         User user = userService.getCurrentUser();
 
         if(!repository.existsByGroup_GroupIdAndUser_UserIdAndRole(group.getGroupId(), user.getUserId(), GroupRole.LEADER)) {
-            throw new BusinessException("Bạn không phải là trưởng nhóm");
+            throw new GroupAuthorizeException("Bạn không phải là trưởng nhóm của nhóm này");
+        }
+
+        if(participant.getAction() == GroupParticipantAction.JOIN && action == GroupParticipantAction.DENIED) {
+            throw new GroupConflictException("Bạn không thể từ chối thành viên đã tham gia nhóm");
+        } else if (participant.getAction() == GroupParticipantAction.DENIED && action == GroupParticipantAction.JOIN) {
+            throw new GroupConflictException("Bạn không thể chấp nhận thành viên đã bị từ chối. Hãy cho thành viên request lại.");
+        } else if (participant.getAction() == GroupParticipantAction.PENDING && action == GroupParticipantAction.KICKED) {
+            throw new GroupConflictException("Bạn không thể kick thành viên đang chờ duyệt. Hãy từ chối yêu cầu của thành viên này.");
         }
 
         participant.setAction(action);
