@@ -5,12 +5,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.service.TransactionCompensationService;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.config.keycloak.KeyCloakTokenResponse;
 import org.sep490.backend.module.authentication.dto.request.ChangePasswordRequest;
@@ -56,6 +58,7 @@ class AuthServiceImplTest {
 
     @Mock private UserRepository userRepository;
     @Mock private KeyCloakAuthClient keyCloakAuthClient;
+    @Mock private TransactionCompensationService txCompensation;
     @Mock private UserMapper userMapper;
     @Mock private JavaMailSender mailSender;
     @Mock private EmailOtpRepository emailOtpRepository;
@@ -426,7 +429,8 @@ class AuthServiceImplTest {
                     () -> authService.register(request));
 
             assertEquals("Không thể tạo user trên Keycloak", ex.getMessage());
-            verify(keyCloakAuthClient, never()).deleteUser(anyString());
+            verify(keyCloakAuthClient, never()).safeDeleteUser(anyString());
+            verify(txCompensation, never()).runOnRollback(anyString(), any(Runnable.class));
         }
 
         // UTCID04 - Abnormal: lỗi sau khi tạo user Keycloak -> rollback user Keycloak
@@ -444,7 +448,34 @@ class AuthServiceImplTest {
                     () -> authService.register(request));
 
             assertTrue(ex.getMessage().startsWith("Đăng ký tài khoản thất bại: "));
-            verify(keyCloakAuthClient).deleteUser("kc-001");
+            verify(keyCloakAuthClient).safeDeleteUser("kc-001");
+            verify(txCompensation).runOnRollback(anyString(), any(Runnable.class));
+        }
+
+        // UTCID04b - Abnormal: lỗi xảy ra lúc commit (ngoài try/catch) -> hook rollback vẫn xóa user Keycloak
+        @Test
+        void register_failureAtCommit_rollbackHookDeletesKeycloakUser() {
+            RegistrationRequest request = registrationRequest();
+            when(userRepository.existsByUsername(anyString())).thenReturn(false);
+            when(userRepository.existsByEmail(anyString())).thenReturn(false);
+            when(keyCloakAuthClient.createUser(anyString(), anyString(), anyString(), anyString(), anyList()))
+                    .thenReturn("kc-001");
+            when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
+            when(userMapper.toEntity(request)).thenReturn(new User());
+            when(levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE))
+                    .thenReturn(Optional.empty());
+            when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(userMapper.toProfileResponse(any(User.class))).thenReturn(mock(UserProfileResponse.class));
+
+            authService.register(request);
+
+            // Method chạy xong bình thường, nhưng transaction có thể rollback lúc commit.
+            // Bắt lại action đã đăng ký và chạy nó -> phải xóa được user Keycloak.
+            ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
+            verify(txCompensation).runOnRollback(anyString(), captor.capture());
+            captor.getValue().run();
+
+            verify(keyCloakAuthClient).safeDeleteUser("kc-001");
         }
 
         // UTCID05 - Normal: đăng ký thành công, tài khoản ở trạng thái PENDING
@@ -473,7 +504,7 @@ class AuthServiceImplTest {
             assertEquals("kc-001", mapped.getKeycloakUserId());
             verify(emailOtpRepository).save(any(EmailOtp.class));
             verify(mailSender).send(any(MimeMessage.class));
-            verify(keyCloakAuthClient, never()).deleteUser(anyString());
+            verify(keyCloakAuthClient, never()).safeDeleteUser(anyString());
         }
     }
 
