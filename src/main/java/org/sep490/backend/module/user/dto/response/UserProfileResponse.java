@@ -32,4 +32,5 @@ public class UserProfileResponse {
     private Long totalFollowers;
     private Long totalFollowing;
     private Long totalPosts;
+    private Boolean isFollowing;
 }

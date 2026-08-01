@@ -14,6 +14,7 @@ import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.social.repository.PostRepository;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
+import org.sep490.backend.module.user.dto.response.FollowStatusResponse;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.entity.UserFollow;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -65,7 +67,7 @@ public class UserServiceImpl implements UserService {
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessException("Tài khoản người dùng này hiện đang bị khóa hoặc chưa được kích hoạt");
         }
-        return enrichProfileResponse(user);
+        return enrichProfileResponse(user, findCurrentUserOrNull());
     }
 
     @Override
@@ -96,7 +98,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void followUser(String currentKeycloakUserId, Long targetUserId) {
+    public FollowStatusResponse followUser(String currentKeycloakUserId, Long targetUserId) {
         User follower = userRepository.findByKeycloakUserId(currentKeycloakUserId)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
         if (follower.getStatus() != UserStatus.ACTIVE) {
@@ -114,27 +116,44 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("Bạn không thể tự theo dõi chính mình");
         }
 
-        if (userFollowRepository.existsByFollowerAndFollowing(follower, following)) {
-            throw new BusinessException("Bạn đã theo dõi người dùng này rồi");
+        //Theo dõi lại người đã theo dõi không phải là lỗi: client chỉ bị lệch state,
+        //trả về trạng thái thật để client đồng bộ lại thay vì ném 400.
+        if (!userFollowRepository.existsByFollowerAndFollowing(follower, following)) {
+            UserFollow userFollow = UserFollow.builder()
+                    .follower(follower)
+                    .following(following)
+                    .build();
+            userFollowRepository.save(userFollow);
         }
 
-        UserFollow userFollow = UserFollow.builder()
-                .follower(follower)
-                .following(following)
-                .build();
-        userFollowRepository.save(userFollow);
+        return buildFollowStatus(following, true, "Theo dõi người dùng thành công");
     }
 
     @Override
     @Transactional
-    public void unfollowUser(String currentKeycloakUserId, Long targetUserId) {
+    public FollowStatusResponse unfollowUser(String currentKeycloakUserId, Long targetUserId) {
         User follower = userRepository.findByKeycloakUserId(currentKeycloakUserId)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+        if (follower.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException("Tài khoản của bạn bị khóa hoặc chưa kích hoạt");
+        }
+
         User following = userRepository.findById(targetUserId)
                 .orElseThrow(() -> new BusinessException("Người dùng cần bỏ theo dõi không tồn tại"));
-        UserFollow userFollow = userFollowRepository.findByFollowerAndFollowing(follower, following)
-                .orElseThrow(() -> new BusinessException("Bạn chưa theo dõi người dùng này"));
-        userFollowRepository.delete(userFollow);
+
+        userFollowRepository.findByFollowerAndFollowing(follower, following)
+                .ifPresent(userFollowRepository::delete);
+
+        return buildFollowStatus(following, false, "Đã hủy theo dõi người dùng");
+    }
+
+    private FollowStatusResponse buildFollowStatus(User target, boolean isFollowing, String message) {
+        return FollowStatusResponse.builder()
+                .userId(target.getUserId())
+                .isFollowing(isFollowing)
+                .totalFollowers(userFollowRepository.countByFollowing(target))
+                .message(message)
+                .build();
     }
 
     @Override
@@ -142,17 +161,16 @@ public class UserServiceImpl implements UserService {
     public List<FollowUserResponse> getFollowers(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
-        return userFollowRepository.findAllByFollowing(user).stream()
-                .map(follow -> {
-                    User f = follow.getFollower();
-                    return FollowUserResponse.builder()
-                            .userId(f.getUserId())
-                            .username(f.getUsername())
-                            .displayName(f.getDisplayName())
-                            .avatarUrl(f.getAvatarUrl())
-                            .levelName(f.getLevel() != null ? f.getLevel().getName() : null)
-                            .build();
-                }).toList();
+        List<User> followers = userFollowRepository.findAllByFollowing(user).stream()
+                .map(UserFollow::getFollower)
+                .toList();
+
+        User viewer = findCurrentUserOrNull();
+        Set<Long> followedIds = findFollowedIds(viewer, followers.stream().map(User::getUserId).toList());
+
+        return followers.stream()
+                .map(f -> toFollowUserResponse(f, viewer, followedIds))
+                .toList();
     }
 
     @Override
@@ -160,17 +178,16 @@ public class UserServiceImpl implements UserService {
     public List<FollowUserResponse> getFollowings(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
-        return userFollowRepository.findAllByFollower(user).stream()
-                .map(follow -> {
-                    User f = follow.getFollowing();
-                    return FollowUserResponse.builder()
-                            .userId(f.getUserId())
-                            .username(f.getUsername())
-                            .displayName(f.getDisplayName())
-                            .avatarUrl(f.getAvatarUrl())
-                            .levelName(f.getLevel() != null ? f.getLevel().getName() : null)
-                            .build();
-                }).toList();
+        List<User> followings = userFollowRepository.findAllByFollower(user).stream()
+                .map(UserFollow::getFollowing)
+                .toList();
+
+        User viewer = findCurrentUserOrNull();
+        Set<Long> followedIds = findFollowedIds(viewer, followings.stream().map(User::getUserId).toList());
+
+        return followings.stream()
+                .map(f -> toFollowUserResponse(f, viewer, followedIds))
+                .toList();
     }
 
     @Override
@@ -329,5 +346,41 @@ public class UserServiceImpl implements UserService {
         response.setTotalFollowing(following);
         response.setTotalPosts(posts);
         return response;
+    }
+
+    //isFollowing chỉ có ý nghĩa khi xem profile người khác, nên không tính trong hàm chung
+    //(getAllUsersWithFilter map cả trang user, tính ở đó sẽ thành N+1).
+    private UserProfileResponse enrichProfileResponse(User user, User viewer) {
+        UserProfileResponse response = enrichProfileResponse(user);
+        if (viewer != null && !viewer.getUserId().equals(user.getUserId())) {
+            response.setIsFollowing(userFollowRepository.existsByFollowerAndFollowing(viewer, user));
+        }
+        return response;
+    }
+
+    //Người xem không resolve được thì để isFollowing null thay vì ném lỗi:
+    //các API profile/danh sách vẫn phải trả dữ liệu bình thường.
+    private User findCurrentUserOrNull() {
+        return SecurityUtils.getCurrentUserKeyCloakId()
+                .flatMap(userRepository::findByKeycloakUserId)
+                .orElse(null);
+    }
+
+    private Set<Long> findFollowedIds(User viewer, List<Long> userIds) {
+        if (viewer == null || userIds.isEmpty()) {
+            return Set.of();
+        }
+        return userFollowRepository.findFollowingIdsByFollowerAndFollowingIdIn(viewer, userIds);
+    }
+
+    private FollowUserResponse toFollowUserResponse(User user, User viewer, Set<Long> followedIds) {
+        return FollowUserResponse.builder()
+                .userId(user.getUserId())
+                .username(user.getUsername())
+                .displayName(user.getDisplayName())
+                .avatarUrl(user.getAvatarUrl())
+                .levelName(user.getLevel() != null ? user.getLevel().getName() : null)
+                .isFollowing(viewer == null ? null : followedIds.contains(user.getUserId()))
+                .build();
     }
 }

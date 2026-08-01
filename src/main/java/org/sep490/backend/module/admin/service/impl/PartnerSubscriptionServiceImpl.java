@@ -8,6 +8,7 @@ import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.service.PayOsInvoicePaymentService;
+import org.sep490.backend.common.service.TransactionCompensationService;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.config.payos.PayOsProperties;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
@@ -37,6 +38,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StreamUtils;
@@ -76,6 +78,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     private final PayOS payOS;
     private final PlanRuleRepository planRuleRepository;
     private final PayOsInvoicePaymentService payOsInvoicePaymentService;
+    private final TransactionCompensationService txCompensation;
     @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
     @NonFinal
     String frontendUrl;
@@ -370,33 +373,73 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
 
     private void createPartnerSubAccount(Invoice invoice) {
         User owner = invoice.getPartnerInfo().getUser();
+        String ownerEmail = owner.getEmail();
+        String ownerName = owner.getDisplayName();
         String shopEmail = invoice.getPartnerInfo().getShopEmail();
 
         String rawPassword = UUID.randomUUID().toString().substring(0, 8);
-        String partnerUsername = "shop_" + owner.getUsername();
+        String partnerUsername = generateUniqueShopUsername(owner.getUsername());
 
+        String keycloakUserId;
         try {
-            String keycloakUserId = keyCloakAuthClient.createUser(
+            keycloakUserId = keyCloakAuthClient.createUser(
                     partnerUsername,
                     shopEmail,
-                    owner.getDisplayName(),
+                    ownerName,
                     rawPassword,
                     List.of("PARTNER"));
+        } catch (Exception e) {
+            log.error("Tạo tài khoản Keycloak cho Partner thất bại (email: {})", shopEmail, e);
+            throw new BusinessException("Lỗi hệ thống khi tạo tài khoản quản lý cho Partner: " + e.getMessage());
+        }
 
+        txCompensation.runOnRollback(
+                "Xóa Keycloak user " + keycloakUserId,
+                () -> keyCloakAuthClient.safeDeleteUser(keycloakUserId));
+
+        try {
             User partnerAccount = User.builder()
                     .keycloakUserId(keycloakUserId)
                     .username(partnerUsername)
                     .email(shopEmail)
-                    .displayName(owner.getDisplayName())
+                    .displayName(ownerName)
                     .status(UserStatus.ACTIVE)
                     .role(UserRole.PARTNER)
                     .build();
             userRepository.save(partnerAccount);
-            sendPartnerCredentialsEmail(owner.getEmail(), shopEmail, partnerUsername, rawPassword,
-                    owner.getDisplayName());
         } catch (Exception e) {
+            log.error("Lưu tài khoản Partner vào DB thất bại (email: {})", shopEmail, e);
             throw new BusinessException("Lỗi hệ thống khi tạo tài khoản quản lý cho Partner: " + e.getMessage());
         }
+
+        txCompensation.runAfterCommit("Gửi email credentials Partner " + ownerEmail, () -> {
+            try {
+                sendPartnerCredentialsEmail(ownerEmail, shopEmail, partnerUsername, rawPassword, ownerName);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private String generateUniqueShopUsername(String ownerUsername) {
+        String base = "shop_" + ownerUsername;
+        if (base.length() > 50) {
+            base = base.substring(0, 50);
+        }
+        if (!userRepository.existsByUsername(base)) {
+            return base;
+        }
+        for (int i = 2; i <= 50; i++) {
+            String suffix = "_" + i;
+            String prefix = base.length() + suffix.length() > 50
+                    ? base.substring(0, 50 - suffix.length())
+                    : base;
+            String candidate = prefix + suffix;
+            if (!userRepository.existsByUsername(candidate)) {
+                return candidate;
+            }
+        }
+        throw new BusinessException("Không thể sinh tên đăng nhập cho tài khoản shop, vui lòng liên hệ quản trị viên");
     }
 
     private void sendPartnerCredentialsEmail(String ownerEmail, String shopEmail, String username, String password,
