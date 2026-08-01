@@ -9,6 +9,7 @@ import org.sep490.backend.module.admin.repository.PartnerInfoRepository;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Media;
+import org.sep490.backend.module.content.entity.Review;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.MediaType;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
@@ -16,6 +17,7 @@ import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.MediaRepository;
+import org.sep490.backend.module.content.repository.ReviewRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.MediaService;
@@ -44,6 +46,7 @@ public class MediaServiceImpl implements MediaService {
     PartnerInfoRepository partnerInfoRepository;
     VoucherRepository voucherRepository;
     RouteRepository routeRepository;
+    ReviewRepository reviewRepository;
     S3Service s3Service;
     MediaMapper mediaMapper;
 
@@ -79,6 +82,8 @@ public class MediaServiceImpl implements MediaService {
                 return mediaRepository.findMaxDisplayOrderByVoucherId(entityId);
             case ROUTE:
                 return mediaRepository.findMaxDisplayOrderByRouteId(entityId);
+            case REVIEW:
+                return mediaRepository.findMaxDisplayOrderByReviewId(entityId);
             default:
                 return 0;
         }
@@ -131,6 +136,11 @@ public class MediaServiceImpl implements MediaService {
                         .orElseThrow(() -> new BusinessException("Route không tồn tại với ID: " + entityId));
                 media.setRoute(route);
                 return "routes";
+            case REVIEW:
+                Review review = reviewRepository.findById(entityId)
+                        .orElseThrow(() -> new BusinessException("Đánh giá không tồn tại với ID: " + entityId));
+                media.setReview(review);
+                return "reviews";
             default:
                 throw new BusinessException("Không hỗ trợ loại thực thể: " + entityType);
         }

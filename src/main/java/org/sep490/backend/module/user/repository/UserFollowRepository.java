@@ -6,8 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface UserFollowRepository extends JpaRepository<UserFollow, Long> {
     boolean existsByFollowerAndFollowing(User follower, User following);
@@ -32,4 +34,8 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, Long> {
             "WHERE uf.following.userId = :userId " +
             "AND EXISTS (SELECT 1 FROM UserFollow uf2 WHERE uf2.follower.userId = :userId AND uf2.following.userId = uf.follower.userId)")
     List<User> findMutualFollowers(@Param("userId") Long userId);
+    @Query("SELECT uf.following.userId FROM UserFollow uf " +
+            "WHERE uf.follower = :follower AND uf.following.userId IN :userIds")
+    Set<Long> findFollowingIdsByFollowerAndFollowingIdIn(@Param("follower") User follower,
+                                                         @Param("userIds") Collection<Long> userIds);
 }

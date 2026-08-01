@@ -111,8 +111,23 @@ public class KeyCloakAuthClient {
         }
 
         String keycloakUserId = extractUserIdFromLocation(location.toString());
-        assignRealmRoles(adminToken, keycloakUserId, realmRoles);
+        try {
+            assignRealmRoles(adminToken, keycloakUserId, realmRoles);
+        } catch (Exception e) {
+            log.error("Gán realm role thất bại cho Keycloak user {}, tiến hành xóa để tránh mồ côi", keycloakUserId, e);
+            safeDeleteUser(keycloakUserId);
+            throw e;
+        }
         return keycloakUserId;
+    }
+
+    public void safeDeleteUser(String keycloakUserId) {
+        try {
+            deleteUser(keycloakUserId);
+            log.info("Đã rollback Keycloak user: {}", keycloakUserId);
+        } catch (Exception e) {
+            log.error("Không thể rollback Keycloak user: {}", keycloakUserId, e);
+        }
     }
 
     public void deleteUser(String keycloakUserId) {
@@ -181,7 +196,13 @@ public class KeyCloakAuthClient {
         }
 
         String keycloakUserId = extractUserIdFromLocation(location.toString());
-        assignRealmRoles(adminToken, keycloakUserId, realmRoles);
+        try {
+            assignRealmRoles(adminToken, keycloakUserId, realmRoles);
+        } catch (Exception e) {
+            log.error("Gán realm role thất bại cho Keycloak user {}", keycloakUserId, e);
+            safeDeleteUser(keycloakUserId);
+            throw e;
+        }
         log.info("Đã tạo xong tài khoản Keycloak cho user: {} (id: {})", username, keycloakUserId);
         return keycloakUserId;
     }

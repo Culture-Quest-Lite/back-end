@@ -9,11 +9,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class FollowUserResponse {
+public class FollowStatusResponse {
     private Long userId;
-    private String username;
-    private String displayName;
-    private String avatarUrl;
-    private String levelName;
     private Boolean isFollowing;
+    private Long totalFollowers;
+    private String message;
 }
