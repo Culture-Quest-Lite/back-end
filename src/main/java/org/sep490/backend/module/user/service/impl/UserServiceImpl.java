@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -295,6 +296,25 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<User> getUsersByIds(List<Long> ids) {
         return userRepository.findAllById(ids);
+    }
+
+    @Override
+    public List<FollowUserResponse> getFriends() {
+
+        User currentUser = getCurrentUser();
+        List<User> mutualFollowers = userFollowRepository.findMutualFollowers(currentUser.getUserId());
+
+        return mutualFollowers.stream()
+                .map(user -> {
+                    return FollowUserResponse.builder()
+                            .userId(user.getUserId())
+                            .username(user.getUsername())
+                            .displayName(user.getDisplayName())
+                            .avatarUrl(user.getAvatarUrl())
+                            .levelName(user.getLevel() != null ? user.getLevel().getName() : null)
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 
     //Tài khoản PENDING (hoặc dữ liệu lệch với Keycloak) có thể không còn tồn tại bên Keycloak.

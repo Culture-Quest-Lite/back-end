@@ -27,4 +27,9 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, Long> {
             "AND uf.follower.userId IN :memberIds " +
             "AND EXISTS (SELECT 1 FROM UserFollow uf2 WHERE uf2.follower.userId = :leaderId AND uf2.following.userId = uf.follower.userId)")
     List<Long> findMutualFollowerIds(@Param("leaderId") Long leaderId, @Param("memberIds") List<Long> memberIds);
+
+    @Query("SELECT uf.follower FROM UserFollow uf " +
+            "WHERE uf.following.userId = :userId " +
+            "AND EXISTS (SELECT 1 FROM UserFollow uf2 WHERE uf2.follower.userId = :userId AND uf2.following.userId = uf.follower.userId)")
+    List<User> findMutualFollowers(@Param("userId") Long userId);
 }

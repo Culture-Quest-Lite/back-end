@@ -124,4 +124,10 @@ public class UserController {
             @Valid @ParameterObject @ModelAttribute VoucherFilter filter) {
         return ResponseEntity.ok(rewardTransactionService.getMyRewardHistory(filter));
     }
+
+    @GetMapping("/mutual-follow")
+    public ResponseEntity<List<FollowUserResponse>> getMutualFollowers() {
+        List<FollowUserResponse> mutualFollowers = userService.getFriends();
+        return ResponseEntity.ok(mutualFollowers);
+    }
 }

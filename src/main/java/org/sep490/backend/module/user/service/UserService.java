@@ -7,6 +7,7 @@ import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 
@@ -25,4 +26,5 @@ public interface UserService {
     User getCurrentUser();
     User getUserById(Long id);
     List<User> getUsersByIds(List<Long> ids);
+    List<FollowUserResponse> getFriends();
 }
