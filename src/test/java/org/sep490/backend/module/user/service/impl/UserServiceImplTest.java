@@ -19,6 +19,7 @@ import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.social.repository.PostRepository;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
+import org.sep490.backend.module.user.dto.response.FollowStatusResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.entity.UserFollow;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
@@ -217,19 +218,21 @@ class UserServiceImplTest {
             assertEquals("Bạn không thể tự theo dõi chính mình", ex.getMessage());
         }
 
-        // UTCID06 - Abnormal: đã theo dõi người này rồi
+        // UTCID06 - Normal: đã theo dõi rồi thì idempotent, trả về trạng thái thật
         @Test
-        void followUser_alreadyFollowing_throwsAlreadyFollowed() {
+        void followUser_alreadyFollowing_returnsFollowingWithoutSaving() {
             User follower = activeUser(1L);
             User target = activeUser(2L);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(follower));
             when(userRepository.findById(2L)).thenReturn(Optional.of(target));
             when(userFollowRepository.existsByFollowerAndFollowing(follower, target)).thenReturn(true);
+            when(userFollowRepository.countByFollowing(target)).thenReturn(3L);
 
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> userService.followUser("kc-001", 2L));
+            FollowStatusResponse response = userService.followUser("kc-001", 2L);
 
-            assertEquals("Bạn đã theo dõi người dùng này rồi", ex.getMessage());
+            assertEquals(2L, response.getUserId());
+            assertTrue(response.getIsFollowing());
+            assertEquals(3L, response.getTotalFollowers());
             verify(userFollowRepository, never()).save(any());
         }
 
@@ -241,10 +244,14 @@ class UserServiceImplTest {
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(follower));
             when(userRepository.findById(2L)).thenReturn(Optional.of(target));
             when(userFollowRepository.existsByFollowerAndFollowing(follower, target)).thenReturn(false);
+            when(userFollowRepository.countByFollowing(target)).thenReturn(1L);
 
-            userService.followUser("kc-001", 2L);
+            FollowStatusResponse response = userService.followUser("kc-001", 2L);
 
             verify(userFollowRepository).save(any(UserFollow.class));
+            assertEquals(2L, response.getUserId());
+            assertTrue(response.getIsFollowing());
+            assertEquals(1L, response.getTotalFollowers());
         }
     }
 
@@ -254,6 +261,13 @@ class UserServiceImplTest {
     @Nested
     @DisplayName("unfollowUser")
     class UnfollowUserTest {
+
+        private User activeUser(Long id) {
+            User user = new User();
+            user.setUserId(id);
+            user.setStatus(UserStatus.ACTIVE);
+            return user;
+        }
 
         // UTCID01 - Abnormal: không tìm thấy người dùng hiện tại
         @Test
@@ -266,10 +280,24 @@ class UserServiceImplTest {
             assertEquals("Không tìm thấy thông tin người dùng", ex.getMessage());
         }
 
-        // UTCID02 - Abnormal: người cần bỏ theo dõi không tồn tại
+        // UTCID02 - Abnormal: tài khoản của mình bị khóa/chưa kích hoạt
+        @Test
+        void unfollowUser_currentUserInactive_throwsAccountLocked() {
+            User follower = new User();
+            follower.setUserId(1L);
+            follower.setStatus(UserStatus.INACTIVE);
+            when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(follower));
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> userService.unfollowUser("kc-001", 2L));
+
+            assertEquals("Tài khoản của bạn bị khóa hoặc chưa kích hoạt", ex.getMessage());
+        }
+
+        // UTCID03 - Abnormal: người cần bỏ theo dõi không tồn tại
         @Test
         void unfollowUser_targetNotFound_throwsTargetNotExist() {
-            when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(new User()));
+            when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(activeUser(1L)));
             when(userRepository.findById(2L)).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -278,34 +306,41 @@ class UserServiceImplTest {
             assertEquals("Người dùng cần bỏ theo dõi không tồn tại", ex.getMessage());
         }
 
-        // UTCID03 - Abnormal: chưa từng theo dõi người này
+        // UTCID04 - Normal: chưa từng theo dõi thì idempotent, trả về trạng thái thật
         @Test
-        void unfollowUser_notFollowing_throwsNotFollowing() {
-            User follower = new User();
-            User target = new User();
+        void unfollowUser_notFollowing_returnsNotFollowingWithoutDeleting() {
+            User follower = activeUser(1L);
+            User target = activeUser(2L);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(follower));
             when(userRepository.findById(2L)).thenReturn(Optional.of(target));
             when(userFollowRepository.findByFollowerAndFollowing(follower, target)).thenReturn(Optional.empty());
+            when(userFollowRepository.countByFollowing(target)).thenReturn(0L);
 
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> userService.unfollowUser("kc-001", 2L));
+            FollowStatusResponse response = userService.unfollowUser("kc-001", 2L);
 
-            assertEquals("Bạn chưa theo dõi người dùng này", ex.getMessage());
+            assertEquals(2L, response.getUserId());
+            assertFalse(response.getIsFollowing());
+            assertEquals(0L, response.getTotalFollowers());
+            verify(userFollowRepository, never()).delete(any(UserFollow.class));
         }
 
-        // UTCID04 - Normal: bỏ theo dõi thành công
+        // UTCID05 - Normal: bỏ theo dõi thành công
         @Test
         void unfollowUser_valid_deletesFollow() {
-            User follower = new User();
-            User target = new User();
+            User follower = activeUser(1L);
+            User target = activeUser(2L);
             UserFollow follow = UserFollow.builder().follower(follower).following(target).build();
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(follower));
             when(userRepository.findById(2L)).thenReturn(Optional.of(target));
             when(userFollowRepository.findByFollowerAndFollowing(follower, target)).thenReturn(Optional.of(follow));
+            when(userFollowRepository.countByFollowing(target)).thenReturn(2L);
 
-            userService.unfollowUser("kc-001", 2L);
+            FollowStatusResponse response = userService.unfollowUser("kc-001", 2L);
 
             verify(userFollowRepository).delete(follow);
+            assertEquals(2L, response.getUserId());
+            assertFalse(response.getIsFollowing());
+            assertEquals(2L, response.getTotalFollowers());
         }
     }
 
