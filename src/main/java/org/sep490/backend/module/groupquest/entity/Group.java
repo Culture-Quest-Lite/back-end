@@ -3,6 +3,7 @@ package org.sep490.backend.module.groupquest.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
@@ -42,6 +43,11 @@ public class Group {
 
     @Column(name = "expired_at")
     LocalDateTime expireAt;
+
+    @Column(name = "required_approval", nullable = false)
+    @ColumnDefault("false")
+    @Builder.Default
+    Boolean requiredApproval = false;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")

@@ -5,5 +5,6 @@ public enum NotificationType {
     REFUND,
     EARN,
     LOGIN,
-    LEVEL_UP
+    LEVEL_UP,
+    GROUP
 }
