@@ -57,6 +57,7 @@ public interface PostMapper {
             PostResponse.TagDto dto = new PostResponse.TagDto();
             dto.setTagId(tag.getTagId());
             dto.setTagName(tag.getTagName());
+            dto.setImageUrl(tag.getImageUrl());
             return dto;
         }).toList();
     }

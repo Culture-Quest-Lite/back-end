@@ -33,6 +33,9 @@ public class Tag implements Serializable {
     @Column(name = "tag_name", nullable = false, unique = true, length = 50)
     String tagName;
 
+    @Column(name = "image_url", length = 500)
+    String imageUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     TagStatus tagStatus;

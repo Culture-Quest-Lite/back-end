@@ -36,10 +36,10 @@ public class PartnerVoucherController {
         return ResponseEntity.status(HttpStatus.CREATED).body(voucherService.createVoucher(request));
     }
 
-    @PutMapping("/vouchers/{id}")
+    @PutMapping(value = "/vouchers/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<VoucherResponse> updateVoucher(
             @PathVariable Long id,
-            @Valid @RequestBody VoucherRequest request) {
+            @Valid @ModelAttribute VoucherRequest request) {
         return ResponseEntity.ok(voucherService.updateVoucher(id, request));
     }
 
