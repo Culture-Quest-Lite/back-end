@@ -49,10 +49,10 @@ public class PostController {
         return ResponseEntity.ok(postService.getPostById(id));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PostResponse> updatePost(
             @PathVariable Long id,
-            @Valid @RequestBody UpdatePostRequest request
+            @Valid @ModelAttribute UpdatePostRequest request
     ) {
         return ResponseEntity.ok(postService.updatePost(id, request));
     }

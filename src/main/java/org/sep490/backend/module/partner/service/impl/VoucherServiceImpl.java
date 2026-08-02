@@ -23,9 +23,7 @@ import org.sep490.backend.module.partner.service.VoucherService;
 import org.sep490.backend.module.user.service.UserService;
 import org.sep490.backend.module.partner.entity.enumeration.VoucherStatus;
 import org.sep490.backend.module.partner.specification.VoucherSpecification;
-import org.sep490.backend.module.content.service.inter.MediaService;
-import org.sep490.backend.module.content.dto.response.MediaResponse;
-import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,15 +32,15 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class VoucherServiceImpl implements VoucherService {
+
+    static final String IMAGE_FOLDER = "vouchers";
 
     VoucherRepository voucherRepository;
     VoucherMapper voucherMapper;
@@ -50,7 +48,7 @@ public class VoucherServiceImpl implements VoucherService {
     VoucherUsageRepository voucherUsageRepository;
     VoucherUsageMapper voucherUsageMapper;
     RewardTransactionRepository rewardTransactionRepository;
-    MediaService mediaService;
+    ImageService imageService;
 
     static SecureRandom random = new SecureRandom();
     private final UserRepository userRepository;
@@ -77,19 +75,11 @@ public class VoucherServiceImpl implements VoucherService {
         voucher.setPartner(partner);
         voucher.setVoucherCode(generateCode);
         voucher.setStatus(VoucherStatus.PENDING);
+        voucher.setImageUrl(imageService.resolveImageUrl(
+                null, request.getImageFile(), IMAGE_FOLDER));
         voucher = voucherRepository.save(voucher);
 
-        VoucherResponse response = voucherMapper.toResponse(voucher);
-        if (request.getFiles() != null && request.getFiles().length > 0) {
-            try {
-                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.VOUCHER, voucher.getVoucherId());
-                response.setMedias(mediaResponses);
-            } catch (IOException e) {
-                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
-            }
-        }
-        return response;
+        return voucherMapper.toResponse(voucher);
     }
 
     @Override
@@ -115,6 +105,8 @@ public class VoucherServiceImpl implements VoucherService {
         if (request.getStatus() == null) {
             voucher.setStatus(oldStatus);
         }
+        voucher.setImageUrl(imageService.resolveImageUrl(
+                voucher.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
         voucher = voucherRepository.save(voucher);
         return voucherMapper.toResponse(voucher);
     }

@@ -29,8 +29,10 @@ import org.sep490.backend.module.content.repository.MediaRepository;
 import org.sep490.backend.module.content.repository.ReviewRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
+import org.sep490.backend.common.service.TransactionCompensationService;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.ReviewService;
+import org.sep490.backend.module.content.service.inter.S3Service;
 import org.sep490.backend.module.content.specification.ReviewSpecification;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.service.UserService;
@@ -46,6 +48,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -59,6 +62,8 @@ public class ReviewServiceImpl implements ReviewService {
     MediaRepository mediaRepository;
     MediaMapper mediaMapper;
     MediaService mediaService;
+    S3Service s3Service;
+    TransactionCompensationService txCompensation;
     UserService userService;
     HotspotRepository hotspotRepository;
     RouteRepository routeRepository;
@@ -271,7 +276,19 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException("Media không thuộc đánh giá này: " + notOwned);
         }
 
+        // Gom file_url trước khi orphanRemoval xóa row, nếu không sẽ mất dấu file trên S3
+        List<String> removedFileUrls = review.getMedias().stream()
+                .filter(media -> removedMediaIds.contains(media.getMediaId()))
+                .map(Media::getFileUrl)
+                .filter(Objects::nonNull)
+                .toList();
+
         review.getMedias().removeIf(media -> removedMediaIds.contains(media.getMediaId()));
+
+        // Chỉ xóa file sau khi commit — nếu rollback thì row vẫn còn và đang trỏ tới nó
+        removedFileUrls.forEach(fileUrl -> txCompensation.runAfterCommit(
+                "Xóa file media của đánh giá " + fileUrl,
+                () -> s3Service.safeDeleteByUrl(fileUrl)));
     }
 
     private void attachTarget(Review review, ReviewTargetType targetType, Long targetId) {

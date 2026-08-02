@@ -5,10 +5,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
+import org.sep490.backend.module.content.entity.Media;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.service.inter.MediaService;
+import org.sep490.backend.module.content.service.inter.S3Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.service.TransactionCompensationService;
 import org.sep490.backend.module.admin.entity.enumeration.AuditAction;
 import org.sep490.backend.module.admin.service.AuditLogService;
 import org.sep490.backend.module.authentication.entity.User;
@@ -48,7 +51,10 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -63,6 +69,8 @@ public class PostServiceImpl implements PostService {
     UserService userService;
     RewardTransactionService rewardTransactionService;
     MediaService mediaService;
+    S3Service s3Service;
+    TransactionCompensationService txCompensation;
     AuditLogService auditLogService;
 
     @NonFinal
@@ -158,13 +166,47 @@ public class PostServiceImpl implements PostService {
             post.setVisibility(request.getVisibility());
         }
 
-        post.getMedias().clear();
-        if (request.getMedias() != null && !request.getMedias().isEmpty()) {
-            post.getMedias().addAll(request.getMedias());
+        if (request.getRemovedMediaIds() != null && !request.getRemovedMediaIds().isEmpty()) {
+            removeMedias(post, request.getRemovedMediaIds());
         }
 
-        Post updatedPost = postRepository.save(post);
+        Post updatedPost = postRepository.saveAndFlush(post);
+
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.POST, updatedPost.getPostId());
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+
         return toResponseWithLiked(updatedPost, user.getUserId());
+    }
+
+    private void removeMedias(Post post, List<Long> removedMediaIds) {
+        Set<Long> ownedMediaIds = post.getMedias().stream()
+                .map(Media::getMediaId)
+                .collect(Collectors.toSet());
+
+        List<Long> notOwned = removedMediaIds.stream()
+                .filter(mediaId -> !ownedMediaIds.contains(mediaId))
+                .toList();
+        if (!notOwned.isEmpty()) {
+            throw new BusinessException("Media không thuộc bài viết này: " + notOwned);
+        }
+
+        List<String> removedFileUrls = post.getMedias().stream()
+                .filter(media -> removedMediaIds.contains(media.getMediaId()))
+                .map(Media::getFileUrl)
+                .filter(Objects::nonNull)
+                .toList();
+
+        post.getMedias().removeIf(media -> removedMediaIds.contains(media.getMediaId()));
+
+        removedFileUrls.forEach(fileUrl -> txCompensation.runAfterCommit(
+                "Xóa file media của bài viết " + fileUrl,
+                () -> s3Service.safeDeleteByUrl(fileUrl)));
     }
 
     @Override

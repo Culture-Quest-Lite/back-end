@@ -5,8 +5,8 @@ import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
-import org.sep490.backend.module.content.entity.Media;
 import org.sep490.backend.module.social.entity.enumeration.PostVisibility;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -17,7 +17,9 @@ public class UpdatePostRequest {
     @Size(max = 5000, message = "Nội dung bài viết không được vượt quá 5000 ký tự")
     String content;
 
-    List<Media> medias;
+    MultipartFile[] files;
+
+    List<Long> removedMediaIds;
 
     PostVisibility visibility;
 }
