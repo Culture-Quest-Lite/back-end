@@ -9,9 +9,12 @@ import org.sep490.backend.module.partner.dto.response.VoucherUsageResponse;
 import org.sep490.backend.module.partner.service.VoucherService;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.service.PostService;
+import org.sep490.backend.module.user.dto.filter.LeaderboardFilterRequest;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
 import org.sep490.backend.module.user.dto.response.FollowStatusResponse;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
+import org.sep490.backend.module.user.dto.response.LeaderboardEntryResponse;
+import org.sep490.backend.module.user.dto.response.MyLeaderboardRankResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.service.UserService;
 import org.springdoc.core.annotations.ParameterObject;
@@ -44,6 +47,18 @@ public class UserController {
         String keycloakUserId = jwt.getSubject();
         UserProfileResponse response = userService.getMyProfile(keycloakUserId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/leaderboard")
+    public ResponseEntity<Page<LeaderboardEntryResponse>> getXpLeaderboard(
+            @Valid @ParameterObject @ModelAttribute LeaderboardFilterRequest filter
+    ) {
+        return ResponseEntity.ok(userService.getXpLeaderboard(filter));
+    }
+
+    @GetMapping("/leaderboard/me")
+    public ResponseEntity<MyLeaderboardRankResponse> getMyXpRank() {
+        return ResponseEntity.ok(userService.getMyXpRank());
     }
 
     @GetMapping("/{id}")
