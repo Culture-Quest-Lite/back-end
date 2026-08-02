@@ -7,6 +7,8 @@ import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface MediaRepository extends JpaRepository<Media, Long> {
 
     @Query("SELECT COALESCE(MAX(m.displayOrder), 0) FROM Media m WHERE m.story.storyId = :storyId")
@@ -26,4 +28,9 @@ public interface MediaRepository extends JpaRepository<Media, Long> {
 
     @Query("SELECT COALESCE(MAX(m.displayOrder), 0) FROM Media m WHERE m.route.routeId = :routeId")
     int findMaxDisplayOrderByRouteId(@Param("routeId") Long routeId);
+
+    @Query("SELECT COALESCE(MAX(m.displayOrder), 0) FROM Media m WHERE m.review.reviewId = :reviewId")
+    int findMaxDisplayOrderByReviewId(@Param("reviewId") Long reviewId);
+
+    List<Media> findByReview_ReviewIdOrderByDisplayOrderAsc(Long reviewId);
 }

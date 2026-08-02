@@ -10,6 +10,7 @@ import org.sep490.backend.module.partner.service.VoucherService;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.service.PostService;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
+import org.sep490.backend.module.user.dto.response.FollowStatusResponse;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.service.UserService;
@@ -24,9 +25,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -66,27 +65,21 @@ public class UserController {
     }
 
     @PostMapping("/{id}/follow")
-    public ResponseEntity<Map<String, String>> followUser(
+    public ResponseEntity<FollowStatusResponse> followUser(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id
     ) {
         String keycloakUserId = jwt.getSubject();
-        userService.followUser(keycloakUserId, id);
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Theo dõi người dùng thành công");
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(userService.followUser(keycloakUserId, id));
     }
 
     @DeleteMapping("/{id}/follow")
-    public ResponseEntity<Map<String, String>> unfollowUser(
+    public ResponseEntity<FollowStatusResponse> unfollowUser(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable Long id
     ) {
         String keycloakUserId = jwt.getSubject();
-        userService.unfollowUser(keycloakUserId, id);
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Đã hủy theo dõi người dùng");
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(userService.unfollowUser(keycloakUserId, id));
     }
 
     @GetMapping("/{id}/followers")

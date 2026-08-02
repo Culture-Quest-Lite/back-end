@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.config.keycloak.KeyCloakTokenResponse;
+import org.sep490.backend.common.service.TransactionCompensationService;
 import org.sep490.backend.module.authentication.dto.request.*;
 import org.sep490.backend.module.authentication.dto.response.LoginResponse;
 import org.sep490.backend.module.authentication.entity.EmailOtp;
@@ -50,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final KeyCloakAuthClient keyCloakAuthClient;
+    private final TransactionCompensationService txCompensation;
     private final UserMapper userMapper;
     private final JavaMailSender mailSender;
     private final EmailOtpRepository emailOtpRepository;
@@ -78,6 +80,11 @@ public class AuthServiceImpl implements AuthService {
                 request.getDisplayName(),
                 request.getPassword(),
                 List.of("EXPLORER"));
+
+        txCompensation.runOnRollback(
+                "Xóa Keycloak user " + keycloakUserId,
+                () -> keyCloakAuthClient.safeDeleteUser(keycloakUserId));
+
         try {
             sendVerificationOtp(request.getEmail());
             User user = buildCustomer(request, keycloakUserId);
@@ -163,7 +170,7 @@ public class AuthServiceImpl implements AuthService {
         if (!hasAllowedRole) {
             log.warn("Login denied for user '{}': no allowed role found in realm_access.roles = {}",
                     request.getUsername(), roles);
-            throw new BusinessException("Tài khoản không có quyền truy cập cửa hàng này");
+            throw new BusinessException("Tài khoản không có quyền truy cập");
         }
 
         enforceWebRoleAccess(roles, clientType, tokenResponse);
@@ -477,12 +484,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void rollbackKeycloakUser(String keycloakUserId) {
-        try {
-            keyCloakAuthClient.deleteUser(keycloakUserId);
-            log.info("Đã rollback Keycloak user: {}", keycloakUserId);
-        } catch (Exception e) {
-            log.error("Không thể rollback Keycloak user: {}", keycloakUserId, e);
-        }
+        keyCloakAuthClient.safeDeleteUser(keycloakUserId);
     }
 
     private void createInitialLevelProgress(User user) {
