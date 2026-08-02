@@ -23,15 +23,14 @@ import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.mapper.HotspotMapper;
-import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.content.mapper.RouteMapper;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.content.service.inter.HotspotService;
-import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.user.service.UserService;
 
 import java.util.List;
@@ -54,8 +53,7 @@ class RouteServiceImplTest {
     @Mock private HotspotRepository hotspotRepository;
     @Mock private HotspotService hotspotService;
     @Mock private UserService userService;
-    @Mock private MediaService mediaService;
-    @Mock private MediaMapper mediaMapper;
+    @Mock private ImageService imageService;
     @Mock private StoryMapper storyMapper;
     @Mock private TagRepository tagRepository;
     @Mock private HotspotMapper hotspotMapper;

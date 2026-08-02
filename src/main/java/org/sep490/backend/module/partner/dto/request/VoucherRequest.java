@@ -17,7 +17,10 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Builder
 public class VoucherRequest {
-    MultipartFile[] files;
+
+    /** Ảnh voucher. Null hoặc rỗng khi update = giữ nguyên ảnh cũ. */
+    MultipartFile imageFile;
+
     String voucherCode;
 
     @NotBlank(message = "Tên voucher không được để trống")
