@@ -8,6 +8,7 @@ import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.content.dto.projection.HotspotRatingSummaryProjection;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
@@ -17,9 +18,11 @@ import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
+import org.sep490.backend.module.content.entity.enumeration.ReviewStatus;
 import org.sep490.backend.module.content.mapper.HotspotMapper;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
+import org.sep490.backend.module.content.repository.ReviewRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.MediaService;
@@ -35,6 +38,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -48,6 +53,7 @@ public class HotspotServiceImpl implements HotspotService {
     StoryMapper storyMapper;
     MediaService mediaService;
     UserHotspotProgressRepository userHotspotProgressRepository;
+    ReviewRepository reviewRepository;
 
     @Override
     @Transactional
@@ -171,9 +177,36 @@ public class HotspotServiceImpl implements HotspotService {
 
         List<Hotspot> nearbies = hotspotRepository.findNearbyHotspotsWithStatus(longitude, latitude, distanceInMeters, ContentStatus.PUBLISHED.name());
 
-        return nearbies.stream()
+        List<HotspotResponse> responses = nearbies.stream()
                 .map(this::buildHotspotResponse)
                 .toList();
+        applyRatingSummary(responses);
+        return responses;
+    }
+
+    private void applyRatingSummary(List<HotspotResponse> responses) {
+        if (responses.isEmpty()) {
+            return;
+        }
+        List<Long> hotspotIds = responses.stream()
+                .map(HotspotResponse::getHotspotId)
+                .toList();
+
+        Map<Long, HotspotRatingSummaryProjection> summaries = reviewRepository
+                .summarizeRatingsByHotspotIds(hotspotIds, ReviewStatus.ACTIVE)
+                .stream()
+                .collect(Collectors.toMap(HotspotRatingSummaryProjection::getHotspotId, p -> p));
+
+        responses.forEach(response -> {
+            HotspotRatingSummaryProjection summary = summaries.get(response.getHotspotId());
+            if (summary == null || summary.getAverageRating() == null) {
+                response.setAverageRating(0.0);
+                response.setTotalReviews(0L);
+                return;
+            }
+            response.setAverageRating(Math.round(summary.getAverageRating() * 10) / 10.0);
+            response.setTotalReviews(summary.getTotalReviews());
+        });
     }
 
     @Override
