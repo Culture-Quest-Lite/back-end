@@ -4,6 +4,7 @@ import org.sep490.backend.module.admin.dto.projection.HotspotPublishSummaryProje
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.curator.dto.projection.ContentStatusCountProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -46,4 +47,9 @@ public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpec
             "WHERE h.status = :status")
     HotspotPublishSummaryProjection summarizePublishedHotspots(@Param("status") ContentStatus status,
                                                                @Param("weekStart") LocalDateTime weekStart);
+
+    @Query("SELECT h.status AS status, COUNT(h) AS total FROM Hotspot h " +
+            "WHERE h.status <> :excludedStatus " +
+            "GROUP BY h.status")
+    List<ContentStatusCountProjection> countHotspotsByStatus(@Param("excludedStatus") ContentStatus excludedStatus);
 }

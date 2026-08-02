@@ -71,6 +71,7 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/admin/subscription-plans").authenticated()
                         .requestMatchers("/api/admin/**").permitAll()
+                        .requestMatchers("/api/curator/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
                         .jwtAuthenticationConverter(jwtAuthenticationConverter())));

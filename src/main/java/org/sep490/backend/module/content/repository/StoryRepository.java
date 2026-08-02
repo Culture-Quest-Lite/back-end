@@ -4,6 +4,7 @@ import org.sep490.backend.module.content.dto.projection.TagStoryCountProjection;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.curator.dto.projection.ContentStatusCountProjection;
 import org.sep490.backend.module.exploration.dto.projection.HotspotCheckInProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -99,4 +100,9 @@ public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecific
             "GROUP BY s.tag.tagId")
     List<TagStoryCountProjection> countStoriesAndHotspotsByTagIds(@Param("tagIds") List<Long> tagIds,
                                                                   @Param("excludedStatus") ContentStatus excludedStatus);
+
+    @Query("SELECT s.status AS status, COUNT(s) AS total FROM Story s " +
+            "WHERE s.status <> :excludedStatus " +
+            "GROUP BY s.status")
+    List<ContentStatusCountProjection> countStoriesByStatus(@Param("excludedStatus") ContentStatus excludedStatus);
 }
