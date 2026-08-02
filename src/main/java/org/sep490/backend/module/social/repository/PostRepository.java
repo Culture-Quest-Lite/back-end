@@ -31,4 +31,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                                          Pageable pageable);
 
     long countByUser(User user);
+
+    long countByStatus(PostStatus status);
 }
