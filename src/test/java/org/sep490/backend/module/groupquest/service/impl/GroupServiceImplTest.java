@@ -429,4 +429,5 @@ class GroupServiceImplTest {
             verify(groupRepository, times(1)).save(any(Group.class));
         }
     }
+
 }
