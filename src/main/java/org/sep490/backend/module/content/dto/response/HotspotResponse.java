@@ -51,4 +51,6 @@ public class HotspotResponse {
     List<StoryResponse> stories;
 
     Boolean isCheckIn;
+    Double averageRating;
+    Long totalReviews;
 }
