@@ -53,6 +53,7 @@ public class SecurityConfig {
             "/api/v2/routes/**",
             "/api/tags/**",
             "/api/posts/**",
+            "/api/users/leaderboard",
     };
 
     @Bean
