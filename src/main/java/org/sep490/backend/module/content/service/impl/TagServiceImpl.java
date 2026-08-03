@@ -84,10 +84,32 @@ public class TagServiceImpl implements TagService {
     @Override
     @Transactional(readOnly = true)
     public TagResponse getDetail(Long id) {
+        List<Long> tagIds = new ArrayList<>();
+        List<TagUsageResponse> tagUsageResponses = new ArrayList<>();
+        tagIds.add(id);
+
         TagResponse response = tagMapper.toResponse(getById(id));
         response.setRouteCount(routeRepository.countByTag_TagIdAndStatusNot(id, RouteStatus.DELETED));
         response.setStoryCount(storyRepository.countByTag_TagIdAndStatusNot(id, ContentStatus.DELETED));
         response.setHotspotCount(storyRepository.countDistinctHotspotsByTagId(id, ContentStatus.DELETED));
+
+        List<TagUsageProjection> routeUsages = routeRepository.findRouteUsagesByTagIds(tagIds, RouteStatus.PUBLISHED);
+        List<TagUsageProjection> storyUsages = storyRepository.findStoryUsagesByTagIds(tagIds, ContentStatus.PUBLISHED);
+
+        for (TagUsageProjection routeUsage : routeUsages) {
+            TagUsageResponse routeResponse = new TagUsageResponse();
+            routeResponse.setRefId(routeUsage.getRefId());
+            routeResponse.setType(TagUsageType.ROUTE);
+            tagUsageResponses.add(routeResponse);
+        }
+        for (TagUsageProjection storyUsage : storyUsages) {
+            TagUsageResponse storyResponse = new TagUsageResponse();
+            storyResponse.setRefId(storyUsage.getRefId());
+            storyResponse.setType(TagUsageType.STORY);
+            tagUsageResponses.add(storyResponse);
+        }
+
+        response.setUsages(tagUsageResponses);
         return response;
     }
 
