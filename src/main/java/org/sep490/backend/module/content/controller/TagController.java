@@ -12,6 +12,7 @@ import org.sep490.backend.module.content.service.inter.TagService;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,15 +34,15 @@ public class TagController {
         return ResponseEntity.ok(tagService.getDetail(id));
     }
 
-    @PostMapping
-    public ResponseEntity<TagResponse> create(@Valid @RequestBody TagRequest request) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<TagResponse> create(@Valid @ModelAttribute TagRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(tagService.create(request));
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TagResponse> update(
             @PathVariable Long id,
-            @Valid @RequestBody TagRequest request
+            @Valid @ModelAttribute TagRequest request
     ) {
         return ResponseEntity.ok(tagService.update(id, request));
     }

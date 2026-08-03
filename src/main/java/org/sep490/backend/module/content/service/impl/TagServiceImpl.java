@@ -20,6 +20,7 @@ import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.content.service.inter.TagService;
 import org.sep490.backend.module.content.specification.TagSpecification;
 import org.springframework.data.domain.Page;
@@ -41,10 +42,13 @@ import java.util.stream.Collectors;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class TagServiceImpl implements TagService {
 
+    static final String IMAGE_FOLDER = "tags";
+
     TagRepository tagRepository;
     RouteRepository routeRepository;
     StoryRepository storyRepository;
     TagMapper tagMapper;
+    ImageService imageService;
 
     @Override
     @Transactional
@@ -54,6 +58,8 @@ public class TagServiceImpl implements TagService {
         }
         Tag tag = tagMapper.toEntity(request);
         tag.setTagStatus(TagStatus.ACTIVE);
+        tag.setImageUrl(imageService.resolveImageUrl(
+                null, request.getImageFile(), IMAGE_FOLDER));
         tag = tagRepository.save(tag);
         return tagMapper.toResponse(tag);
     }
@@ -69,6 +75,8 @@ public class TagServiceImpl implements TagService {
             throw new BusinessException("Tag với tên \"" + request.getTagName() + "\" đã tồn tại");
         }
         tag.setTagName(request.getTagName().trim());
+        tag.setImageUrl(imageService.resolveImageUrl(
+                tag.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
         tag = tagRepository.save(tag);
         return tagMapper.toResponse(tag);
     }

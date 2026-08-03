@@ -1,8 +1,10 @@
 package org.sep490.backend.module.content.repository;
 
+import org.sep490.backend.module.content.dto.projection.HotspotRatingSummaryProjection;
 import org.sep490.backend.module.content.dto.projection.ReviewRatingCountProjection;
 import org.sep490.backend.module.content.entity.Review;
 import org.sep490.backend.module.content.entity.enumeration.ReviewStatus;
+import org.sep490.backend.module.curator.dto.projection.RatingSummaryProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -38,4 +40,18 @@ public interface ReviewRepository extends JpaRepository<Review, Long>, JpaSpecif
             "GROUP BY r.rating")
     List<ReviewRatingCountProjection> countRatingsByStoryId(@Param("targetId") Long targetId,
                                                             @Param("status") ReviewStatus status);
+
+    @Query("SELECT r.hotspot.hotspotId AS hotspotId, " +
+            "AVG(r.rating) AS averageRating, " +
+            "COUNT(r) AS totalReviews " +
+            "FROM Review r " +
+            "WHERE r.hotspot.hotspotId IN :hotspotIds AND r.status = :status " +
+            "GROUP BY r.hotspot.hotspotId")
+    List<HotspotRatingSummaryProjection> summarizeRatingsByHotspotIds(@Param("hotspotIds") List<Long> hotspotIds,
+                                                                      @Param("status") ReviewStatus status);
+
+    @Query("SELECT AVG(r.rating) AS averageRating, COUNT(r) AS totalReviews " +
+            "FROM Review r " +
+            "WHERE r.status = :status")
+    RatingSummaryProjection summarizeGlobalRatings(@Param("status") ReviewStatus status);
 }

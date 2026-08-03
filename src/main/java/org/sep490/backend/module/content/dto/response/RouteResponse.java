@@ -14,6 +14,7 @@ public class RouteResponse {
     Long routeId;
     String routeName;
     String description;
+    String imageUrl;
     RouteDifficulty difficulty;
     Double estimateTime;
     Double totalDistance;
@@ -22,5 +23,4 @@ public class RouteResponse {
     Long point;
     TagResponse tag;
     List<HotspotResponse> hotspots;
-    List<MediaResponse> medias;
 }

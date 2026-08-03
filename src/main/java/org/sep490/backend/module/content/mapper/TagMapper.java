@@ -16,6 +16,7 @@ public interface TagMapper {
     TagResponse toResponse(Tag tag);
 
     @Mapping(target = "tagId", ignore = true)
+    @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Tag toEntity(TagRequest request);

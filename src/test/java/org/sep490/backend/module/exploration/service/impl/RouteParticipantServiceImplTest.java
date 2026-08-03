@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.utils.ShareTokenUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
@@ -319,6 +320,40 @@ class RouteParticipantServiceImplTest {
             service.startGroupQuest(request());
 
             verify(routeParticipantRepository).saveAll(anyList());
+        }
+    }
+
+    // =====================================================================
+    // Function: joinRouteFromLink
+    // =====================================================================
+    @Nested
+    @DisplayName("joinRouteFromLink")
+    class JoinRouteFromLinkTest {
+
+        // UTCID01 - Normal: token hợp lệ -> giải mã routeId và bắt đầu tuyến đường
+        @Test
+        void joinRouteFromLink_validToken_startsRoute() {
+            String token = ShareTokenUtils.generateToken(10L); // token 10 ký tự, giải mã ra routeId = 10
+            when(userService.getCurrentUser()).thenReturn(user(1L));
+            when(routeService.getById(10L)).thenReturn(route(10L));
+            when(routeParticipantRepository.findByRoute_RouteIdAndUser_UserId(10L, 1L)).thenReturn(Optional.empty());
+            when(storyRepository.findHotspotsByRouteIdOrderByIndexAsc(10L)).thenReturn(List.of());
+            when(routeParticipantRepository.save(any(RouteParticipant.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(routeParticipantMapper.toResponse(any())).thenReturn(new RouteParticipantResponse());
+
+            HashMap<Integer, RouteParticipantResponse> result = service.joinRouteFromLink(token);
+
+            assertTrue(result.containsKey(201));
+            verify(routeParticipantRepository).save(any(RouteParticipant.class));
+        }
+
+        // UTCID02 - Abnormal: token sai độ dài (khác 10 ký tự)
+        @Test
+        void joinRouteFromLink_invalidTokenLength_throwsInvalidToken() {
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                    () -> service.joinRouteFromLink("abc"));
+
+            assertEquals("Token không hợp lệ. Độ dài bắt buộc là 10 ký tự.", ex.getMessage());
         }
     }
 }

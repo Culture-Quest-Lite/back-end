@@ -14,7 +14,6 @@ import org.sep490.backend.module.content.dto.request.FinalizeCustomRouteRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequestV2;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
-import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
@@ -22,14 +21,13 @@ import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.*;
 import org.sep490.backend.module.content.mapper.HotspotMapper;
-import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.content.mapper.RouteMapper;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.content.service.inter.HotspotService;
-import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.repository.TagRepository;
@@ -41,7 +39,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,14 +48,15 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class RouteServiceImpl implements RouteService {
 
+    static final String IMAGE_FOLDER = "routes";
+
     RouteRepository routeRepository;
     RouteMapper routeMapper;
     StoryRepository storyRepository;
     HotspotRepository hotspotRepository;
     HotspotService hotspotService;
     UserService userService;
-    MediaService mediaService;
-    MediaMapper mediaMapper;
+    ImageService imageService;
     StoryMapper storyMapper;
     TagRepository tagRepository;
     HotspotMapper hotspotMapper;
@@ -83,22 +81,14 @@ public class RouteServiceImpl implements RouteService {
         route.setType(RouteType.OFFICIAL);
         route.setIsLocked(false);
         route.setTotalStops(request.getHotspotIds().size());
+        route.setImageUrl(imageService.resolveImageUrl(
+                null, request.getImageFile(), IMAGE_FOLDER));
 
         route = routeRepository.save(route);
 
         List<Story> stories = processRouteStories(route, request.getHotspotIds());
 
-        RouteResponse response = buildRouteResponse(route, stories);
-        if (request.getFiles() != null && request.getFiles().length > 0) {
-            try {
-                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.ROUTE, route.getRouteId());
-                response.setMedias(mediaResponses);
-            } catch (IOException e) {
-                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
-            }
-        }
-        return response;
+        return buildRouteResponse(route, stories);
     }
 
     @Override
@@ -121,23 +111,14 @@ public class RouteServiceImpl implements RouteService {
         route.setType(RouteType.OFFICIAL);
         route.setIsLocked(false);
         route.setTotalStops(request.getStoryIds().size());
+        route.setImageUrl(imageService.resolveImageUrl(
+                null, request.getImageFile(), IMAGE_FOLDER));
 
         route = routeRepository.save(route);
 
         List<Story> stories = processRouteStoriesV2(route, request.getStoryIds());
 
-        RouteResponse response = buildRouteResponse(route, stories);
-
-        if (request.getFiles() != null && request.getFiles().length > 0) {
-            try {
-                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.ROUTE, route.getRouteId());
-                response.setMedias(mediaResponses);
-            } catch (IOException e) {
-                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
-            }
-        }
-        return response;
+        return buildRouteResponse(route, stories);
     }
 
     @Override
@@ -155,6 +136,8 @@ public class RouteServiceImpl implements RouteService {
         routeMapper.updateFromRequest(currRoute, request);
         currRoute.setTag(tag);
         currRoute.setTotalStops(request.getHotspotIds().size());
+        currRoute.setImageUrl(imageService.resolveImageUrl(
+                currRoute.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
         currRoute = routeRepository.save(currRoute);
 
         // Unset route_id cho tất cả story cũ đang thuộc route này
@@ -184,6 +167,8 @@ public class RouteServiceImpl implements RouteService {
         routeMapper.updateFromRequest(currRoute, request);
         currRoute.setTag(tag);
         currRoute.setTotalStops(request.getStoryIds().size());
+        currRoute.setImageUrl(imageService.resolveImageUrl(
+                currRoute.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
         currRoute = routeRepository.save(currRoute);
 
         // Unset route_id cho tất cả story cũ đang thuộc route này

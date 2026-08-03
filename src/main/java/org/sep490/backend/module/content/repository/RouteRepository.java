@@ -6,6 +6,7 @@ import org.sep490.backend.module.content.dto.projection.TagUsageProjection;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteType;
+import org.sep490.backend.module.curator.dto.projection.RouteStatusCountProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -39,4 +40,8 @@ public interface RouteRepository extends JpaRepository<Route, Long>, JpaSpecific
     List<TagUsageProjection> findRouteUsagesByTagIds(
             @Param("tagIds") List<Long> tagIds,
             @Param("includeStatus") RouteStatus includeStatus);
+    @Query("SELECT r.status AS status, COUNT(r) AS total FROM Route r " +
+            "WHERE r.status <> :excludedStatus " +
+            "GROUP BY r.status")
+    List<RouteStatusCountProjection> countRoutesByStatus(@Param("excludedStatus") RouteStatus excludedStatus);
 }

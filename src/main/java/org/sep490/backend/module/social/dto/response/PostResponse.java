@@ -43,5 +43,6 @@ public class PostResponse {
     public static class TagDto {
         Long tagId;
         String tagName;
+        String imageUrl;
     }
 }
