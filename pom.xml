@@ -159,6 +159,12 @@
             <artifactId>spring-boot-starter-websocket</artifactId>
             <scope>compile</scope>
         </dependency>
+        <!-- Source: https://mvnrepository.com/artifact/org.keycloak/keycloak-admin-client -->
+        <dependency>
+            <groupId>org.keycloak</groupId>
+            <artifactId>keycloak-admin-client</artifactId>
+            <version>25.0.0</version>
+        </dependency>
     </dependencies>
 
     <build>

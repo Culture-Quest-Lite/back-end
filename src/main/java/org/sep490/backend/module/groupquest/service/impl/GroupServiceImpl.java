@@ -284,8 +284,8 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Bạn không thể kick chính mình");
         }
 
-        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, userId, GroupParticipantAction.KICKED)) {
-            throw new BusinessException("Thành viên này đã bị kick khỏi nhóm");
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, userId, GroupParticipantAction.JOIN)) {
+            throw new BusinessException("Thành viên này không thuộc nhóm");
         }
 
         groupParticipantService.updateAction(member, group, GroupParticipantAction.KICKED);
