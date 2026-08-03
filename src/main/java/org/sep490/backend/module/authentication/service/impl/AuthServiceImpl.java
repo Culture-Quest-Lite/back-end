@@ -32,6 +32,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StreamUtils;
@@ -48,6 +49,11 @@ import java.util.*;
 public class AuthServiceImpl implements AuthService {
 
     private static final Set<String> WEB_ALLOWED_ROLES = Set.of("ADMIN", "CURATOR", "PARTNER");
+    private static final String PROVIDER_GOOGLE = "google";
+    private static final String PROVIDER_FACEBOOK = "facebook";
+    private static final String FACEBOOK_USERNAME_PREFIX = "fb_";
+    private static final String FACEBOOK_EMAIL_DOMAIN = "@facebook.com";
+    private static final int USERNAME_MAX_LENGTH = 50;
 
     private final UserRepository userRepository;
     private final KeyCloakAuthClient keyCloakAuthClient;
@@ -310,44 +316,15 @@ public class AuthServiceImpl implements AuthService {
         List<String> roles = realmAccess != null ? (List<String>) realmAccess.get("roles") : List.of();
         enforceWebRoleAccess(roles, clientType, tokenResponse);
 
-        Optional<User> userOpt = userRepository.findByKeycloakUserId(keycloakUserId);
-        if (userOpt.isEmpty()) {
-            try {
-                keyCloakAuthClient.updateUserRoles(keycloakUserId, List.of("EXPLORER"));
-            } catch (Exception e) {
-                log.error("Lỗi khi tự động gán role EXPLORER trong Keycloak: {}", e.getMessage());
-            }
-
-            User newUser = User.builder()
-                    .keycloakUserId(keycloakUserId)
-                    .username(preferredUsername != null ? preferredUsername : email)
-                    .email(email)
-                    .displayName(displayName != null ? displayName : preferredUsername)
-                    .status(UserStatus.ACTIVE)
-                    .totalXp(0)
-                    .totalPoints(0)
-                    .autoPlayAudio(true)
-                    .isPremium(false)
-                    .role(UserRole.EXPLORER)
-                    .build();
-
-            levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
-                    .ifPresent(newUser::setLevel);
-
-            userRepository.save(newUser);
-            createInitialLevelProgress(newUser);
-        } else {
-            User existingUser = userOpt.get();
-            if (existingUser.getStatus() != UserStatus.ACTIVE) {
-                throw new BusinessException("Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động");
-            }
-        }
+        findOrCreateSocialUser(keycloakUserId, email, preferredUsername, displayName,
+                (String) payload.get("picture"), PROVIDER_GOOGLE);
 
         return buildLoginResponse(tokenResponse);
     }
 
     @Override
-    public LoginResponse loginFacebook(String code, String redirectUri) {
+    @Transactional
+    public LoginResponse loginFacebook(String code, String redirectUri, String clientType) {
         KeyCloakTokenResponse tokenResponse = keyCloakAuthClient.exchangeCode(code, redirectUri);
         if (tokenResponse == null || tokenResponse.getAccessToken() == null) {
             throw new BusinessException("Không thể trao đổi mã xác thực để lấy Token từ Keycloak");
@@ -356,57 +333,130 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = tokenResponse.getAccessToken();
         Map<String, Object> payload = decodeJwtPayload(accessToken);
         String keycloakUserId = (String) payload.get("sub");
-        String email = (String) payload.get("email");
-        String preferredUsername = (String) payload.get("preferred_username");
-        String displayName = (String) payload.get("name");
 
         if (keycloakUserId == null) {
             throw new BusinessException("Token không hợp lệ hoặc thiếu thông tin định danh");
         }
 
-        if (email == null) {
-            email = preferredUsername != null ? preferredUsername + "@facebook.com" : keycloakUserId + "@facebook.com";
+        Map<String, Object> realmAccess = (Map<String, Object>) payload.get("realm_access");
+        List<String> roles = realmAccess != null ? (List<String>) realmAccess.get("roles") : List.of();
+        enforceWebRoleAccess(roles, clientType, tokenResponse);
+
+        findOrCreateSocialUser(keycloakUserId,
+                (String) payload.get("email"),
+                (String) payload.get("preferred_username"),
+                (String) payload.get("name"),
+                (String) payload.get("picture"),
+                PROVIDER_FACEBOOK);
+
+        return buildLoginResponse(tokenResponse);
+    }
+
+    @Override
+    @Transactional
+    public UserProfileResponse syncSocialUser(Jwt jwt, String provider) {
+        User user = findOrCreateSocialUser(
+                jwt.getSubject(),
+                jwt.getClaimAsString("email"),
+                jwt.getClaimAsString("preferred_username"),
+                jwt.getClaimAsString("name"),
+                jwt.getClaimAsString("picture"),
+                provider);
+        return userMapper.toProfileResponse(user);
+    }
+
+    private User findOrCreateSocialUser(String keycloakUserId, String email, String preferredUsername,
+            String displayName, String avatarUrl, String provider) {
+        if (isBlank(keycloakUserId)) {
+            throw new BusinessException("Token không hợp lệ hoặc thiếu thông tin định danh");
         }
 
         Optional<User> userOpt = userRepository.findByKeycloakUserId(keycloakUserId);
-        if (userOpt.isEmpty()) {
-            try {
-                keyCloakAuthClient.updateUserRoles(keycloakUserId, List.of("EXPLORER"));
-            } catch (Exception e) {
-                log.error("Lỗi khi tự động gán role EXPLORER trong Keycloak: {}", e.getMessage());
-            }
-            User newUser = User.builder()
-                    .keycloakUserId(keycloakUserId)
-                    .username(preferredUsername != null ? preferredUsername : "fb_" + keycloakUserId)
-                    .email(email)
-                    .displayName(displayName != null ? displayName : "Facebook User")
-                    .status(UserStatus.ACTIVE)
-                    .totalXp(0)
-                    .totalPoints(0)
-                    .autoPlayAudio(true)
-                    .isPremium(false)
-                    .role(UserRole.EXPLORER)
-                    .build();
-
-            levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
-                    .ifPresent(newUser::setLevel);
-
-            userRepository.save(newUser);
-            createInitialLevelProgress(newUser);
-        } else {
+        if (userOpt.isPresent()) {
             User existingUser = userOpt.get();
             if (existingUser.getStatus() != UserStatus.ACTIVE) {
                 throw new BusinessException("Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động");
             }
+            return existingUser;
         }
-        return buildLoginResponse(tokenResponse);
+
+        boolean isFacebook = PROVIDER_FACEBOOK.equalsIgnoreCase(provider);
+        String resolvedEmail = email;
+        if (isBlank(resolvedEmail)) {
+            if (!isFacebook) {
+                throw new BusinessException("Token không hợp lệ hoặc thiếu thông tin định danh");
+            }
+            resolvedEmail = FACEBOOK_USERNAME_PREFIX + keycloakUserId + FACEBOOK_EMAIL_DOMAIN;
+        }
+
+        String desiredUsername = !isBlank(preferredUsername)
+                ? preferredUsername
+                : (isFacebook ? FACEBOOK_USERNAME_PREFIX + keycloakUserId : resolvedEmail);
+        String resolvedDisplayName = firstNonBlank(displayName, preferredUsername,
+                isFacebook ? "Người dùng Facebook" : resolvedEmail);
+
+        try {
+            keyCloakAuthClient.updateUserRoles(keycloakUserId, List.of("EXPLORER"));
+        } catch (Exception e) {
+            log.error("Lỗi khi tự động gán role EXPLORER trong Keycloak: {}", e.getMessage());
+        }
+
+        User newUser = User.builder()
+                .keycloakUserId(keycloakUserId)
+                .username(resolveAvailableUsername(desiredUsername, keycloakUserId))
+                .email(resolvedEmail)
+                .displayName(resolvedDisplayName)
+                .avatarUrl(avatarUrl)
+                .status(UserStatus.ACTIVE)
+                .totalXp(0)
+                .totalPoints(0)
+                .autoPlayAudio(true)
+                .isPremium(false)
+                .role(UserRole.EXPLORER)
+                .build();
+
+        levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)
+                .ifPresent(newUser::setLevel);
+
+        userRepository.save(newUser);
+        createInitialLevelProgress(newUser);
+        return newUser;
     }
 
-    /**
-     * Website chỉ dành cho ADMIN/CURATOR/PARTNER. Khi từ chối phải hủy luôn
-     * SSO session trên Keycloak, nếu không lần đăng nhập Google tiếp theo
-     * Keycloak sẽ tự động trả về đúng account bị chặn.
-     */
+    private String resolveAvailableUsername(String desiredUsername, String keycloakUserId) {
+        String base = truncate(desiredUsername, USERNAME_MAX_LENGTH);
+        if (!userRepository.existsByUsername(base)) {
+            return base;
+        }
+
+        String compactId = keycloakUserId.replace("-", "");
+        for (int suffixLength = 6; suffixLength <= compactId.length(); suffixLength += 6) {
+            String suffix = "_" + compactId.substring(0, suffixLength);
+            String candidate = truncate(base, USERNAME_MAX_LENGTH - suffix.length()) + suffix;
+            if (!userRepository.existsByUsername(candidate)) {
+                return candidate;
+            }
+        }
+        throw new BusinessException("Không thể tạo tên đăng nhập cho tài khoản mạng xã hội");
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static String truncate(String value, int maxLength) {
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+
     private void enforceWebRoleAccess(List<String> roles, String clientType, KeyCloakTokenResponse tokenResponse) {
         if (!isWebClient(clientType) || roles.stream().anyMatch(WEB_ALLOWED_ROLES::contains)) {
             return;
