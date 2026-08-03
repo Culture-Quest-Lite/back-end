@@ -13,6 +13,7 @@ import java.util.List;
 public class TagResponse {
     Long tagId;
     String tagName;
+    String imageUrl;
     TagStatus tagStatus;
     Long routeCount;
     Long hotspotCount;

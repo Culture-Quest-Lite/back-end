@@ -13,9 +13,12 @@ import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.social.repository.PostRepository;
+import org.sep490.backend.module.user.dto.filter.LeaderboardFilterRequest;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
 import org.sep490.backend.module.user.dto.response.FollowStatusResponse;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
+import org.sep490.backend.module.user.dto.response.LeaderboardEntryResponse;
+import org.sep490.backend.module.user.dto.response.MyLeaderboardRankResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.entity.UserFollow;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
@@ -23,6 +26,7 @@ import org.sep490.backend.module.user.repository.UserFollowRepository;
 import org.sep490.backend.module.user.service.UserService;
 import org.sep490.backend.module.user.specification.UserSpecification;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -31,6 +35,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -201,6 +206,58 @@ public class UserServiceImpl implements UserService {
         Specification<User> spec = UserSpecification.filterUsers(filterRequest.getSearch(), filterRequest.getStatus());
         Page<User> userPage = userRepository.findAll(spec, pageable);
         return userPage.map(this::enrichProfileResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<LeaderboardEntryResponse> getXpLeaderboard(LeaderboardFilterRequest filter) {
+        // Thứ tự sắp xếp nằm trong chính câu query nên Pageable ở đây chỉ để phân trang
+        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize());
+        Page<User> page = userRepository.findLeaderboardByXp(
+                UserStatus.ACTIVE, UserRole.EXPLORER, pageable);
+
+        User viewer = findCurrentUserOrNull();
+        int offset = filter.getPage() * filter.getSize();
+
+        List<User> users = page.getContent();
+        List<LeaderboardEntryResponse> entries = new ArrayList<>(users.size());
+        for (int i = 0; i < users.size(); i++) {
+            entries.add(toLeaderboardEntry(users.get(i), offset + i + 1, viewer));
+        }
+        return new PageImpl<>(entries, pageable, page.getTotalElements());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MyLeaderboardRankResponse getMyXpRank() {
+        User me = getCurrentUser();
+        if (me.getRole() != UserRole.EXPLORER) {
+            throw new BusinessException("Tài khoản của bạn không tham gia bảng xếp hạng");
+        }
+
+        // COALESCE khớp với ORDER BY của findLeaderboardByXp để hạng không lệch với danh sách
+        int xp = me.getTotalXp() != null ? me.getTotalXp() : 0;
+        long above = userRepository.countUsersRankedAbove(
+                UserStatus.ACTIVE, UserRole.EXPLORER, xp, me.getCreatedAt(), me.getUserId());
+
+        MyLeaderboardRankResponse response = new MyLeaderboardRankResponse();
+        response.setEntry(toLeaderboardEntry(me, (int) (above + 1), me));
+        response.setTotalParticipants(
+                userRepository.countByStatusAndRole(UserStatus.ACTIVE, UserRole.EXPLORER));
+        return response;
+    }
+
+    private LeaderboardEntryResponse toLeaderboardEntry(User user, int rank, User viewer) {
+        LeaderboardEntryResponse entry = new LeaderboardEntryResponse();
+        entry.setRank(rank);
+        entry.setUserId(user.getUserId());
+        entry.setUsername(user.getUsername());
+        entry.setDisplayName(user.getDisplayName());
+        entry.setAvatarUrl(user.getAvatarUrl());
+        entry.setTotalXp(user.getTotalXp() != null ? user.getTotalXp() : 0);
+        entry.setLevelName(user.getLevel() != null ? user.getLevel().getName() : null);
+        entry.setIsCurrentUser(viewer == null ? null : viewer.getUserId().equals(user.getUserId()));
+        return entry;
     }
 
     @Override

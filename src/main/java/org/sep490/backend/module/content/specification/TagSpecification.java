@@ -1,6 +1,8 @@
 package org.sep490.backend.module.content.specification;
 
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
+import org.sep490.backend.common.utils.TextUtils;
 import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.entity.enumeration.TagStatus;
 import org.springframework.data.jpa.domain.Specification;
@@ -18,8 +20,11 @@ public class TagSpecification {
             List<Predicate> predicates = new ArrayList<>();
 
             if (StringUtils.hasText(search)) {
-                String pattern = "%" + search.trim().toLowerCase() + "%";
-                predicates.add(cb.like(cb.lower(root.get("tagName")), pattern));
+                // Bỏ dấu cả hai vế để "am thuc" khớp được "Ẩm thực" và ngược lại
+                String pattern = "%" + TextUtils.removeDiacritics(search.trim()).toLowerCase() + "%";
+                Expression<String> normalizedName = cb.function(
+                        "unaccent", String.class, cb.lower(root.get("tagName")));
+                predicates.add(cb.like(normalizedName, pattern));
             }
 
             if (status != null) {

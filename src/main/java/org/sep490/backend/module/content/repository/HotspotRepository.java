@@ -1,13 +1,16 @@
 package org.sep490.backend.module.content.repository;
 
+import org.sep490.backend.module.admin.dto.projection.HotspotPublishSummaryProjection;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.curator.dto.projection.ContentStatusCountProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpecificationExecutor<Hotspot> {
@@ -37,4 +40,16 @@ public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpec
     boolean isLocationInVietnam(@Param("longitude") Double longitude, @Param("latitude") Double latitude);
 
     List<Hotspot> findByStatus(ContentStatus status);
+
+    @Query("SELECT COUNT(h) AS totalPublished, " +
+            "COALESCE(SUM(CASE WHEN COALESCE(h.publishedAt, h.updatedAt) >= :weekStart THEN 1L ELSE 0L END), 0L) AS publishedThisWeek " +
+            "FROM Hotspot h " +
+            "WHERE h.status = :status")
+    HotspotPublishSummaryProjection summarizePublishedHotspots(@Param("status") ContentStatus status,
+                                                               @Param("weekStart") LocalDateTime weekStart);
+
+    @Query("SELECT h.status AS status, COUNT(h) AS total FROM Hotspot h " +
+            "WHERE h.status <> :excludedStatus " +
+            "GROUP BY h.status")
+    List<ContentStatusCountProjection> countHotspotsByStatus(@Param("excludedStatus") ContentStatus excludedStatus);
 }
