@@ -21,6 +21,11 @@ public interface UserHotspotProgressRepository extends JpaRepository<UserHotspot
 
     boolean existsByUser_UserIdAndHotspot_HotspotId(Long userId, Long hotspotId);
 
+    @Query("SELECT p.hotspot.hotspotId FROM UserHotspotProgress p " +
+            "WHERE p.user.userId = :userId AND p.hotspot.hotspotId IN :hotspotIds")
+    List<Long> findCheckedInHotspotIds(@Param("userId") Long userId,
+                                       @Param("hotspotIds") List<Long> hotspotIds);
+
     @Query("SELECT p.user.userId, COUNT(p.hotspot.hotspotId) " +
             "FROM UserHotspotProgress p " +
             "WHERE p.user IN :users AND p.hotspot IN :hotspots " +

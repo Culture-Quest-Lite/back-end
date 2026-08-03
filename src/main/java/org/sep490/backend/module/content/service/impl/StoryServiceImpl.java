@@ -43,6 +43,7 @@ public class StoryServiceImpl implements StoryService {
     MediaService mediaService;
     TagRepository tagRepository;
     HotspotService hotspotService;
+    RatingSummaryApplier ratingSummaryApplier;
 
     @Override
     @Transactional
@@ -70,7 +71,7 @@ public class StoryServiceImpl implements StoryService {
                 throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
             }
         }
-        return response;
+        return ratingSummaryApplier.applyToStory(response);
     }
 
     @Override
@@ -99,13 +100,13 @@ public class StoryServiceImpl implements StoryService {
                 throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
             }
         }
-        return response;
+        return ratingSummaryApplier.applyToStory(response);
     }
 
     @Override
     @Transactional(readOnly = true)
     public StoryResponse getDetail(Long id) {
-        return storyMapper.toResponse(storyRepository.getOne(id));
+        return ratingSummaryApplier.applyToStory(storyMapper.toResponse(getById(id)));
     }
 
     @Override
@@ -133,9 +134,11 @@ public class StoryServiceImpl implements StoryService {
             stories = storyRepository.findByRoute_RouteIdAndHotspot_HotspotIdAndStatus(routeId, hotspotId, ContentStatus.PUBLISHED);
         }
 
-        return stories.stream()
+        List<StoryResponse> responses = stories.stream()
                 .map(storyMapper::toResponse)
                 .toList();
+        ratingSummaryApplier.applyToStories(responses);
+        return responses;
     }
 
     @Override
@@ -164,7 +167,9 @@ public class StoryServiceImpl implements StoryService {
 
         Specification<Story> spec = StorySpecification.filter(filter);
 
-        return storyRepository.findAll(spec, pageable).map(storyMapper::toResponse);
+        Page<StoryResponse> page = storyRepository.findAll(spec, pageable).map(storyMapper::toResponse);
+        ratingSummaryApplier.applyToStories(page.getContent());
+        return page;
     }
 
     @Override
@@ -176,6 +181,6 @@ public class StoryServiceImpl implements StoryService {
 
         storyRepository.save(story);
 
-        return storyMapper.toResponse(story);
+        return ratingSummaryApplier.applyToStory(storyMapper.toResponse(story));
     }
 }

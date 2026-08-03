@@ -23,4 +23,7 @@ public class RouteResponse {
     Long point;
     TagResponse tag;
     List<HotspotResponse> hotspots;
+
+    Double averageRating;
+    Long totalReviews;
 }

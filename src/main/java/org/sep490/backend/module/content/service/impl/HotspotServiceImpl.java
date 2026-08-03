@@ -6,9 +6,6 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
-import org.sep490.backend.common.utils.SecurityUtils;
-import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.dto.projection.HotspotRatingSummaryProjection;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
@@ -18,15 +15,12 @@ import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
-import org.sep490.backend.module.content.entity.enumeration.ReviewStatus;
 import org.sep490.backend.module.content.mapper.HotspotMapper;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
-import org.sep490.backend.module.content.repository.ReviewRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.MediaService;
-import org.sep490.backend.module.exploration.repository.UserHotspotProgressRepository;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -52,8 +46,8 @@ public class HotspotServiceImpl implements HotspotService {
     StoryRepository storyRepository;
     StoryMapper storyMapper;
     MediaService mediaService;
-    UserHotspotProgressRepository userHotspotProgressRepository;
-    ReviewRepository reviewRepository;
+    RatingSummaryApplier ratingSummaryApplier;
+    CheckInStatusApplier checkInStatusApplier;
 
     @Override
     @Transactional
@@ -88,7 +82,7 @@ public class HotspotServiceImpl implements HotspotService {
                 throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
             }
         }
-        return response;
+        return applyRatingSummary(response);
     }
 
     @Override
@@ -110,7 +104,7 @@ public class HotspotServiceImpl implements HotspotService {
                 throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
             }
         }
-        return buildHotspotResponse(hotspot);
+        return applyRatingSummary(buildHotspotResponse(hotspot));
     }
 
     @Override
@@ -119,22 +113,24 @@ public class HotspotServiceImpl implements HotspotService {
         Hotspot hotspot = getById(id);
         hotspot.setStatus(status);
         hotspot = hotspotRepository.save(hotspot);
-        return buildHotspotResponse(hotspot);
+        return applyRatingSummary(buildHotspotResponse(hotspot));
     }
 
     @Override
     @Transactional(readOnly = true)
     public HotspotResponse getDetail(Long id) {
         Hotspot hotspot = getById(id);
-        return buildHotspotResponse(hotspot);
+        return applyRatingSummary(buildHotspotResponse(hotspot));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<HotspotResponse> getAll() {
-        return hotspotRepository.findAll().stream()
+        List<HotspotResponse> responses = hotspotRepository.findAll().stream()
                 .map(this::buildHotspotResponse)
                 .toList();
+        applyRatingSummary(responses);
+        return responses;
     }
 
     @Override
@@ -160,7 +156,9 @@ public class HotspotServiceImpl implements HotspotService {
 
         GenericSpecification<Hotspot> spec = new GenericSpecification<>(request);
 
-        return hotspotRepository.findAll(spec, pageable).map(this::buildHotspotResponse);
+        Page<HotspotResponse> page = hotspotRepository.findAll(spec, pageable).map(this::buildHotspotResponse);
+        applyRatingSummary(page.getContent());
+        return page;
     }
 
     @Override
@@ -184,55 +182,35 @@ public class HotspotServiceImpl implements HotspotService {
         return responses;
     }
 
+    private HotspotResponse applyRatingSummary(HotspotResponse response) {
+        return ratingSummaryApplier.applyToHotspot(response);
+    }
+
     private void applyRatingSummary(List<HotspotResponse> responses) {
-        if (responses.isEmpty()) {
-            return;
-        }
-        List<Long> hotspotIds = responses.stream()
-                .map(HotspotResponse::getHotspotId)
-                .toList();
-
-        Map<Long, HotspotRatingSummaryProjection> summaries = reviewRepository
-                .summarizeRatingsByHotspotIds(hotspotIds, ReviewStatus.ACTIVE)
-                .stream()
-                .collect(Collectors.toMap(HotspotRatingSummaryProjection::getHotspotId, p -> p));
-
-        responses.forEach(response -> {
-            HotspotRatingSummaryProjection summary = summaries.get(response.getHotspotId());
-            if (summary == null || summary.getAverageRating() == null) {
-                response.setAverageRating(0.0);
-                response.setTotalReviews(0L);
-                return;
-            }
-            response.setAverageRating(Math.round(summary.getAverageRating() * 10) / 10.0);
-            response.setTotalReviews(summary.getTotalReviews());
-        });
+        ratingSummaryApplier.applyToHotspots(responses);
     }
 
     @Override
     public List<HotspotResponse> getHotspotsByRouteId(Long routeId) {
         List<Hotspot> hotspots = storyRepository.findHotspotsByRouteIdOrderByIndexAsc(routeId);
-        return hotspots.stream()
+        List<HotspotResponse> responses = hotspots.stream()
                 .map(this::buildHotspotResponse)
                 .toList();
+        applyRatingSummary(responses);
+        return responses;
     }
 
     private HotspotResponse buildHotspotResponse(Hotspot hotspot) {
         HotspotResponse response = hotspotMapper.toResponse(hotspot);
 
-        boolean isLoggedIn = SecurityUtils.getCurrentUserKeyCloakId().isPresent();
-        if(isLoggedIn) {
-            User user = userService.getCurrentUser();
-            response.setIsCheckIn(userHotspotProgressRepository.existsByUser_UserIdAndHotspot_HotspotId(user.getUserId(), hotspot.getHotspotId()));
-        } else {
-            response.setIsCheckIn(null);
-        }
+        checkInStatusApplier.apply(response);
 
         List<StoryResponse> storyResponses = storyRepository
                 .findByHotspotOrderedByIndex(hotspot.getHotspotId())
                 .stream()
                 .map(storyMapper::toResponse)
                 .toList();
+        ratingSummaryApplier.applyToStories(storyResponses);
         response.setStories(storyResponses);
         return response;
     }
