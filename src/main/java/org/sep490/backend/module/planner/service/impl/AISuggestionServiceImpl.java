@@ -14,6 +14,8 @@ import org.sep490.backend.module.content.mapper.HotspotMapper;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
+import org.sep490.backend.module.content.service.impl.CheckInStatusApplier;
+import org.sep490.backend.module.content.service.impl.RatingSummaryApplier;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.planner.dto.record.HotspotPick;
 import org.sep490.backend.module.planner.dto.record.HotspotPickList;
@@ -43,6 +45,8 @@ public class AISuggestionServiceImpl implements AISuggestionService {
     HotspotService hotspotService;
     HotspotMapper hotspotMapper;
     StoryMapper storyMapper;
+    RatingSummaryApplier ratingSummaryApplier;
+    CheckInStatusApplier checkInStatusApplier;
 
     @Override
     @Transactional(readOnly = true)
@@ -128,8 +132,10 @@ public class AISuggestionServiceImpl implements AISuggestionService {
                 .stream()
                 .map(storyMapper::toResponse)
                 .toList();
+        ratingSummaryApplier.applyToStories(stories);
         response.setStories(stories);
-        return response;
+        checkInStatusApplier.apply(response);
+        return ratingSummaryApplier.applyToHotspot(response);
     }
 
     private List<Point> resolveOrigins(DescriptionSuggestRequest request) {

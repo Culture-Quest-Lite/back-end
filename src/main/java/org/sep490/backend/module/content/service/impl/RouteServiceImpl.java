@@ -60,6 +60,8 @@ public class RouteServiceImpl implements RouteService {
     StoryMapper storyMapper;
     TagRepository tagRepository;
     HotspotMapper hotspotMapper;
+    RatingSummaryApplier ratingSummaryApplier;
+    CheckInStatusApplier checkInStatusApplier;
 
     @Override
     @Transactional
@@ -543,13 +545,15 @@ public class RouteServiceImpl implements RouteService {
             }
         }
 
+        ratingSummaryApplier.applyToHotspots(hotspotResponses);
+        checkInStatusApplier.apply(hotspotResponses);
         response.setHotspots(hotspotResponses);
 
         if (route.getTag() != null) {
             response.setTag(storyMapper.toTagResponse(route.getTag()));
         }
 
-        return response;
+        return ratingSummaryApplier.applyToRoute(response);
     }
 
     private HotspotResponse buildHotspotResponseForRoute(Hotspot hotspot, Route route) {
@@ -566,6 +570,7 @@ public class RouteServiceImpl implements RouteService {
         List<StoryResponse> storyResponses = stories.stream()
                 .map(storyMapper::toResponse)
                 .toList();
+        ratingSummaryApplier.applyToStories(storyResponses);
         response.setStories(storyResponses);
 
         return response;
