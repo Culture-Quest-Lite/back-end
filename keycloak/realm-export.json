@@ -973,8 +973,10 @@
       "clientAuthenticatorType": "client-secret",
       "redirectUris": [
         "exp://localhost:8082/--/auth/callback/google",
+        "exp://localhost:8082/--/auth/callback/facebook",
         "exp://*",
-        "culturequestlitemobile://auth/callback/google"
+        "culturequestlitemobile://auth/callback/google",
+        "culturequestlitemobile://auth/callback/facebook"
       ],
       "webOrigins": [],
       "notBefore": 0,
@@ -1746,6 +1748,29 @@
         "clientSecret": "**********",
         "caseSensitiveOriginalUsername": "false",
         "defaultScope": "openid profile email"
+      }
+    },
+    {
+      "alias": "facebook",
+      "providerId": "facebook",
+      "enabled": true,
+      "updateProfileFirstLoginMode": "on",
+      "trustEmail": true,
+      "storeToken": false,
+      "addReadTokenRoleOnCreate": false,
+      "authenticateByDefault": false,
+      "linkOnly": false,
+      "firstBrokerLoginFlowAlias": "first-broker-login-auto-link",
+      "config": {
+        "hideOnLoginPage": "false",
+        "clientId": "REPLACE_WITH_FACEBOOK_APP_ID",
+        "acceptsPromptNoneForwardFromClient": "false",
+        "disableUserInfo": "false",
+        "syncMode": "LEGACY",
+        "filteredByClaim": "false",
+        "clientSecret": "**********",
+        "caseSensitiveOriginalUsername": "false",
+        "defaultScope": "email public_profile"
       }
     }
   ],

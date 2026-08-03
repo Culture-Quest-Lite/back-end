@@ -18,18 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Authentication controller hỗ trợ cả Web và Mobile client.
- *
- * Web client: gửi header X-Client-Type: web (hoặc không gửi)
- * → Refresh token được lưu trong HttpOnly Cookie
- * → Response body KHÔNG chứa refresh token
- *
- * Mobile client: gửi header X-Client-Type: mobile
- * → Refresh token trả về trong response body
- * → Client tự lưu vào Android Keystore / iOS Keychain
- * → /refresh-token và /logout nhận token qua request body
- */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -85,8 +73,16 @@ public class AuthenticationController {
         public ResponseEntity<?> loginFacebook(
                         @Valid @RequestBody SocialLoginRequest request,
                         @RequestHeader(value = CLIENT_TYPE_HEADER, defaultValue = "web") String clientType) {
-                LoginResponse loginResponse = authService.loginFacebook(request.getCode(), request.getRedirectUri());
+                LoginResponse loginResponse = authService.loginFacebook(request.getCode(), request.getRedirectUri(),
+                                clientType);
                 return buildTokenResponse(loginResponse, clientType);
+        }
+
+        @PostMapping("/social-sync")
+        public ResponseEntity<UserProfileResponse> syncSocialUser(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @Valid @RequestBody SocialSyncRequest request) {
+                return ResponseEntity.ok(authService.syncSocialUser(jwt, request.getProvider()));
         }
 
         @PostMapping("/refresh-token")
