@@ -86,35 +86,9 @@ public class PostServiceImpl implements PostService {
         post.setUser(user);
         post.setStatus(PostStatus.PENDING);
 
-        if (request.getHotspotIds() != null && !request.getHotspotIds().isEmpty()) {
-            List<Hotspot> hotspots = hotspotRepository.findAllById(request.getHotspotIds());
-            if (hotspots.size() != request.getHotspotIds().size()) {
-                throw new BusinessException("Một số địa điểm được tag không tồn tại");
-            }
-            post.setTaggedHotspots(new HashSet<>(hotspots));
-            post.setIsTaggedHotspot(true);
-        } else {
-            post.setIsTaggedHotspot(false);
-        }
-
-        if (request.getRouteIds() != null && !request.getRouteIds().isEmpty()) {
-            List<Route> routes = routeRepository.findAllById(request.getRouteIds());
-            if (routes.size() != request.getRouteIds().size()) {
-                throw new BusinessException("Một số tuyến đường được tag không tồn tại");
-            }
-            post.setTaggedRoutes(new HashSet<>(routes));
-            post.setIsTaggedRoute(true);
-        } else {
-            post.setIsTaggedRoute(false);
-        }
-
-        if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
-            List<Tag> tags = tagRepository.findAllById(request.getTagIds());
-            if (tags.size() != request.getTagIds().size()) {
-                throw new BusinessException("Một số thẻ phân loại không tồn tại");
-            }
-            post.setTags(new HashSet<>(tags));
-        }
+        applyTaggedHotspots(post, request.getHotspotIds());
+        applyTaggedRoutes(post, request.getRouteIds());
+        applyTags(post, request.getTagIds());
 
         post = postRepository.saveAndFlush(post);
 
@@ -166,6 +140,16 @@ public class PostServiceImpl implements PostService {
             post.setVisibility(request.getVisibility());
         }
 
+        if (request.getHotspotIds() != null) {
+            applyTaggedHotspots(post, request.getHotspotIds());
+        }
+        if (request.getRouteIds() != null) {
+            applyTaggedRoutes(post, request.getRouteIds());
+        }
+        if (request.getTagIds() != null) {
+            applyTags(post, request.getTagIds());
+        }
+
         if (request.getRemovedMediaIds() != null && !request.getRemovedMediaIds().isEmpty()) {
             removeMedias(post, request.getRemovedMediaIds());
         }
@@ -182,6 +166,49 @@ public class PostServiceImpl implements PostService {
         }
 
         return toResponseWithLiked(updatedPost, user.getUserId());
+    }
+
+    private void applyTaggedHotspots(Post post, List<Long> hotspotIds) {
+        if (hotspotIds == null || hotspotIds.isEmpty()) {
+            post.setTaggedHotspots(new HashSet<>());
+            post.setIsTaggedHotspot(false);
+            return;
+        }
+
+        List<Hotspot> hotspots = hotspotRepository.findAllById(hotspotIds);
+        if (hotspots.size() != new HashSet<>(hotspotIds).size()) {
+            throw new BusinessException("Địa điểm được gắn thẻ không tồn tại");
+        }
+        post.setTaggedHotspots(new HashSet<>(hotspots));
+        post.setIsTaggedHotspot(true);
+    }
+
+    private void applyTaggedRoutes(Post post, List<Long> routeIds) {
+        if (routeIds == null || routeIds.isEmpty()) {
+            post.setTaggedRoutes(new HashSet<>());
+            post.setIsTaggedRoute(false);
+            return;
+        }
+
+        List<Route> routes = routeRepository.findAllById(routeIds);
+        if (routes.size() != new HashSet<>(routeIds).size()) {
+            throw new BusinessException("Tuyến đường được gắn thẻ không tồn tại");
+        }
+        post.setTaggedRoutes(new HashSet<>(routes));
+        post.setIsTaggedRoute(true);
+    }
+
+    private void applyTags(Post post, List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            post.setTags(new HashSet<>());
+            return;
+        }
+
+        List<Tag> tags = tagRepository.findAllById(tagIds);
+        if (tags.size() != new HashSet<>(tagIds).size()) {
+            throw new BusinessException("Một số thẻ phân loại không tồn tại");
+        }
+        post.setTags(new HashSet<>(tags));
     }
 
     private void removeMedias(Post post, List<Long> removedMediaIds) {

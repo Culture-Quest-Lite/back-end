@@ -29,7 +29,9 @@ public class PayOsWebhookRegistrar implements ApplicationRunner {
         String webhookUrl = payOsProperties.getWebhookUrl();
 
         if (webhookUrl == null || webhookUrl.isBlank() || webhookUrl.contains("your-ngrok")) {
-            log.warn("[PayOS] Bỏ qua đăng ký webhook: PAYOS_WEBHOOK_URL chưa được cấu hình ({}).", webhookUrl);
+            log.error("[PayOS] CHƯA ĐĂNG KÝ WEBHOOK: PAYOS_WEBHOOK_URL chưa được cấu hình ({}). "
+                    + "PayOS sẽ KHÔNG gọi webhook, hóa đơn thanh toán xong vẫn ở trạng thái PENDING "
+                    + "và user mua gói Premium sẽ không được nâng cấp. ", webhookUrl);
             return;
         }
 
@@ -37,7 +39,9 @@ public class PayOsWebhookRegistrar implements ApplicationRunner {
             payOS.webhooks().confirm(webhookUrl);
             log.info("[PayOS] Đã đăng ký webhook thành công: {}", webhookUrl);
         } catch (Exception e) {
-            // Lỗi confirm không được làm chết app và không cần log (thường xảy ra khi ngrok chưa chạy)
+            log.error("[PayOS] Đăng ký webhook THẤT BẠI cho URL {}. PayOS sẽ không gửi callback, "
+                    + "hóa đơn sẽ kẹt ở trạng thái PENDING cho tới khi client gọi API đối soát. Nguyên nhân: {}",
+                    webhookUrl, e.getMessage(), e);
         }
     }
 }

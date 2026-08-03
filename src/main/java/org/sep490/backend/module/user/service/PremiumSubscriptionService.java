@@ -9,4 +9,6 @@ import java.util.List;
 public interface PremiumSubscriptionService {
     PaymentInitResponse subscribe(PremiumSubscribeRequest request);
     List<PremiumSubscriptionResponse> getMyPremiumSubscription();
+
+    PremiumSubscriptionResponse confirmPayment(Long invoiceId);
 }

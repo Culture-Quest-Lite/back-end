@@ -69,16 +69,32 @@ public class PremiumSubscriptionServiceImpl implements PremiumSubscriptionServic
         User user = userService.getCurrentUser();
         return invoiceRepository.findByUser_UserIdOrderByCreatedAtDesc(user.getUserId())
                 .stream()
-                .map(inv -> PremiumSubscriptionResponse.builder()
-                        .invoiceId(inv.getInvoiceId())
-                        .planName(inv.getSubscriptionPlan().getSubscriptionPlanName())
-                        .billingCycle(inv.getBillingCycle())
-                        .status(inv.getStatus())
-                        .paymentStatus(inv.getPaymentStatus())
-                        .startDate(inv.getStartDate())
-                        .endDate(inv.getEndDate())
-                        .paidAmount(inv.getPaidAmount())
-                        .build())
+                .map(this::toResponse)
                 .toList();
+    }
+
+    @Override
+    public PremiumSubscriptionResponse confirmPayment(Long invoiceId) {
+        User user = userService.getCurrentUser();
+        Invoice invoice = invoiceRepository.findPremiumInvoiceForUser(invoiceId, user.getUserId())
+                .orElseThrow(() -> new BusinessException("Hóa đơn không tồn tại"));
+
+        payOsInvoicePaymentService.reconcileInvoiceWithPayOs(invoice);
+
+        return toResponse(invoiceRepository.findPremiumInvoiceForUser(invoiceId, user.getUserId())
+                .orElse(invoice));
+    }
+
+    private PremiumSubscriptionResponse toResponse(Invoice inv) {
+        return PremiumSubscriptionResponse.builder()
+                .invoiceId(inv.getInvoiceId())
+                .planName(inv.getSubscriptionPlan().getSubscriptionPlanName())
+                .billingCycle(inv.getBillingCycle())
+                .status(inv.getStatus())
+                .paymentStatus(inv.getPaymentStatus())
+                .startDate(inv.getStartDate())
+                .endDate(inv.getEndDate())
+                .paidAmount(inv.getPaidAmount())
+                .build();
     }
 }

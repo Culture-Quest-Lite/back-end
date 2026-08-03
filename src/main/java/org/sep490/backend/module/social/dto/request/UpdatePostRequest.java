@@ -22,4 +22,8 @@ public class UpdatePostRequest {
     List<Long> removedMediaIds;
 
     PostVisibility visibility;
+
+    List<Long> hotspotIds;
+    List<Long> routeIds;
+    List<Long> tagIds;
 }

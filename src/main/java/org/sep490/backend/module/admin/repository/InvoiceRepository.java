@@ -21,6 +21,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     Optional<Invoice> findByPayosOrderCode(Long payosOrderCode);
 
     List<Invoice> findByUser_UserIdOrderByCreatedAtDesc(Long userId);
+    @Query("SELECT i FROM Invoice i JOIN FETCH i.subscriptionPlan WHERE i.invoiceId = :invoiceId AND i.user.userId = :userId")
+    Optional<Invoice> findPremiumInvoiceForUser(@Param("invoiceId") Long invoiceId, @Param("userId") Long userId);
     Optional<Invoice> findFirstByUser_UserIdAndStatusOrderByEndDateDesc(Long userId, InvoiceStatus status);
     boolean existsByUser_UserIdAndStatusAndEndDateAfter(Long userId, InvoiceStatus status, LocalDateTime now);
     List<Invoice> findByUserIsNotNullAndStatusAndEndDateBefore(InvoiceStatus status, LocalDateTime now);
