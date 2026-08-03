@@ -36,6 +36,7 @@ import org.sep490.backend.module.user.entity.enumeration.LevelStatus;
 import org.sep490.backend.module.user.repository.LevelProgressRepository;
 import org.sep490.backend.module.user.repository.LevelRepository;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -115,6 +116,25 @@ class AuthServiceImplTest {
         token.setExpiresIn(300L);
         token.setRefreshExpiresIn(1800L);
         return token;
+    }
+
+    /** JWT đã được Resource Server verify, dùng cho luồng social-sync của mobile. */
+    private static Jwt verifiedJwt(String sub, String email, String preferredUsername, String name) {
+        Jwt.Builder builder = Jwt.withTokenValue("token")
+                .header("alg", "RS256")
+                .subject(sub)
+                .claim("preferred_username", preferredUsername)
+                .claim("name", name);
+        if (email != null) {
+            builder.claim("email", email);
+        }
+        return builder.build();
+    }
+
+    private User captureSavedUser() {
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        return captor.getValue();
     }
 
     // =====================================================================
@@ -910,7 +930,7 @@ class AuthServiceImplTest {
             when(keyCloakAuthClient.exchangeCode("code", "uri")).thenReturn(null);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> authService.loginFacebook("code", "uri"));
+                    () -> authService.loginFacebook("code", "uri", "mobile"));
 
             assertEquals("Không thể trao đổi mã xác thực để lấy Token từ Keycloak", ex.getMessage());
         }
@@ -926,7 +946,7 @@ class AuthServiceImplTest {
             when(keyCloakAuthClient.exchangeCode("code", "uri")).thenReturn(token);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> authService.loginFacebook("code", "uri"));
+                    () -> authService.loginFacebook("code", "uri", "mobile"));
 
             assertEquals("Token không hợp lệ hoặc thiếu thông tin định danh", ex.getMessage());
         }
@@ -939,10 +959,22 @@ class AuthServiceImplTest {
             when(userRepository.findByKeycloakUserId("kc-fb-001")).thenReturn(Optional.empty());
             when(levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)).thenReturn(Optional.empty());
 
-            LoginResponse response = authService.loginFacebook("code", "uri");
+            LoginResponse response = authService.loginFacebook("code", "uri", "mobile");
 
             assertNotNull(response.getAccessToken());
-            verify(userRepository).save(any(User.class));
+            assertEquals("fb_kc-fb-001@facebook.com", captureSavedUser().getEmail());
+        }
+
+        // UTCID06 - Abnormal: EXPLORER đăng nhập Facebook vào web portal bị chặn
+        @Test
+        void loginFacebook_explorerOnWeb_throwsForbidden() {
+            when(keyCloakAuthClient.exchangeCode("code", "uri"))
+                    .thenReturn(socialToken("kc-fb-001", "a@gmail.com", List.of("EXPLORER")));
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> authService.loginFacebook("code", "uri", "web"));
+
+            assertEquals("Bạn không có quyền truy cập", ex.getMessage());
         }
 
         // UTCID04 - Abnormal: người dùng đã tồn tại nhưng bị khóa
@@ -955,7 +987,7 @@ class AuthServiceImplTest {
             when(userRepository.findByKeycloakUserId("kc-fb-001")).thenReturn(Optional.of(user));
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> authService.loginFacebook("code", "uri"));
+                    () -> authService.loginFacebook("code", "uri", "mobile"));
 
             assertEquals("Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động", ex.getMessage());
         }
@@ -969,9 +1001,99 @@ class AuthServiceImplTest {
             user.setStatus(UserStatus.ACTIVE);
             when(userRepository.findByKeycloakUserId("kc-fb-001")).thenReturn(Optional.of(user));
 
-            LoginResponse response = authService.loginFacebook("code", "uri");
+            LoginResponse response = authService.loginFacebook("code", "uri", "mobile");
 
             assertNotNull(response.getAccessToken());
+            verify(userRepository, never()).save(any(User.class));
+        }
+    }
+
+    // =====================================================================
+    // Function: syncSocialUser (mobile tự đổi code với Keycloak rồi gọi backend)
+    // =====================================================================
+    @Nested
+    @DisplayName("syncSocialUser")
+    class SyncSocialUserTest {
+
+        // UTCID01 - Normal: user Facebook mới có email -> lưu đúng email và username thật
+        @Test
+        void syncSocialUser_newFacebookUserWithEmail_savesRealEmailAndUsername() {
+            when(userRepository.findByKeycloakUserId("kc-fb-001")).thenReturn(Optional.empty());
+            when(levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)).thenReturn(Optional.empty());
+
+            authService.syncSocialUser(
+                    verifiedJwt("kc-fb-001", "an@gmail.com", "an@gmail.com", "Nguyễn Văn An"), "facebook");
+
+            User saved = captureSavedUser();
+            assertEquals("an@gmail.com", saved.getEmail());
+            assertEquals("an@gmail.com", saved.getUsername());
+            assertEquals("Nguyễn Văn An", saved.getDisplayName());
+        }
+
+        // UTCID02 - Normal: Facebook không trả email -> sinh email và username dự phòng
+        @Test
+        void syncSocialUser_newFacebookUserWithoutEmail_synthesizesEmailAndUsername() {
+            when(userRepository.findByKeycloakUserId("kc-fb-002")).thenReturn(Optional.empty());
+            when(levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)).thenReturn(Optional.empty());
+
+            authService.syncSocialUser(verifiedJwt("kc-fb-002", null, null, null), "facebook");
+
+            User saved = captureSavedUser();
+            assertEquals("fb_kc-fb-002@facebook.com", saved.getEmail());
+            assertEquals("fb_kc-fb-002", saved.getUsername());
+            assertEquals("Người dùng Facebook", saved.getDisplayName());
+        }
+
+        // UTCID03 - Abnormal: username mong muốn đã bị tài khoản khác chiếm -> nối hậu tố
+        @Test
+        void syncSocialUser_usernameTaken_appendsSuffix() {
+            when(userRepository.findByKeycloakUserId("abcdef12-3456-7890-abcd-ef1234567890"))
+                    .thenReturn(Optional.empty());
+            when(userRepository.existsByUsername("an@gmail.com")).thenReturn(true);
+            when(levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE)).thenReturn(Optional.empty());
+
+            authService.syncSocialUser(
+                    verifiedJwt("abcdef12-3456-7890-abcd-ef1234567890", "an@gmail.com", "an@gmail.com", "An"),
+                    "facebook");
+
+            assertEquals("an@gmail.com_abcdef", captureSavedUser().getUsername());
+        }
+
+        // UTCID04 - Normal: user đã tồn tại -> không tạo mới (Keycloak auto-link theo email)
+        @Test
+        void syncSocialUser_existingUser_doesNotCreateDuplicate() {
+            User user = new User();
+            user.setStatus(UserStatus.ACTIVE);
+            when(userRepository.findByKeycloakUserId("kc-fb-001")).thenReturn(Optional.of(user));
+
+            authService.syncSocialUser(verifiedJwt("kc-fb-001", "an@gmail.com", "an@gmail.com", "An"), "facebook");
+
+            verify(userRepository, never()).save(any(User.class));
+            verify(userMapper).toProfileResponse(user);
+        }
+
+        // UTCID05 - Abnormal: tài khoản bị khóa
+        @Test
+        void syncSocialUser_lockedUser_throwsLocked() {
+            User user = new User();
+            user.setStatus(UserStatus.INACTIVE);
+            when(userRepository.findByKeycloakUserId("kc-fb-001")).thenReturn(Optional.of(user));
+
+            BusinessException ex = assertThrows(BusinessException.class, () -> authService
+                    .syncSocialUser(verifiedJwt("kc-fb-001", "an@gmail.com", "an@gmail.com", "An"), "facebook"));
+
+            assertEquals("Tài khoản của bạn đã bị khóa hoặc ngừng hoạt động", ex.getMessage());
+        }
+
+        // UTCID06 - Abnormal: Google bắt buộc phải có email
+        @Test
+        void syncSocialUser_googleWithoutEmail_throwsMissingIdentity() {
+            when(userRepository.findByKeycloakUserId("kc-gg-001")).thenReturn(Optional.empty());
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> authService.syncSocialUser(verifiedJwt("kc-gg-001", null, "traveler01", "An"), "google"));
+
+            assertEquals("Token không hợp lệ hoặc thiếu thông tin định danh", ex.getMessage());
             verify(userRepository, never()).save(any(User.class));
         }
     }
