@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.admin.client.resource.UserResource;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.sep490.backend.common.exception.BusinessException;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
@@ -405,4 +407,23 @@ public class KeyCloakAuthClient {
     private interface CheckedSupplier<T> {
         T get();
     }
+
+//    public void updateUserAttribute(String keycloakUserId, String attributeKey, String attributeValue) {
+//        try {
+//            // Trỏ tới user cụ thể trong realm
+//            UserResource userResource = keycloak.realm(realm).users().get(keycloakUserId);
+//
+//            // Lấy thông tin hiện tại
+//            UserRepresentation user = userResource.toRepresentation();
+//
+//            // Cập nhật attribute
+//            user.singleAttribute(attributeKey, attributeValue);
+//
+//            // Lưu lại lên Keycloak
+//            userResource.update(user);
+//        } catch (Exception e) {
+//            log.error("Không thể cập nhật attribute {} cho user {}: {}", attributeKey, keycloakUserId, e.getMessage());
+//            throw new BusinessException("Lỗi đồng bộ dữ liệu với hệ thống xác thực");
+//        }
+//    }
 }
