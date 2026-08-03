@@ -54,8 +54,6 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse createGroup(GroupRequest request) {
 
-        isLoggedIn("createGroup");
-
         User user = userService.getCurrentUser();
         List<User> members = validateListMember(user.getUserId(), request.getUserIds(), request.getGroupName());
 
@@ -90,15 +88,14 @@ public class GroupServiceImpl implements GroupService {
     public GroupResponse updateGroup(Long groupId, GroupUpdateRequest request) {
 
         User user = userService.getCurrentUser();
-
-        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserIdAndRole(groupId, user.getUserId(), GroupRole.LEADER)) {
-            throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể update thông tin nhóm");
-        }
-
         Group group = getGroup(groupId);
 
         if(group.getStatus().equals(GroupStatus.DELETED)) {
             throw new BusinessException("Nhóm đã bị xóa");
+        }
+
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserIdAndRole(groupId, user.getUserId(), GroupRole.LEADER)) {
+            throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể update thông tin nhóm");
         }
 
         group.setGroupName(request.getGroupName());
@@ -202,7 +199,7 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse joinGroup(String shareToken) { // join through link
 
-        isLoggedIn("joinGroup");
+        //isLoggedIn("joinGroup");
 
         User user = userService.getCurrentUser();
         GroupUtils.TokenInfo tokenInfo = GroupUtils.parseToken(shareToken);
@@ -304,7 +301,7 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse leaveGroup(Long groupId) {
 
-        isLoggedIn("leaveGroup");
+        //isLoggedIn("leaveGroup");
 
         Group group = getGroup(groupId);
         User user = userService.getCurrentUser();
@@ -313,20 +310,16 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Nhóm đã bị xóa");
         }
 
-        if(!groupParticipantService.isParticipant(user, group)) {
-            throw new GroupAuthorizeException("Người dùng không phải là thành viên của nhóm");
+        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.PENDING)) {
+            throw new BusinessException("Bạn không thể rời nhóm khi đang chờ duyệt. Hãy hủy yêu cầu tham gia nhóm");
+        }
+
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
+            throw new BusinessException("Bạn không thuộc nhóm này");
         }
 
         if(groupParticipantService.isLeader(user, group)) {
             throw new BusinessException("Trưởng nhóm không thể rời nhóm. Hãy chuyển quyền trưởng nhóm cho người khác trước khi rời nhóm");
-        }
-
-        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.LEAVE)) {
-            throw new BusinessException("Bạn đã rời nhóm này");
-        }
-
-        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.PENDING)) {
-            throw new BusinessException("Bạn chưa là thành viên để rời nhóm này");
         }
 
         groupParticipantService.updateAction(user, group, GroupParticipantAction.LEAVE);
@@ -424,7 +417,7 @@ public class GroupServiceImpl implements GroupService {
         List<Long> valid = userFollowRepository.findMutualFollowerIds(leaderId, memberIds);
 
         if(valid == null || valid.isEmpty() || valid.size() < 1) {
-            throw new BusinessException("Bạn cần ít nhất 2 thành viên follow nhau để tạo nhóm");
+            throw new BusinessException("Bạn và 1 thành viên cần phải theo dõi nhau để tạo nhóm");
         }
 
 //          để show notification cho leader khi tạo nhóm
