@@ -364,10 +364,12 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<FollowUserResponse> getFriends() {
+    public List<FollowUserResponse> getFriends(String displayName) {
 
         User currentUser = getCurrentUser();
-        List<User> mutualFollowers = userFollowRepository.findMutualFollowers(currentUser.getUserId());
+        List<User> mutualFollowers = displayName != null && !displayName.trim().isEmpty() ?
+                userFollowRepository.findMutualFollowers(currentUser.getUserId(), displayName) :
+                userFollowRepository.findMutualFollowers(currentUser.getUserId());
 
         return mutualFollowers.stream()
                 .map(user -> {
