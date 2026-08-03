@@ -71,6 +71,11 @@ public class ReviewController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{id}/like")
+    public ResponseEntity<ReviewResponse> toggleLike(@PathVariable Long id) {
+        return ResponseEntity.ok(reviewService.toggleLikeReview(id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<String> delete(@PathVariable Long id) {
         reviewService.deleteReview(id);
