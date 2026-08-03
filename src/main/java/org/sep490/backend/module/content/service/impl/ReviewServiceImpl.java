@@ -15,10 +15,12 @@ import org.sep490.backend.module.content.dto.response.ReviewSummaryResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Media;
 import org.sep490.backend.module.content.entity.Review;
+import org.sep490.backend.module.content.entity.ReviewAction;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
+import org.sep490.backend.module.content.entity.enumeration.ReviewActionType;
 import org.sep490.backend.module.content.entity.enumeration.ReviewStatus;
 import org.sep490.backend.module.content.entity.enumeration.ReviewTargetType;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
@@ -26,6 +28,7 @@ import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.content.mapper.ReviewMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.MediaRepository;
+import org.sep490.backend.module.content.repository.ReviewActionRepository;
 import org.sep490.backend.module.content.repository.ReviewRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
@@ -58,6 +61,7 @@ import java.util.stream.Collectors;
 public class ReviewServiceImpl implements ReviewService {
 
     ReviewRepository reviewRepository;
+    ReviewActionRepository reviewActionRepository;
     ReviewMapper reviewMapper;
     MediaRepository mediaRepository;
     MediaMapper mediaMapper;
@@ -85,8 +89,7 @@ public class ReviewServiceImpl implements ReviewService {
         validateNotReviewedYet(currentUser.getUserId(), reviewRequest.getTargetType(), reviewRequest.getTargetId());
 
         review = reviewRepository.save(review);
-        ReviewResponse response = reviewMapper.toResponse(review);
-        response.setIsOwner(true);
+        ReviewResponse response = toResponse(review, currentUser.getUserId());
 
         if (reviewRequest.getFiles() != null && reviewRequest.getFiles().length > 0) {
             try {
@@ -127,8 +130,7 @@ public class ReviewServiceImpl implements ReviewService {
             }
         }
 
-        ReviewResponse response = reviewMapper.toResponse(review);
-        response.setIsOwner(true);
+        ReviewResponse response = toResponse(review, currentUser.getUserId());
         response.setMedias(loadMedias(review.getReviewId()));
         return response;
     }
@@ -205,6 +207,27 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     @Transactional
+    public ReviewResponse toggleLikeReview(Long id) {
+        User currentUser = userService.getCurrentUser();
+        Review review = getReviewById(id);
+
+        reviewActionRepository.findByReview_ReviewIdAndUser_UserIdAndActionType(
+                        id, currentUser.getUserId(), ReviewActionType.LIKE)
+                .ifPresentOrElse(existingLike -> {
+                    Long likeActionId = existingLike.getReviewActionId();
+                    review.getReviewActions().removeIf(action -> likeActionId.equals(action.getReviewActionId()));
+                }, () -> review.getReviewActions().add(ReviewAction.builder()
+                        .review(review)
+                        .user(currentUser)
+                        .actionType(ReviewActionType.LIKE)
+                        .build()));
+
+        reviewRepository.save(review);
+        return toResponse(review, currentUser.getUserId());
+    }
+
+    @Override
+    @Transactional
     public void deleteReview(Long id) {
         User currentUser = userService.getCurrentUser();
         Review review = getReviewById(id);
@@ -247,7 +270,14 @@ public class ReviewServiceImpl implements ReviewService {
     private ReviewResponse toResponse(Review review, Long currentUserId) {
         ReviewResponse response = reviewMapper.toResponse(review);
         response.setIsOwner(currentUserId != null && currentUserId.equals(review.getUser().getUserId()));
+        response.setIsLiked(isLikedBy(review, currentUserId));
         return response;
+    }
+
+    private boolean isLikedBy(Review review, Long userId) {
+        return userId != null && review.getReviewActions() != null && review.getReviewActions().stream()
+                .anyMatch(a -> a.getActionType() == ReviewActionType.LIKE
+                        && a.getUser().getUserId().equals(userId));
     }
 
     private Long getCurrentUserIdOrNull() {

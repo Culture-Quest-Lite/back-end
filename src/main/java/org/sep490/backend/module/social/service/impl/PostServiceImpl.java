@@ -354,7 +354,6 @@ public class PostServiceImpl implements PostService {
         if (existingLike.isPresent()) {
             Long likeActionId = existingLike.get().getPostActionId();
             post.getPostActions().removeIf(action -> likeActionId.equals(action.getPostActionId()));
-            post.setIsLiked(false);
         } else {
             PostAction likeAction = PostAction.builder()
                     .post(post)
@@ -362,7 +361,6 @@ public class PostServiceImpl implements PostService {
                     .actionType(PostActionType.LIKE)
                     .build();
             post.getPostActions().add(likeAction);
-            post.setIsLiked(true);
         }
         postRepository.save(post);
 

@@ -74,6 +74,6 @@ public class SaveRouteServiceImpl implements SavedRouteService {
     @Override
     @Transactional(readOnly = true)
     public SavedRoute findById(Long savedRouteId) {
-        return savedRouteRepository.findById(savedRouteId).orElseThrow(() ->  new BusinessException("Route not found"));
+        return savedRouteRepository.findById(savedRouteId).orElseThrow(() ->  new BusinessException("Tuyến đường không tồn tại"));
     }
 }
