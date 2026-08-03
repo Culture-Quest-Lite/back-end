@@ -47,4 +47,5 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, Long> {
             "            AND uf2.following.userId = uf.follower.userId)")
     List<User> findMutualFollowers(@Param("userId") Long userId,
                                    @Param("displayName") String displayName);
+
 }
