@@ -38,4 +38,13 @@ public interface UserFollowRepository extends JpaRepository<UserFollow, Long> {
             "WHERE uf.follower = :follower AND uf.following.userId IN :userIds")
     Set<Long> findFollowingIdsByFollowerAndFollowingIdIn(@Param("follower") User follower,
                                                          @Param("userIds") Collection<Long> userIds);
+
+    @Query("SELECT uf.follower FROM UserFollow uf " +
+            "WHERE uf.following.userId = :userId " +
+            "AND LOWER(uf.follower.displayName) LIKE LOWER(CONCAT('%', :displayName, '%')) " +
+            "AND EXISTS (SELECT 1 FROM UserFollow uf2 " +
+            "            WHERE uf2.follower.userId = :userId " +
+            "            AND uf2.following.userId = uf.follower.userId)")
+    List<User> findMutualFollowers(@Param("userId") Long userId,
+                                   @Param("displayName") String displayName);
 }

@@ -27,5 +27,5 @@ public interface UserService {
     User getCurrentUser();
     User getUserById(Long id);
     List<User> getUsersByIds(List<Long> ids);
-    List<FollowUserResponse> getFriends();
+    List<FollowUserResponse> getFriends(String displayName);
 }
