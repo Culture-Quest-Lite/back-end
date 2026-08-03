@@ -5,4 +5,6 @@ import org.sep490.backend.module.admin.entity.Invoice;
 
 public interface PayOsInvoicePaymentService {
     PaymentInitResponse initiatePayOsPayment(Invoice invoice, String redirectUrl);
+
+    boolean reconcileInvoiceWithPayOs(Invoice invoice);
 }

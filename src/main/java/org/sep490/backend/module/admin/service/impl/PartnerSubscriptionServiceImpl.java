@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.service.InvoiceActivationService;
 import org.sep490.backend.common.service.PayOsInvoicePaymentService;
 import org.sep490.backend.common.service.TransactionCompensationService;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
@@ -78,6 +79,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     private final PayOS payOS;
     private final PlanRuleRepository planRuleRepository;
     private final PayOsInvoicePaymentService payOsInvoicePaymentService;
+    private final InvoiceActivationService invoiceActivationService;
     private final TransactionCompensationService txCompensation;
     @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
     @NonFinal
@@ -305,68 +307,27 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     }
 
     @Override
-    @Transactional
     public void handlePayOsWebhook(Map<String, Object> body) {
+        WebhookData data;
         try {
-            WebhookData data = payOS.webhooks().verify(body);
-
-            long orderCode = data.getOrderCode();
-            Invoice invoice = invoiceRepository.findByPayosOrderCode(orderCode)
-                    .orElse(null);
-            if (invoice == null) {
-                log.error("[PayOS Webhook] Không tìm thấy hóa đơn với orderCode={}", orderCode);
-                return;
-            }
-            if (InvoicePaymentStatus.PAID.equals(invoice.getPaymentStatus())) {
-                log.warn("[PayOS Webhook] Đã xử lý rồi, bỏ qua. orderCode={}", orderCode);
-                return;
-            }
-
-            SystemTransaction transaction = systemTransactionRepository
-                    .findFirstByGatewayRefOrderByCreatedAtDesc(String.valueOf(orderCode))
-                    .orElse(null);
-
-            if ("00".equals(data.getCode())) {
-                invoice.setPaymentStatus(InvoicePaymentStatus.PAID);
-                invoice.setPayosTransactionId(data.getReference());
-                invoice.setPaidAt(LocalDateTime.now());
-
-                if (invoice.getUser() != null) {
-                    User buyer = invoice.getUser();
-                    LocalDateTime now = LocalDateTime.now();
-                    LocalDateTime start = invoiceRepository
-                            .findFirstByUser_UserIdAndStatusOrderByEndDateDesc(buyer.getUserId(), InvoiceStatus.ACTIVE)
-                            .map(Invoice::getEndDate)
-                            .filter(d -> d.isAfter(now))
-                            .orElse(now);
-                    invoice.setStatus(InvoiceStatus.ACTIVE);
-                    invoice.setStartDate(start);
-                    invoice.setEndDate(BillingCycleEnum.MONTHLY.equals(invoice.getBillingCycle())
-                            ? start.plusMonths(1) : start.plusYears(1));
-                    buyer.setIsPremium(true);
-                    userRepository.save(buyer);
-                } else {
-                    invoice.setStatus(InvoiceStatus.PENDING);
-                }
-                invoiceRepository.save(invoice);
-
-                if (transaction != null) {
-                    transaction.setStatus(SystemTransactionStatus.SUCCESSED);
-                    transaction.setNotes("Thanh toán thành công qua PayOS. Ref: " + data.getReference());
-                    systemTransactionRepository.save(transaction);
-                }
-            } else {
-                invoice.setPaymentStatus(InvoicePaymentStatus.FAILED);
-                invoiceRepository.save(invoice);
-
-                if (transaction != null) {
-                    transaction.setStatus(SystemTransactionStatus.FAILED);
-                    transaction.setNotes("Thanh toán thất bại qua PayOS.");
-                    systemTransactionRepository.save(transaction);
-                }
-            }
+            data = payOS.webhooks().verify(body);
         } catch (Exception e) {
-            log.error("[PayOS Webhook] Lỗi xác thực webhook: {}", e.getMessage());
+            log.error("[PayOS Webhook] Lỗi xác thực chữ ký webhook: {}", e.getMessage(), e);
+            return;
+        }
+
+        long orderCode = data.getOrderCode();
+        Invoice invoice = invoiceRepository.findByPayosOrderCode(orderCode).orElse(null);
+        if (invoice == null) {
+            log.error("[PayOS Webhook] Không tìm thấy hóa đơn với orderCode={}", orderCode);
+            return;
+        }
+
+        if ("00".equals(data.getCode())) {
+            invoiceActivationService.markInvoicePaid(invoice, data.getReference());
+        } else {
+            log.warn("[PayOS Webhook] Thanh toán thất bại. orderCode={}, code={}", orderCode, data.getCode());
+            invoiceActivationService.markInvoiceFailed(invoice);
         }
     }
 

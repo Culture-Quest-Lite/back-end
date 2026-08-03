@@ -69,7 +69,7 @@ public class Invoice {
     @Column(name = "paid_at")
     LocalDateTime paidAt;
 
-    @Column(name = "payos_order_code")
+    @Column(name = "payos_order_code", unique = true)
     private Long payosOrderCode;
 
     @Column(name = "payos_payment_link_id")
