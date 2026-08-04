@@ -5,12 +5,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
+import org.sep490.backend.module.content.entity.enumeration.RouteType;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.exploration.entity.RouteParticipant;
 import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
 import org.sep490.backend.module.exploration.event.CheckInCompletedEvent;
+import org.sep490.backend.module.exploration.event.CheckInCustomRouteCompletedEvent;
 import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
 import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.springframework.context.ApplicationEventPublisher;
@@ -70,6 +72,13 @@ public class RouteProgressEventListener {
                 Route route = progress.getRoute();
                 route.setTotalCheckIns(route.getTotalCheckIns() + 1);
                 routeRepository.save(progress.getRoute());
+                // add xp and point for creator of custom route
+                if(route.getType().equals(RouteType.CUSTOM)) {
+                    eventPublisher.publishEvent(new CheckInCustomRouteCompletedEvent(
+                            route.getRouteId(),
+                            route.getCreatedBy().getUserId()
+                    ));
+                }
             }
         }
 
