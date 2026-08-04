@@ -22,12 +22,8 @@ public interface RouteService {
     Page<RouteResponse> filterRoutes(SearchRequest request);
     RouteResponse addHotspotToEndOfRoute(Long routeId, Long hotspotId);
     RouteResponse removeHotspotFromRoute(Long routeId, Long hotspotId);
-    RouteResponse recordJourney();
-    RouteResponse finishRecordJourney();
     Route findRecordingCustomRouteByUserId(Long userId);
     List<RouteResponse> getByHotspotId(Long hotspotId, RouteStatus routeStatus);
     RouteResponse addHotspotToEndOfCustomRoute(Long routeId, Long hotspotId, Long userId);
-    RouteResponse finalizeCustomRoute(FinalizeCustomRouteRequest request);
-    List<RouteResponse> getMyJourney(RouteStatus routeStatus);
     String generateInviteLink(Long routeId);
 }
