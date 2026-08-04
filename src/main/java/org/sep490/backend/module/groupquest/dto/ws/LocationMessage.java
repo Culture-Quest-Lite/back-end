@@ -1,4 +1,4 @@
-package org.sep490.backend.module.groupquest.dto;
+package org.sep490.backend.module.groupquest.dto.ws;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

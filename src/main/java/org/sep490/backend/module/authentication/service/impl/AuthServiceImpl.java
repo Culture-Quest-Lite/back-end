@@ -91,6 +91,7 @@ public class AuthServiceImpl implements AuthService {
             user.setStatus(UserStatus.PENDING);
             user = userRepository.save(user);
             createInitialLevelProgress(user);
+            keyCloakAuthClient.updateUserAttribute(keycloakUserId, "internal_id", String.valueOf(user.getUserId()));
             return userMapper.toProfileResponse(user);
         } catch (Exception e) {
             rollbackKeycloakUser(keycloakUserId);

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.sep490.backend.common.exception.BusinessException;
@@ -32,6 +33,7 @@ public class KeyCloakAuthClient {
 
     private final RestClient.Builder restClientBuilder;
     private final KeyCloakClientProperties properties;
+    private final Keycloak keycloak;
 
     public KeyCloakTokenResponse login(String username, String password) {
         MultiValueMap<String, String> form = baseClientForm();
@@ -408,22 +410,18 @@ public class KeyCloakAuthClient {
         T get();
     }
 
-//    public void updateUserAttribute(String keycloakUserId, String attributeKey, String attributeValue) {
-//        try {
-//            // Trỏ tới user cụ thể trong realm
-//            UserResource userResource = keycloak.realm(realm).users().get(keycloakUserId);
-//
-//            // Lấy thông tin hiện tại
-//            UserRepresentation user = userResource.toRepresentation();
-//
-//            // Cập nhật attribute
-//            user.singleAttribute(attributeKey, attributeValue);
-//
-//            // Lưu lại lên Keycloak
-//            userResource.update(user);
-//        } catch (Exception e) {
-//            log.error("Không thể cập nhật attribute {} cho user {}: {}", attributeKey, keycloakUserId, e.getMessage());
-//            throw new BusinessException("Lỗi đồng bộ dữ liệu với hệ thống xác thực");
-//        }
-//    }
+    public void updateUserAttribute(String keycloakUserId, String attributeKey, String attributeValue) {
+        try {
+            UserResource userResource = keycloak.realm(properties.getRealm()).users().get(keycloakUserId);
+
+            UserRepresentation user = userResource.toRepresentation();
+
+            user.singleAttribute(attributeKey, attributeValue);
+
+            userResource.update(user);
+        } catch (Exception e) {
+            log.error("Không thể cập nhật attribute {} cho user {}: {}", attributeKey, keycloakUserId, e.getMessage());
+            throw new BusinessException("Lỗi đồng bộ dữ liệu với hệ thống xác thực");
+        }
+    }
 }
