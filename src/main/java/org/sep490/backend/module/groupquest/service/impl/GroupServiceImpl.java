@@ -394,6 +394,13 @@ public class GroupServiceImpl implements GroupService {
         return groupParticipantService.updateAction(groupParticipantId, action);
     }
 
+    @Override
+    public Boolean isLeader(Long userId, Long groupId) {
+        User user = userService.getUserById(userId);
+        Group group = getGroup(groupId);
+        return groupParticipantService.isLeader(user, group);
+    }
+
 
     // for temporary, remove after implement authen
     private void isLoggedIn(String methodName) {

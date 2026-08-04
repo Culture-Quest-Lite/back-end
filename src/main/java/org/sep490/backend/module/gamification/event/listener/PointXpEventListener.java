@@ -9,6 +9,7 @@ import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.exploration.event.CheckInCompletedEvent;
+import org.sep490.backend.module.exploration.event.CheckInCustomRouteCompletedEvent;
 import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
 import org.sep490.backend.module.gamification.dto.request.RewardTransactionRequest;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
@@ -72,6 +73,29 @@ public class PointXpEventListener {
                 .xpAmount(earnedXp)
                 .transactionType(TransactionType.ROUTE_COMPLETION)
                 .description("User #" + user.getUserId() + " completed route #" + route.getRouteId() + " and earned " + earnedPoint + " points.")
+                .referenceId(route.getRouteId())
+                .build();
+        rewardTransactionService.createRewardTransaction(rewardRequest);
+    }
+
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleRouteProgressCompleted(CheckInCustomRouteCompletedEvent event) {
+        User user = userService.getUserById(event.createdById());
+
+        Route route = routeService.getById(event.routeId());
+        // temp point and xp
+        Long earnedPoint = route.getPoint();
+        Long earnedXp =  route.getXp();
+
+        // Reward Transaction
+        RewardTransactionRequest rewardRequest = RewardTransactionRequest.builder()
+                .userId(event.createdById())
+                .pointsAmount(earnedPoint)
+                .xpAmount(earnedXp)
+                .transactionType(TransactionType.EARN)
+                .description("User #" + user.getUserId() + " earned base on custom route #" + route.getRouteId() + " was completed.")
                 .referenceId(route.getRouteId())
                 .build();
         rewardTransactionService.createRewardTransaction(rewardRequest);

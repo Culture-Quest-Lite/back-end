@@ -18,6 +18,7 @@ import org.sep490.backend.module.groupquest.mapper.GroupParticipantMapper;
 import org.sep490.backend.module.groupquest.repository.GroupParticipantRepository;
 import org.sep490.backend.module.groupquest.repository.GroupRepository;
 import org.sep490.backend.module.groupquest.service.inter.GroupParticipantService;
+import org.sep490.backend.module.groupquest.service.inter.GroupService;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
