@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.exception.GroupAuthorizeException;
 import org.sep490.backend.common.utils.GroupUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.groupquest.dto.request.GroupRequest;
@@ -30,6 +31,7 @@ import org.sep490.backend.module.user.repository.UserFollowRepository;
 import org.sep490.backend.module.user.service.UserService;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -427,6 +429,485 @@ class GroupServiceImplTest {
             assertNotNull(response);
             verify(groupParticipantService, times(1)).updateAction(eq(user), eq(group), eq(GroupParticipantAction.LEAVE));
             verify(groupRepository, times(1)).save(any(Group.class));
+        }
+    }
+
+    @Nested
+    @DisplayName("kickUserFromGroup")
+    class KickUserFromGroupTest {
+
+        private Group createGroup(Long id, GroupStatus status) {
+            Group group = new Group();
+            group.setGroupId(id);
+            group.setStatus(status);
+            return group;
+        }
+
+        private User createUser(Long id) {
+            User user = new User();
+            user.setUserId(id);
+            return user;
+        }
+
+        private List<GroupParticipant> createGroupParticipants(int count) {
+            List<GroupParticipant> groupParticipants = new ArrayList<>();
+            for (int i = 0; i < count; i++) {
+                GroupParticipant groupParticipant = new GroupParticipant();
+                groupParticipants.add(groupParticipant);
+            }
+            return groupParticipants;
+        }
+
+        // =====================================================================
+        // UTCID01 - Abnormal: Nhóm đã bị xóa
+        // =====================================================================
+        @Test
+        void kickUserFromGroup_groupDeleted_throwsException() {
+            Long groupId = 1L;
+            Long targetUserId = 2L;
+
+            Group group = createGroup(groupId, GroupStatus.DELETED);
+            User leader = createUser(1L);
+            User member = createUser(targetUserId);
+
+            // Giả lập hàm getGroup() lấy dữ liệu từ repository
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(userService.getCurrentUser()).thenReturn(leader);
+            when(userService.getUserById(targetUserId)).thenReturn(member);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> groupService.kickUserFromGroup(targetUserId, groupId));
+
+            assertEquals("Nhóm đã bị xóa", ex.getMessage());
+        }
+
+        // =====================================================================
+        // UTCID02 - Abnormal: Người thực hiện không phải là trưởng nhóm
+        // =====================================================================
+        @Test
+        void kickUserFromGroup_notLeader_throwsAuthorizeException() {
+            Long groupId = 1L;
+            Long targetUserId = 2L;
+
+            Group group = createGroup(groupId, GroupStatus.ACTIVE);
+            User currentUser = createUser(1L); // User hiện tại
+            User member = createUser(targetUserId);
+
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(userService.getCurrentUser()).thenReturn(currentUser);
+            when(userService.getUserById(targetUserId)).thenReturn(member);
+
+            // Bị chặn vì không phải leader
+            when(groupParticipantService.isLeader(currentUser, group)).thenReturn(false);
+
+            GroupAuthorizeException ex = assertThrows(GroupAuthorizeException.class,
+                    () -> groupService.kickUserFromGroup(targetUserId, groupId));
+
+            assertEquals("Chỉ có trưởng nhóm mới có thể kick thành viên", ex.getMessage());
+        }
+
+        // =====================================================================
+        // UTCID03 - Abnormal: Tự kick chính mình
+        // =====================================================================
+        @Test
+        void kickUserFromGroup_kickYourself_throwsException() {
+            Long groupId = 1L;
+            Long targetUserId = 1L; // ID trùng với leader
+
+            Group group = createGroup(groupId, GroupStatus.ACTIVE);
+            User leader = createUser(1L);
+            User member = createUser(targetUserId); // Chính là leader
+
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(userService.getCurrentUser()).thenReturn(leader);
+            when(userService.getUserById(targetUserId)).thenReturn(member);
+            when(groupParticipantService.isLeader(leader, group)).thenReturn(true);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> groupService.kickUserFromGroup(targetUserId, groupId));
+
+            assertEquals("Bạn không thể kick chính mình", ex.getMessage());
+        }
+
+        // =====================================================================
+        // UTCID04 - Abnormal: User bị kick không có trong nhóm
+        // =====================================================================
+        @Test
+        void kickUserFromGroup_targetNotAMember_throwsException() {
+            Long groupId = 1L;
+            Long targetUserId = 2L;
+
+            Group group = createGroup(groupId, GroupStatus.ACTIVE);
+            User leader = createUser(1L);
+            User member = createUser(targetUserId);
+
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(userService.getCurrentUser()).thenReturn(leader);
+            when(userService.getUserById(targetUserId)).thenReturn(member);
+            when(groupParticipantService.isLeader(leader, group)).thenReturn(true);
+
+            // Trả về false -> Bị chặn
+            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
+                    groupId, targetUserId, GroupParticipantAction.JOIN)).thenReturn(false);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> groupService.kickUserFromGroup(targetUserId, groupId));
+
+            assertEquals("Thành viên này không thuộc nhóm", ex.getMessage());
+        }
+
+        // =====================================================================
+        // UTCID05 - Normal: Luồng hợp lệ (Kick thành công)
+        // =====================================================================
+        @Test
+        void kickUserFromGroup_valid_kicksUserAndReturnsResponse() {
+            Long groupId = 1L;
+            Long targetUserId = 2L;
+            Long leaderId = 10L;
+
+            Group group = new Group();
+            group.setGroupId(groupId);
+            group.setStatus(GroupStatus.ACTIVE);
+
+            User leader = new User();
+            leader.setUserId(leaderId);
+
+            User member = new User();
+            member.setUserId(targetUserId);
+
+            GroupParticipant leaderParticipant = new GroupParticipant();
+            leaderParticipant.setUser(leader);
+
+            List<GroupParticipant> remainingMembers = List.of(
+                    new GroupParticipant(),
+                    new GroupParticipant(),
+                    new GroupParticipant()
+            );
+
+            GroupResponse expectedResponse = new GroupResponse();
+
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+
+            when(userService.getCurrentUser()).thenReturn(leader);
+            when(userService.getUserById(targetUserId)).thenReturn(member);
+
+            when(groupParticipantService.isLeader(leader, group)).thenReturn(true);
+            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
+                    groupId, targetUserId, GroupParticipantAction.JOIN)).thenReturn(true);
+
+            when(groupParticipantRepository.findAllByGroup_GroupIdAndAction(groupId, GroupParticipantAction.JOIN))
+                    .thenReturn(remainingMembers);
+
+            when(groupParticipantRepository.findByGroup_GroupIdAndRole(groupId, GroupRole.LEADER))
+                    .thenReturn(leaderParticipant);
+
+            when(groupMapper.toResponse(group, leaderId)).thenReturn(expectedResponse);
+
+            GroupResponse actualResponse = groupService.kickUserFromGroup(targetUserId, groupId);
+
+            assertNotNull(actualResponse);
+            verify(groupParticipantService).updateAction(member, group, GroupParticipantAction.KICKED);
+            verify(groupRepository).save(argThat(savedGroup -> savedGroup.getTotalMembers() == 3));
+        }
+    }
+
+    @Nested
+    @DisplayName("refreshSharedToken")
+    class RefreshSharedTokenTest {
+
+        private Group createGroup(Long id, GroupStatus status, String shareToken) {
+            Group group = new Group();
+            group.setGroupId(id);
+            group.setStatus(status);
+            group.setShareToken(shareToken);
+            return group;
+        }
+
+        private User createUser(Long id) {
+            User user = new User();
+            user.setUserId(id);
+            return user;
+        }
+
+        private GroupParticipant createParticipant(User user, GroupRole role) {
+            GroupParticipant gp = new GroupParticipant();
+            gp.setUser(user);
+            gp.setRole(role);
+            return gp;
+        }
+
+        // =====================================================================
+        // UTCID01 - Abnormal: Nhóm đã bị xóa
+        // =====================================================================
+        @Test
+        void refreshSharedToken_groupDeleted_throwsException() {
+            Long groupId = 1L;
+            User user = createUser(1L);
+            Group group = createGroup(groupId, GroupStatus.DELETED, "OLD_TOKEN");
+
+            // Mock trả về user và group
+            when(userService.getCurrentUser()).thenReturn(user);
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+
+            // Hàm sẽ query participant trước khi check DELETED
+            when(groupParticipantRepository.findByGroup_GroupIdAndUser_UserId(groupId, user.getUserId()))
+                    .thenReturn(Optional.of(createParticipant(user, GroupRole.LEADER)));
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> groupService.refreshSharedToken(groupId));
+
+            assertEquals("Nhóm đã bị xóa", ex.getMessage());
+        }
+
+        // =====================================================================
+        // UTCID02 - Abnormal: Người dùng không phải là trưởng nhóm
+        // =====================================================================
+        @Test
+        void refreshSharedToken_notLeader_throwsAuthorizeException() {
+            Long groupId = 1L;
+            User user = createUser(2L); // User hiện tại
+            Group group = createGroup(groupId, GroupStatus.ACTIVE, "OLD_TOKEN");
+
+            when(userService.getCurrentUser()).thenReturn(user);
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+
+            // Giả lập user chỉ là MEMBER (hoặc có thể mock trả về Optional.empty() nếu user không trong nhóm)
+            when(groupParticipantRepository.findByGroup_GroupIdAndUser_UserId(groupId, user.getUserId()))
+                    .thenReturn(Optional.of(createParticipant(user, GroupRole.MEMBER)));
+
+            GroupAuthorizeException ex = assertThrows(GroupAuthorizeException.class,
+                    () -> groupService.refreshSharedToken(groupId));
+
+            assertEquals("Chỉ có trưởng nhóm mới có thể tạo mới invite code", ex.getMessage());
+        }
+
+        // =====================================================================
+        // UTCID03 - Abnormal: Token mới sinh ra bị trùng với Token cũ
+        // =====================================================================
+        @Test
+        void refreshSharedToken_newCodeMatchesOldCode_throwsException() {
+            Long groupId = 1L;
+            String oldToken = "DUPLICATED_TOKEN";
+            User user = createUser(1L);
+            Group group = createGroup(groupId, GroupStatus.ACTIVE, oldToken);
+
+            when(userService.getCurrentUser()).thenReturn(user);
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(groupParticipantRepository.findByGroup_GroupIdAndUser_UserId(groupId, user.getUserId()))
+                    .thenReturn(Optional.of(createParticipant(user, GroupRole.LEADER)));
+
+            // Sử dụng MockedStatic để ép hàm GroupUtils.generateToken trả về đúng chuỗi token cũ
+            try (MockedStatic<GroupUtils> mockedGroupUtils = mockStatic(GroupUtils.class)) {
+                mockedGroupUtils.when(() -> GroupUtils.generateToken(groupId)).thenReturn(oldToken);
+
+                BusinessException ex = assertThrows(BusinessException.class,
+                        () -> groupService.refreshSharedToken(groupId));
+
+                assertEquals("Gặp lỗi khi generate lại token. Hãy thử lại", ex.getMessage());
+            }
+        }
+
+        // =====================================================================
+        // UTCID04 - Normal: Reset token thành công
+        // =====================================================================
+        @Test
+        void refreshSharedToken_valid_updatesAndReturnsResponse() {
+            Long groupId = 1L;
+            String oldToken = "OLD_TOKEN";
+            String newToken = "NEW_FRESH_TOKEN";
+            User leader = createUser(1L);
+            Group group = createGroup(groupId, GroupStatus.ACTIVE, oldToken);
+            GroupParticipant leaderGp = createParticipant(leader, GroupRole.LEADER);
+
+            // 1. Mock thông tin cơ bản
+            when(userService.getCurrentUser()).thenReturn(leader);
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(groupParticipantRepository.findByGroup_GroupIdAndUser_UserId(groupId, leader.getUserId()))
+                    .thenReturn(Optional.of(leaderGp));
+
+            // 2. Mock hàm tính leaderId bên trong (getLeaderFromGroup)
+            when(groupParticipantRepository.findByGroup_GroupIdAndRole(groupId, GroupRole.LEADER))
+                    .thenReturn(leaderGp);
+
+            // 3. Mock Mapper
+            GroupResponse expectedResponse = new GroupResponse();
+            when(groupMapper.toResponse(any(Group.class), eq(leader.getUserId()))).thenReturn(expectedResponse);
+
+            // 4. Bọc hàm execute bên trong MockedStatic
+            try (MockedStatic<GroupUtils> mockedGroupUtils = mockStatic(GroupUtils.class)) {
+                mockedGroupUtils.when(() -> GroupUtils.generateToken(groupId)).thenReturn(newToken);
+
+                GroupResponse actualResponse = groupService.refreshSharedToken(groupId);
+
+                // Kiểm tra kết quả trả về
+                assertNotNull(actualResponse);
+
+                // Đảm bảo token mới và hạn sử dụng đã được set vào object group trước khi lưu
+                verify(groupRepository).save(argThat(savedGroup ->
+                        newToken.equals(savedGroup.getShareToken()) &&
+                                savedGroup.getExpireAt() != null
+                ));
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("addUserToGroup")
+    class AddUserToGroupTest {
+
+        private Group createGroup(Long id, GroupStatus status) {
+            Group group = new Group();
+            group.setGroupId(id);
+            group.setStatus(status);
+            return group;
+        }
+
+        private User createUser(Long id) {
+            User user = new User();
+            user.setUserId(id);
+            return user;
+        }
+
+        // =====================================================================
+        // UTCID01 - Abnormal: Nhóm đã bị xóa
+        // =====================================================================
+        @Test
+        void addUserToGroup_groupDeleted_throwsException() {
+            Long groupId = 1L;
+            Long targetUserId = 2L;
+
+            Group group = createGroup(groupId, GroupStatus.DELETED);
+            User leader = createUser(1L);
+            User targetUser = createUser(targetUserId);
+
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(userService.getCurrentUser()).thenReturn(leader);
+            when(userService.getUserById(targetUserId)).thenReturn(targetUser);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> groupService.addUserToGroup(targetUserId, groupId));
+
+            assertEquals("Không thể add thành viên khi nhóm đã bị xóa", ex.getMessage());
+        }
+
+        // =====================================================================
+        // UTCID02 - Abnormal: Người thực hiện không phải là trưởng nhóm
+        // =====================================================================
+        @Test
+        void addUserToGroup_notLeader_throwsAuthorizeException() {
+            Long groupId = 1L;
+            Long targetUserId = 2L;
+
+            Group group = createGroup(groupId, GroupStatus.ACTIVE);
+            User currentUser = createUser(3L); // Một user bình thường, không phải leader
+            User targetUser = createUser(targetUserId);
+
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(userService.getCurrentUser()).thenReturn(currentUser);
+            when(userService.getUserById(targetUserId)).thenReturn(targetUser);
+
+            // Giả lập logic của hàm isLeader() trả về false
+            // Tùy vào logic thật của hàm này, bạn có thể phải thay đổi Mock cho phù hợp
+            when(groupService.isLeader(currentUser.getUserId(), groupId)).thenReturn(false);
+
+            GroupAuthorizeException ex = assertThrows(GroupAuthorizeException.class,
+                    () -> groupService.addUserToGroup(targetUserId, groupId));
+
+            assertEquals("Chỉ có trưởng nhóm mới có thể add thành viên", ex.getMessage());
+        }
+
+        // =====================================================================
+        // UTCID03 - Abnormal: Tự add chính mình
+        // =====================================================================
+        @Test
+        void addUserToGroup_addYourself_throwsException() {
+            Long groupId = 1L;
+            Long targetUserId = 1L; // Trùng với ID của Leader
+
+            Group group = createGroup(groupId, GroupStatus.ACTIVE);
+            User leader = createUser(targetUserId);
+
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(userService.getCurrentUser()).thenReturn(leader);
+            when(userService.getUserById(targetUserId)).thenReturn(leader); // Trả về chính leader
+
+            when(groupService.isLeader(leader.getUserId(), groupId)).thenReturn(true);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> groupService.addUserToGroup(leader.getUserId(), groupId));
+
+            assertEquals("Không thể add chính mình vào nhóm", ex.getMessage());
+        }
+
+        // =====================================================================
+        // UTCID04 - Abnormal: Hai người chưa follow nhau
+        // =====================================================================
+        @Test
+        void addUserToGroup_notFollowingEachOther_throwsException() {
+            Long groupId = 1L;
+            Long targetUserId = 2L;
+
+            Group group = createGroup(groupId, GroupStatus.ACTIVE);
+            User leader = createUser(1L);
+            User targetUser = createUser(targetUserId);
+
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(userService.getCurrentUser()).thenReturn(leader);
+            when(userService.getUserById(targetUserId)).thenReturn(targetUser);
+
+            when(groupService.isLeader(leader.getUserId(), groupId)).thenReturn(true);
+
+            when(userFollowRepository.existsByFollowerAndFollowing(leader, targetUser)).thenReturn(true);
+
+            when(userFollowRepository.existsByFollowerAndFollowing(targetUser, leader)).thenReturn(false);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> groupService.addUserToGroup(targetUserId, groupId));
+
+            assertEquals("Cả 2 phải theo dõi nhau để add vào group", ex.getMessage());
+        }
+
+        // =====================================================================
+        // UTCID05 - Normal: Add thành công
+        // =====================================================================
+        @Test
+        void addUserToGroup_valid_addsUserAndReturnsResponse() {
+            Long groupId = 1L;
+            Long targetUserId = 2L;
+
+            Group group = createGroup(groupId, GroupStatus.ACTIVE);
+            User leader = createUser(1L);
+            User targetUser = createUser(targetUserId);
+
+            when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+            when(userService.getCurrentUser()).thenReturn(leader);
+            when(userService.getUserById(targetUserId)).thenReturn(targetUser);
+
+            when(groupService.isLeader(leader.getUserId(), groupId)).thenReturn(true);
+
+            // Giả lập 2 người CÓ follow nhau
+            when(userFollowRepository.existsByFollowerAndFollowing(leader, targetUser)).thenReturn(true);
+
+            when(userFollowRepository.existsByFollowerAndFollowing(targetUser, leader)).thenReturn(true);
+
+            // Giả lập cho hàm getLeaderFromGroup(groupId) bên trong
+            GroupParticipant leaderGp = new GroupParticipant();
+            leaderGp.setUser(leader);
+            when(groupParticipantRepository.findByGroup_GroupIdAndRole(groupId, GroupRole.LEADER))
+                    .thenReturn(leaderGp);
+
+            // Mock trả về DTO
+            GroupResponse expectedResponse = new GroupResponse();
+            when(groupMapper.toResponse(group, leader.getUserId())).thenReturn(expectedResponse);
+
+            // Thực thi hành động
+            GroupResponse actualResponse = groupService.addUserToGroup(targetUserId, groupId);
+
+            // Kiểm tra kết quả
+            assertNotNull(actualResponse);
+
+            // Đảm bảo service add user đã được gọi đúng tham số
+            verify(groupParticipantService).addUserToGroup(targetUser, group, JoinGroupType.ADD);
         }
     }
 

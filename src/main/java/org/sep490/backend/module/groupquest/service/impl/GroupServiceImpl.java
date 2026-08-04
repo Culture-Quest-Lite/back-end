@@ -231,7 +231,7 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse addUserToGroup(Long userId, Long groupId) { // leader add
 
-        isLoggedIn("addUserToGroup");
+        //isLoggedIn("addUserToGroup");
 
         Group group = getGroup(groupId);
         User currentUser = userService.getCurrentUser();
@@ -241,7 +241,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Không thể add thành viên khi nhóm đã bị xóa");
         }
 
-        if(!currentUser.equals(group.getCreatedBy())) {
+        if(!isLeader(currentUser.getUserId(), groupId)) {
             throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể add thành viên");
         }
 
@@ -266,7 +266,7 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse kickUserFromGroup(Long userId, Long groupId) {
 
-        isLoggedIn("kickUserFromGroup");
+        //isLoggedIn("kickUserFromGroup");
 
         Group group = getGroup(groupId);
         User leader = userService.getCurrentUser();
@@ -358,9 +358,10 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
+    @Transactional
     public GroupResponse refreshSharedToken(Long groupId) {
 
-        isLoggedIn("refreshSharedToken");
+        //isLoggedIn("refreshSharedToken");
 
         User user = userService.getCurrentUser();
         Group group = getGroup(groupId);
@@ -410,7 +411,8 @@ public class GroupServiceImpl implements GroupService {
         }
     }
 
-    private Long getLeaderFromGroup(Long groupId) {
+    @Override
+    public Long getLeaderFromGroup(Long groupId) {
         GroupParticipant gp = groupParticipantRepository.findByGroup_GroupIdAndRole(groupId, GroupRole.LEADER);
         return gp != null ? gp.getUser().getUserId() : null;
     }

@@ -266,63 +266,6 @@ public class RouteServiceImpl implements RouteService {
     }
 
     @Override
-    @Transactional
-    public RouteResponse recordJourney() {
-
-        User creator = userService.getCurrentUser();
-
-        if (routeRepository.findByCreatedByAndTypeAndStatus(creator, RouteType.CUSTOM, RouteStatus.RECORDING).orElse(null) != null) {
-            throw new BusinessException("Người dùng đã có hành trình đang ghi lại. " +
-                    "Vui lòng hoàn thành hành trình trước khi bắt đầu hành trình mới.");
-        }
-
-        // default tag for custom route
-        Tag tag = tagRepository.findByTagName("Hành Trình Cá Nhân")
-                .orElseThrow(() -> new BusinessException("Không tìm thấy tag 'Hành trình cá nhân'"));
-
-        Route route = new Route();
-
-        int createdRoutes = routeRepository.countByCreatedBy(creator);
-
-        route.setRouteName("Hành trình #" + (createdRoutes + 1) + " của " + creator.getDisplayName());
-        route.setDescription("Hành trình #" + (createdRoutes + 1) + " của " + creator.getDisplayName());
-        route.setDifficulty(RouteDifficulty.EASY);
-        route.setXp(0L);
-        route.setPoint(0L);
-        route.setEstimateTime(0.0);
-        route.setTotalDistance(0.0);
-        route.setCreatedBy(creator);
-        route.setStatus(RouteStatus.RECORDING);
-        route.setType(RouteType.CUSTOM);
-        route.setTag(tag);
-        route.setIsLocked(false);
-        route.setTotalStops(0);
-
-        route = routeRepository.save(route);
-
-        return buildRouteResponse(route, new ArrayList<>());
-    }
-
-    @Override
-    @Transactional
-    public RouteResponse finishRecordJourney() {
-
-        User user = userService.getCurrentUser();
-        Route route = findRecordingCustomRouteByUserId(user.getUserId());
-
-        if(route.getStories().size() < 4) {
-            throw new BusinessException("Hành trình cá nhân phải có ít nhất 4 điểm dừng (Hotspot)");
-        }
-
-        route.setStatus(RouteStatus.DRAFT); // wait for user to finalize their custom route
-        route = routeRepository.save(route);
-
-        List<Story> stories = route.getStories();
-
-        return buildRouteResponse(route, stories);
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public Route findRecordingCustomRouteByUserId(Long userId) {
 
@@ -358,55 +301,6 @@ public class RouteServiceImpl implements RouteService {
         List<Story> newStories = storyRepository.findByRoute_RouteId(routeId);
 
         return buildRouteResponse(route, newStories);
-    }
-
-    @Override
-    @Transactional
-    public RouteResponse finalizeCustomRoute(FinalizeCustomRouteRequest request) {
-
-        Route route = getById(request.getRouteId());
-        User user = userService.getCurrentUser();
-
-        if(!route.getStatus().equals(RouteStatus.DRAFT)) {
-            throw new BusinessException("Chỉ có thể hoàn tất hành trình cá nhân đang ở trạng thái DRAFT");
-        }
-
-        if(!route.getType().equals(RouteType.CUSTOM)) {
-            throw new BusinessException("Chỉ có thể hoàn tất hành trình cá nhân có loại CUSTOM");
-        }
-
-        if(!route.getCreatedBy().equals(user)) {
-            throw new BusinessException("Người dùng chỉ được hoàn thành hành trình cá nhân của mình");
-        }
-
-        route.setStatus(RouteStatus.PUBLISHED);
-        route.setDescription(request.getDescription());
-        route = routeRepository.save(route);
-
-        return buildRouteResponse(route, route.getStories());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<RouteResponse> getMyJourney(RouteStatus routeStatus) {
-
-        User user = userService.getCurrentUser();
-        List<Route> routes;
-
-        if (routeStatus == null) {
-            routes = routeRepository.findAllByCreatedByAndType(user, RouteType.CUSTOM);
-        } else {
-            routes = routeRepository.findAllByCreatedByAndTypeAndStatus(user, RouteType.CUSTOM, routeStatus);
-        }
-
-        if (routes.isEmpty()) {
-            throw new BusinessException("Không tìm thấy hành trình cá nhân nào"
-                    + (routeStatus != null ? " với trạng thái: " + routeStatus : ""));
-        }
-
-        return routes.stream()
-                .map(route -> buildRouteResponse(route, route.getStories()))
-                .toList();
     }
 
     @Override
