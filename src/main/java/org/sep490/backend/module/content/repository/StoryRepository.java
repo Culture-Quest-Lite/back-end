@@ -1,6 +1,7 @@
 package org.sep490.backend.module.content.repository;
 
 import org.sep490.backend.module.content.dto.projection.TagStoryCountProjection;
+import org.sep490.backend.module.content.dto.projection.TagUsageProjection;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
@@ -101,6 +102,11 @@ public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecific
     List<TagStoryCountProjection> countStoriesAndHotspotsByTagIds(@Param("tagIds") List<Long> tagIds,
                                                                   @Param("excludedStatus") ContentStatus excludedStatus);
 
+    @Query("SELECT s.tag.tagId AS tagId, s.storyId AS refId FROM Story s " +
+            "WHERE s.tag.tagId IN :tagIds AND s.status = :includeStatus")
+    List<TagUsageProjection> findStoryUsagesByTagIds(
+            @Param("tagIds") List<Long> tagIds,
+            @Param("includeStatus") ContentStatus includeStatus);
     @Query("SELECT s.status AS status, COUNT(s) AS total FROM Story s " +
             "WHERE s.status <> :excludedStatus " +
             "GROUP BY s.status")

@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.admin.client.Keycloak;
+import org.keycloak.admin.client.resource.UserResource;
+import org.keycloak.representations.idm.UserRepresentation;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.redis.CacheNames;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -34,6 +37,7 @@ public class KeyCloakAuthClient {
 
     private final RestClient.Builder restClientBuilder;
     private final KeyCloakClientProperties properties;
+    private final Keycloak keycloak;
 
     /** DB 1 — admin token là secret nên không đi qua CacheManager JSON. */
     @Qualifier("authRedisTemplate")
@@ -437,5 +441,20 @@ public class KeyCloakAuthClient {
     @FunctionalInterface
     private interface CheckedSupplier<T> {
         T get();
+    }
+
+    public void updateUserAttribute(String keycloakUserId, String attributeKey, String attributeValue) {
+        try {
+            UserResource userResource = keycloak.realm(properties.getRealm()).users().get(keycloakUserId);
+
+            UserRepresentation user = userResource.toRepresentation();
+
+            user.singleAttribute(attributeKey, attributeValue);
+
+            userResource.update(user);
+        } catch (Exception e) {
+            log.error("Không thể cập nhật attribute {} cho user {}: {}", attributeKey, keycloakUserId, e.getMessage());
+            throw new BusinessException("Lỗi đồng bộ dữ liệu với hệ thống xác thực");
+        }
     }
 }

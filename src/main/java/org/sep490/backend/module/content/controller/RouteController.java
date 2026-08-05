@@ -75,27 +75,6 @@ public class RouteController {
         return ResponseEntity.ok("Route deleted successfully");
     }
 
-    @PostMapping("/record")
-    public ResponseEntity<RouteResponse> recordJourney() {
-        return ResponseEntity.ok(routeService.recordJourney());
-    }
-
-    @PutMapping("/record/finish")
-    public ResponseEntity<RouteResponse> finishRecordJourney() {
-        return ResponseEntity.ok(routeService.finishRecordJourney());
-    }
-
-    @PutMapping("/record/finalize")
-    public ResponseEntity<RouteResponse> finalizeRecordJourney(@RequestBody FinalizeCustomRouteRequest request) {
-        return ResponseEntity.ok(routeService.finalizeCustomRoute(request));
-    }
-
-    @GetMapping("/my-journey")
-    @Operation(summary = "Get Explorer's Journey", description = "RECORDING, DRAFT, TRIAL")
-    public ResponseEntity<List<RouteResponse>> getMyJourney(@RequestParam(required = false) RouteStatus routeStatus) {
-        return ResponseEntity.ok(routeService.getMyJourney(routeStatus));
-    }
-
     @PutMapping("/{routeid}/generate-link")
     public ResponseEntity<String> generateLink(@PathVariable Long routeid) {
         String link = routeService.generateInviteLink(routeid);

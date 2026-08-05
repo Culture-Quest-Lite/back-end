@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.dto.filter.TagFilterRequest;
 import org.sep490.backend.module.content.dto.request.TagRequest;
 import org.sep490.backend.module.content.dto.response.TagResponse;
+import org.sep490.backend.module.content.dto.response.TagUsageResponse;
 import org.sep490.backend.module.content.service.inter.TagService;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
@@ -50,6 +51,11 @@ public class TagController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         tagService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<TagResponse>> searchTag(@Valid @ParameterObject @ModelAttribute TagFilterRequest filter) {
+        return ResponseEntity.ok(tagService.searchUsage(filter));
     }
 }
 

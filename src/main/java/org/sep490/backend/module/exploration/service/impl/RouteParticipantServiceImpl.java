@@ -9,6 +9,7 @@ import org.sep490.backend.common.utils.ShareTokenUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
+import org.sep490.backend.module.content.entity.enumeration.RouteType;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.exploration.dto.filter.RouteParticipantFilter;
@@ -220,7 +221,25 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
     @Override
     @Transactional
     public HashMap<Integer, RouteParticipantResponse> joinRouteFromLink(String token) {
+        LocalDateTime expiration = ShareTokenUtils.parseToken(token).timestampSeconds() != 0
+                ? LocalDateTime.ofEpochSecond(ShareTokenUtils.parseToken(token).timestampSeconds(), 0, java.time.ZoneOffset.UTC)
+                : null;
+
+        if(expiration != null && expiration.isBefore(LocalDateTime.now())) {
+            throw new BusinessException("Link mời đã hết hạn");
+        }
+
         Long routeId = ShareTokenUtils.parseToken(token).id();
+        Route route = routeService.getById(routeId);
+
+        if(!route.getType().equals(RouteType.CUSTOM)) {
+            throw new BusinessException("Link mời chỉ phục vụ cho Hành trình cá nhân");
+        }
+
+        if(route.getShareToken() == null || !route.getShareToken().equals(token)) {
+            throw new BusinessException("Link mời không hợp lệ");
+        }
+
         HashMap<Integer, RouteParticipantResponse> result = startRouteProgress(routeId);
         return result;
     }

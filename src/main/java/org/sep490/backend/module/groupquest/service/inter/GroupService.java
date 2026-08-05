@@ -23,5 +23,7 @@ public interface GroupService {
     List<GroupParticipantResponse> getGroupParticipantsByAction(Long groupId, GroupParticipantAction action);
     GroupResponse refreshSharedToken(Long groupId);
     GroupParticipantResponse updateGroupParticipantAction(Long groupParticipantId, GroupParticipantAction action);
+    Boolean isLeader(Long userId, Long groupId);
+    Long getLeaderFromGroup(Long groupId);
 }
 
