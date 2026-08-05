@@ -1,9 +1,12 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.content.service.inter.RatingSummaryService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.dto.filter.ReviewFilterRequest;
 import org.sep490.backend.module.content.dto.projection.ReviewRatingCountProjection;
@@ -72,6 +75,7 @@ public class ReviewServiceImpl implements ReviewService {
     HotspotRepository hotspotRepository;
     RouteRepository routeRepository;
     StoryRepository storyRepository;
+    RatingSummaryService ratingSummaryService;
 
     @Override
     @Transactional
@@ -89,6 +93,7 @@ public class ReviewServiceImpl implements ReviewService {
         validateNotReviewedYet(currentUser.getUserId(), reviewRequest.getTargetType(), reviewRequest.getTargetId());
 
         review = reviewRepository.save(review);
+        evictRatingCache(review);
         ReviewResponse response = toResponse(review, currentUser.getUserId());
 
         if (reviewRequest.getFiles() != null && reviewRequest.getFiles().length > 0) {
@@ -120,6 +125,7 @@ public class ReviewServiceImpl implements ReviewService {
         }
 
         review = reviewRepository.saveAndFlush(review);
+        evictRatingCache(review);
 
         if (reviewRequest.getFiles() != null && reviewRequest.getFiles().length > 0) {
             try {
@@ -201,7 +207,7 @@ public class ReviewServiceImpl implements ReviewService {
         Review review = getReviewById(id);
         review.setStatus(status);
         reviewRepository.save(review);
-
+        evictRatingCache(review);
         return toResponseWithOwner(review);
     }
 
@@ -239,6 +245,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         review.setStatus(ReviewStatus.DELETED);
         reviewRepository.save(review);
+        evictRatingCache(review);
     }
 
     @Override
@@ -259,8 +266,17 @@ public class ReviewServiceImpl implements ReviewService {
         Specification<Review> spec = ReviewSpecification.filter(filter);
 
         Long currentUserId = getCurrentUserIdOrNull();
-        return reviewRepository.findAll(spec, pageable)
-                .map(review -> toResponse(review, currentUserId));
+        Page<ReviewResponse> page = reviewRepository.findAll(spec, pageable)
+                .map(review -> toResponseWithoutLikeInfo(review, currentUserId));
+
+        applyLikeInfo(page.getContent(), currentUserId);
+        return page;
+    }
+
+    private ReviewResponse toResponseWithoutLikeInfo(Review review, Long currentUserId) {
+        ReviewResponse response = reviewMapper.toResponse(review);
+        response.setIsOwner(currentUserId != null && currentUserId.equals(review.getUser().getUserId()));
+        return response;
     }
 
     private ReviewResponse toResponseWithOwner(Review review) {
@@ -270,22 +286,54 @@ public class ReviewServiceImpl implements ReviewService {
     private ReviewResponse toResponse(Review review, Long currentUserId) {
         ReviewResponse response = reviewMapper.toResponse(review);
         response.setIsOwner(currentUserId != null && currentUserId.equals(review.getUser().getUserId()));
-        response.setIsLiked(isLikedBy(review, currentUserId));
+
+        Long reviewId = review.getReviewId();
+        List<Long> ids = List.of(reviewId);
+        response.setLikeCount(countLikes(ids).getOrDefault(reviewId, 0L));
+        response.setIsLiked(currentUserId != null
+                && findLikedIds(currentUserId, ids).contains(reviewId));
         return response;
     }
 
-    private boolean isLikedBy(Review review, Long userId) {
-        return userId != null && review.getReviewActions() != null && review.getReviewActions().stream()
-                .anyMatch(a -> a.getActionType() == ReviewActionType.LIKE
-                        && a.getUser().getUserId().equals(userId));
+    private void applyLikeInfo(List<ReviewResponse> responses, Long currentUserId) {
+        if (responses == null || responses.isEmpty()) {
+            return;
+        }
+        List<Long> ids = responses.stream()
+                .map(ReviewResponse::getReviewId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) {
+            return;
+        }
+
+        Map<Long, Long> counts = countLikes(ids);
+        Set<Long> likedIds = currentUserId == null ? Set.of() : findLikedIds(currentUserId, ids);
+
+        responses.forEach(response -> {
+            response.setLikeCount(counts.getOrDefault(response.getReviewId(), 0L));
+            response.setIsLiked(likedIds.contains(response.getReviewId()));
+        });
+    }
+
+    private Map<Long, Long> countLikes(List<Long> reviewIds) {
+        Map<Long, Long> result = new java.util.HashMap<>();
+        for (Object[] row : reviewActionRepository.countActionsByReviewIds(reviewIds, ReviewActionType.LIKE)) {
+            result.put((Long) row[0], ((Number) row[1]).longValue());
+        }
+        return result;
+    }
+
+    private Set<Long> findLikedIds(Long userId, List<Long> reviewIds) {
+        return reviewActionRepository.findLikedReviewIds(userId, reviewIds, ReviewActionType.LIKE);
     }
 
     private Long getCurrentUserIdOrNull() {
-        try {
-            return userService.getCurrentUser().getUserId();
-        } catch (RuntimeException e) {
+        if (SecurityUtils.getCurrentUserKeyCloakId().isEmpty()) {
             return null;
         }
+        return userService.getCurrentUser().getUserId();
     }
 
     private List<MediaResponse> loadMedias(Long reviewId) {
@@ -306,7 +354,6 @@ public class ReviewServiceImpl implements ReviewService {
             throw new BusinessException("Media không thuộc đánh giá này: " + notOwned);
         }
 
-        // Gom file_url trước khi orphanRemoval xóa row, nếu không sẽ mất dấu file trên S3
         List<String> removedFileUrls = review.getMedias().stream()
                 .filter(media -> removedMediaIds.contains(media.getMediaId()))
                 .map(Media::getFileUrl)
@@ -315,7 +362,6 @@ public class ReviewServiceImpl implements ReviewService {
 
         review.getMedias().removeIf(media -> removedMediaIds.contains(media.getMediaId()));
 
-        // Chỉ xóa file sau khi commit — nếu rollback thì row vẫn còn và đang trỏ tới nó
         removedFileUrls.forEach(fileUrl -> txCompensation.runAfterCommit(
                 "Xóa file media của đánh giá " + fileUrl,
                 () -> s3Service.safeDeleteByUrl(fileUrl)));
@@ -326,6 +372,19 @@ public class ReviewServiceImpl implements ReviewService {
             case HOTSPOT -> review.setHotspot(getActiveHotspot(targetId));
             case ROUTE -> review.setRoute(getPublishedRoute(targetId));
             case STORY -> review.setStory(getActiveStory(targetId));
+        }
+    }
+
+    private void evictRatingCache(Review review) {
+        if (review == null) {
+            return;
+        }
+        if (review.getHotspot() != null) {
+            ratingSummaryService.evict(ReviewTargetType.HOTSPOT, review.getHotspot().getHotspotId());
+        } else if (review.getRoute() != null) {
+            ratingSummaryService.evict(ReviewTargetType.ROUTE, review.getRoute().getRouteId());
+        } else if (review.getStory() != null) {
+            ratingSummaryService.evict(ReviewTargetType.STORY, review.getStory().getStoryId());
         }
     }
 

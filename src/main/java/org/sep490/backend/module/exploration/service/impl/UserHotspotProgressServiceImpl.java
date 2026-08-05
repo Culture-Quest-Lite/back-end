@@ -1,5 +1,7 @@
 package org.sep490.backend.module.exploration.service.impl;
 
+import org.sep490.backend.module.content.service.inter.CheckInStatusService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -33,6 +35,7 @@ public class UserHotspotProgressServiceImpl implements UserHotspotProgressServic
     HotspotService hotspotService;
     UserService userService;
     ApplicationEventPublisher eventPublisher;
+    CheckInStatusService checkInStatusService;
 
     @Override
     @Transactional
@@ -64,6 +67,7 @@ public class UserHotspotProgressServiceImpl implements UserHotspotProgressServic
                 .build();
 
         userHotspotProgressRepository.save(progress);
+        checkInStatusService.addCheckedIn(user.getUserId(), hotspot.getHotspotId());
 
         eventPublisher.publishEvent(new CheckInCompletedEvent(
                 user.getUserId(),

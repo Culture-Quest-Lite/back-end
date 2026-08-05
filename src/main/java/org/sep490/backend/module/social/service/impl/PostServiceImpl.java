@@ -1,5 +1,7 @@
 package org.sep490.backend.module.social.service.impl;
 
+import org.sep490.backend.module.social.service.PostCounterService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -12,6 +14,7 @@ import org.sep490.backend.module.content.service.inter.S3Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.service.TransactionCompensationService;
+import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.admin.entity.enumeration.AuditAction;
 import org.sep490.backend.module.admin.service.AuditLogService;
 import org.sep490.backend.module.authentication.entity.User;
@@ -48,6 +51,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -72,6 +76,7 @@ public class PostServiceImpl implements PostService {
     S3Service s3Service;
     TransactionCompensationService txCompensation;
     AuditLogService auditLogService;
+    PostCounterService postCounterService;
 
     @NonFinal
     @Value("${app.points.create-post:20}")
@@ -108,10 +113,33 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public Slice<PostResponse> getPosts(PostStatus status, int page, int size) {
-        User currentUser = userService.getCurrentUser();
+        // Endpoint này là public (xem PUBLIC_ENDPOINTS trong SecurityConfig) nên
+        // KHÔNG được gọi getCurrentUser() — hàm đó ném RuntimeException khi chưa đăng nhập,
+        // khiến toàn bộ API trả 500 cho khách vãng lai.
+        Long currentUserId = findCurrentUserIdOrNull();
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Slice<Post> postSlice = postRepository.findByStatusOptional(status, pageable);
-        return postSlice.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
+
+        // Có status cụ thể thì dùng query lọc thêm visibility để khớp index
+        // idx_post_feed_flow (status, visibility, created_at) -> Index Scan thay vì Seq Scan.
+        Slice<Post> postSlice = status != null
+                ? postRepository.findByStatusAndVisibility(status, PostVisibility.PUBLIC, pageable)
+                : postRepository.findByStatusOptional(null, pageable);
+        return postSlice.map(post -> toResponseWithLiked(post, currentUserId));
+    }
+
+    /**
+     * Trả null khi chưa đăng nhập thay vì ném lỗi — dùng cho các endpoint public.
+     *
+     * KHÔNG bọc getCurrentUser() trong try/catch: hàm đó có @Transactional, nên khi nó
+     * ném lỗi bên trong transaction cha thì transaction đã bị đánh dấu rollback-only.
+     * Bắt được exception cũng vô ích — lúc commit vẫn nổ UnexpectedRollbackException.
+     * Phải kiểm tra token TRƯỚC, chỉ gọi khi chắc chắn có người dùng.
+     */
+    private Long findCurrentUserIdOrNull() {
+        if (SecurityUtils.getCurrentUserKeyCloakId().isEmpty()) {
+            return null;
+        }
+        return userService.getCurrentUser().getUserId();
     }
 
     @Override
@@ -120,8 +148,8 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
 
-        User currentUser = userService.getCurrentUser();
-        return toResponseWithLiked(post, currentUser.getUserId());
+        // Public endpoint — xem ghi chú ở getPosts()
+        return toResponseWithLiked(post, findCurrentUserIdOrNull());
     }
 
     @Override
@@ -269,10 +297,42 @@ public class PostServiceImpl implements PostService {
     @Transactional
     public Slice<PostResponse> getNewsfeed(int page, int size) {
         User currentUser = userService.getCurrentUser();
-        Pageable pageable = PageRequest.of(page, size);
-        PostStatus status = PostStatus.APPROVED;
-        Slice<Post> newsfeedSlice = postRepository.findNewsfeed(currentUser, status, pageable);
-        return newsfeedSlice.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
+
+        // Tách làm 2 query thay vì ORDER BY CASE WHEN:
+        // biểu thức trong ORDER BY khiến index không dùng được -> Seq Scan toàn bảng
+        // (7.7 giây ở trang 1000 với 1.22 triệu bài). Hai query dưới đều dùng được
+        // index idx_post_feed_flow (status, visibility, created_at).
+        List<Long> followingIds = postRepository.findFollowingIds(currentUser.getUserId());
+
+        int offset = page * size;
+        int need = offset + size + 1;   // +1 để biết còn trang sau không
+        Pageable limit = PageRequest.of(0, need);
+
+        List<Post> merged = new ArrayList<>(need);
+
+        // Phần 1: bài của người đang theo dõi (ưu tiên hiển thị trước)
+        if (!followingIds.isEmpty()) {
+            merged.addAll(postRepository.findFeedByAuthors(
+                    PostStatus.APPROVED, PostVisibility.PUBLIC, followingIds, null, limit));
+        }
+
+        // Phần 2: bù cho đủ bằng bài của những người còn lại
+        if (merged.size() < need) {
+            Pageable remaining = PageRequest.of(0, need - merged.size());
+            // NOT IN với danh sách rỗng là lỗi cú pháp SQL, nên truyền một id không tồn tại
+            List<Long> excluded = followingIds.isEmpty() ? List.of(-1L) : followingIds;
+            merged.addAll(postRepository.findFeedExcludingAuthors(
+                    PostStatus.APPROVED, PostVisibility.PUBLIC, excluded, null, remaining));
+        }
+
+        boolean hasNext = merged.size() > offset + size;
+        List<PostResponse> content = merged.stream()
+                .skip(offset)
+                .limit(size)
+                .map(post -> toResponseWithLiked(post, currentUser.getUserId()))
+                .toList();
+
+        return new SliceImpl<>(content, PageRequest.of(page, size), hasNext);
     }
 
     @Override
@@ -390,6 +450,7 @@ public class PostServiceImpl implements PostService {
             post.getPostActions().add(likeAction);
         }
         postRepository.save(post);
+        postCounterService.evict(id);
 
         return toResponseWithLiked(post, currentUser.getUserId());
     }
@@ -417,6 +478,7 @@ public class PostServiceImpl implements PostService {
         }
 
         postActionRepository.save(commentActionBuilder.build());
+        postCounterService.evict(id);
         post = postRepository.findById(id).orElse(post);
         return toResponseWithLiked(post, currentUser.getUserId());
     }
@@ -438,6 +500,8 @@ public class PostServiceImpl implements PostService {
                 .actionType(PostActionType.SHARE)
                 .build();
         postActionRepository.save(shareAction);
+        // shareCount tăng trên post GỐC (post), không phải bài chia sẻ mới tạo bên dưới
+        postCounterService.evict(id);
 
         Post sharedPost = Post.builder()
                 .user(currentUser)
@@ -467,17 +531,27 @@ public class PostServiceImpl implements PostService {
 
     private PostResponse toResponseWithLiked(Post post, Long currentUserId) {
         PostResponse response = postMapper.toResponse(post);
-        response.setIsLiked(isLikedBy(post, currentUserId));
+        postCounterService.apply(response, post.getPostId());
+        response.setIsLiked(isLikedBy(post.getPostId(), currentUserId));
+
         if (response.getSharedPost() != null && post.getSharedPost() != null) {
-            response.getSharedPost().setIsLiked(isLikedBy(post.getSharedPost(), currentUserId));
+            Long sharedPostId = post.getSharedPost().getPostId();
+            postCounterService.apply(response.getSharedPost(), sharedPostId);
+            response.getSharedPost().setIsLiked(isLikedBy(sharedPostId, currentUserId));
         }
         return response;
     }
 
-    private boolean isLikedBy(Post post, Long userId) {
-        return post.getPostActions() != null && post.getPostActions().stream()
-                .anyMatch(a -> a.getActionType() == PostActionType.LIKE
-                        && a.getUser().getUserId().equals(userId));
+    /**
+     * Dùng EXISTS query thay vì stream cả collection postActions:
+     * cách cũ nạp toàn bộ like của post vào bộ nhớ chỉ để tìm một user.
+     */
+    private boolean isLikedBy(Long postId, Long userId) {
+        if (postId == null || userId == null) {
+            return false;
+        }
+        return postActionRepository.existsByPost_PostIdAndUser_UserIdAndActionType(
+                postId, userId, PostActionType.LIKE);
     }
 
     private CommentResponse mapToCommentResponse(PostAction action) {

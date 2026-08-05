@@ -3,6 +3,7 @@ package org.sep490.backend.module.admin.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.config.redis.CacheNames;
 import org.sep490.backend.module.admin.dto.projection.DailyCountProjection;
 import org.sep490.backend.module.admin.dto.projection.HotspotPublishSummaryProjection;
 import org.sep490.backend.module.admin.dto.projection.MonthlyCountProjection;
@@ -29,6 +30,7 @@ import org.sep490.backend.module.exploration.repository.RouteParticipantReposito
 import org.sep490.backend.module.exploration.repository.UserHotspotProgressRepository;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
 import org.sep490.backend.module.social.repository.PostRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,6 +72,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.ADMIN_DASHBOARD, key = "'current'", unless = "#result == null")
     public AdminDashboardResponse getDashboard() {
         LocalDate today = LocalDate.now(clock);
         YearMonth currentMonth = YearMonth.from(today);

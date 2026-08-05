@@ -1,5 +1,9 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.content.service.inter.CheckInStatusService;
+
+import org.sep490.backend.module.content.service.inter.RatingSummaryService;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -60,7 +64,20 @@ class RouteServiceImplTest {
     @Mock private TagRepository tagRepository;
     @Mock private HotspotMapper hotspotMapper;
 
+    @Mock private RatingSummaryService ratingSummaryService;
+    @Mock private CheckInStatusService checkInStatusService;
     @InjectMocks private RouteServiceImpl routeService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUpAppliers() {
+        // Trong code thật các applier trả về chính đối số sau khi gán rating/check-in
+        when(ratingSummaryService.applyToRoute(any(RouteResponse.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(ratingSummaryService.applyToHotspot(any(HotspotResponse.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(checkInStatusService.apply(any(HotspotResponse.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+    }
 
     // =====================================================================
     // Function: create (Route)
