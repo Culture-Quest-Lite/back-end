@@ -214,7 +214,7 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
     @Override
     public RouteParticipant getById(Long progressId) {
         return routeParticipantRepository.findById(progressId)
-                .orElseThrow(() -> new BusinessException("User route progress not found"));
+                .orElseThrow(() -> new BusinessException("Không tìm thấy tiến độ tuyến đường của người dùng"));
     }
 
     @Override

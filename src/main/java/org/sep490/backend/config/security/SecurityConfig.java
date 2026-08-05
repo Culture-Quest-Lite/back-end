@@ -13,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -47,7 +48,6 @@ public class SecurityConfig {
             "/api/auth/resend-otp",
             "/api/auth/login-by-google",
             "/api/auth/login-by-facebook",
-            "/api/v1/categories/**",
             "/api/v1/hotspots/**",
             "/api/v1/stories/**",
             "/api/v1/routes/**",
@@ -58,7 +58,8 @@ public class SecurityConfig {
     };
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtDenylistFilter jwtDenylistFilter) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
@@ -74,7 +75,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/curator/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
-                        .jwtAuthenticationConverter(jwtAuthenticationConverter())));
+                        .jwtAuthenticationConverter(jwtAuthenticationConverter())))
+                // Đặt SAU BearerTokenAuthenticationFilter để SecurityContext đã có Jwt
+                .addFilterAfter(jwtDenylistFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }

@@ -1,5 +1,7 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.content.service.inter.RatingSummaryService;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,7 +46,15 @@ class StoryServiceImplTest {
     @Mock private TagRepository tagRepository;
     @Mock private HotspotService hotspotService;
 
+    @Mock private RatingSummaryService ratingSummaryService;
     @InjectMocks private StoryServiceImpl storyService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUpAppliers() {
+        // Trong code thật các applier trả về chính đối số sau khi gán rating/check-in
+        when(ratingSummaryService.applyToStory(any(StoryResponse.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+    }
 
     // =====================================================================
     // Function: create (Story)

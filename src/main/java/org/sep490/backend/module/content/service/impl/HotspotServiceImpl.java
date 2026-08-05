@@ -1,5 +1,11 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.content.service.inter.GeoQueryService;
+
+import org.sep490.backend.module.content.service.inter.CheckInStatusService;
+
+import org.sep490.backend.module.content.service.inter.RatingSummaryService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -46,14 +52,15 @@ public class HotspotServiceImpl implements HotspotService {
     StoryRepository storyRepository;
     StoryMapper storyMapper;
     MediaService mediaService;
-    RatingSummaryApplier ratingSummaryApplier;
-    CheckInStatusApplier checkInStatusApplier;
+    RatingSummaryService ratingSummaryService;
+    CheckInStatusService checkInStatusService;
+    GeoQueryService geoQueryService;
 
     @Override
     @Transactional
     public HotspotResponse create(HotspotRequest request) {
 
-        if (!hotspotRepository.isLocationInVietnam(request.getLongitude(), request.getLatitude())) {
+        if (!geoQueryService.isLocationInVietnam(request.getLongitude(), request.getLatitude())) {
             throw new BusinessException("Tọa độ của Hotspot phải thuộc lãnh thổ Việt Nam");
         }
 
@@ -69,6 +76,7 @@ public class HotspotServiceImpl implements HotspotService {
         hotspot.setCreatedBy(userService.getCurrentUser());
         hotspot.setStatus(ContentStatus.DRAFT);
         hotspot = hotspotRepository.save(hotspot);
+        geoQueryService.evictNearby();
 
         //assignStoriesToHotspot(hotspot, request.getStoryIds());
 
@@ -91,6 +99,7 @@ public class HotspotServiceImpl implements HotspotService {
         Hotspot hotspot = getById(id);
         hotspotMapper.updateFromRequest(hotspot, request);
         hotspot = hotspotRepository.save(hotspot);
+        geoQueryService.evictNearby();
 
         //unsetStoriesFromHotspot(hotspot.getHotspotId());
         //assignStoriesToHotspot(hotspot, request.getStoryIds());
@@ -139,6 +148,7 @@ public class HotspotServiceImpl implements HotspotService {
         Hotspot hotspot = getById(id);
         hotspot.setStatus(ContentStatus.DELETED);
         hotspotRepository.save(hotspot);
+        geoQueryService.evictNearby();
     }
 
     @Override
@@ -173,7 +183,9 @@ public class HotspotServiceImpl implements HotspotService {
             throw new BusinessException("Khoảng cách phải lớn hơn 0");
         }
 
-        List<Hotspot> nearbies = hotspotRepository.findNearbyHotspotsWithStatus(longitude, latitude, distanceInMeters, ContentStatus.PUBLISHED.name());
+        // Qua cache: ST_DWithin mất ~118ms mỗi lần gọi
+        List<Hotspot> nearbies = geoQueryService.findNearby(
+                longitude, latitude, distanceInMeters, ContentStatus.PUBLISHED.name());
 
         List<HotspotResponse> responses = nearbies.stream()
                 .map(this::buildHotspotResponse)
@@ -183,11 +195,11 @@ public class HotspotServiceImpl implements HotspotService {
     }
 
     private HotspotResponse applyRatingSummary(HotspotResponse response) {
-        return ratingSummaryApplier.applyToHotspot(response);
+        return ratingSummaryService.applyToHotspot(response);
     }
 
     private void applyRatingSummary(List<HotspotResponse> responses) {
-        ratingSummaryApplier.applyToHotspots(responses);
+        ratingSummaryService.applyToHotspots(responses);
     }
 
     @Override
@@ -203,14 +215,14 @@ public class HotspotServiceImpl implements HotspotService {
     private HotspotResponse buildHotspotResponse(Hotspot hotspot) {
         HotspotResponse response = hotspotMapper.toResponse(hotspot);
 
-        checkInStatusApplier.apply(response);
+        checkInStatusService.apply(response);
 
         List<StoryResponse> storyResponses = storyRepository
                 .findByHotspotOrderedByIndex(hotspot.getHotspotId())
                 .stream()
                 .map(storyMapper::toResponse)
                 .toList();
-        ratingSummaryApplier.applyToStories(storyResponses);
+        ratingSummaryService.applyToStories(storyResponses);
         response.setStories(storyResponses);
         return response;
     }

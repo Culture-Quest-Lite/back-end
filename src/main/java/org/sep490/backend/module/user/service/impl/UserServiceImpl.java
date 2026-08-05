@@ -5,6 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.filter.dto.BaseFilterRequest;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
+import org.sep490.backend.config.redis.CacheNames;
+import org.sep490.backend.config.redis.RedisCircuitBreaker;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.admin.entity.enumeration.AuditAction;
 import org.sep490.backend.module.admin.service.AuditLogService;
@@ -18,11 +20,14 @@ import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
 import org.sep490.backend.module.user.dto.response.FollowStatusResponse;
 import org.sep490.backend.module.user.dto.response.FollowUserResponse;
 import org.sep490.backend.module.user.dto.response.LeaderboardEntryResponse;
+import org.sep490.backend.module.user.dto.response.LeaderboardPageCache;
 import org.sep490.backend.module.user.dto.response.MyLeaderboardRankResponse;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.entity.UserFollow;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.repository.UserFollowRepository;
+import org.sep490.backend.module.user.service.LeaderboardCacheService;
+import org.sep490.backend.module.user.service.UserIdCacheService;
 import org.sep490.backend.module.user.service.UserService;
 import org.sep490.backend.module.user.specification.UserSpecification;
 import org.springframework.data.domain.Page;
@@ -31,10 +36,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +58,10 @@ public class UserServiceImpl implements UserService {
     private final KeyCloakAuthClient keyCloakAuthClient;
     private final PostRepository postRepository;
     private final AuditLogService auditLogService;
+    private final LeaderboardCacheService leaderboardCacheService;
+    private final UserIdCacheService userIdCacheService;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisCircuitBreaker circuitBreaker;
 
     @Override
     @Transactional(readOnly = true)
@@ -122,14 +133,15 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("Bạn không thể tự theo dõi chính mình");
         }
 
-        //Theo dõi lại người đã theo dõi không phải là lỗi: client chỉ bị lệch state,
-        //trả về trạng thái thật để client đồng bộ lại thay vì ném 400.
+
         if (!userFollowRepository.existsByFollowerAndFollowing(follower, following)) {
             UserFollow userFollow = UserFollow.builder()
                     .follower(follower)
                     .following(following)
                     .build();
             userFollowRepository.save(userFollow);
+            evictUserCounters(follower.getUserId());
+            evictUserCounters(following.getUserId());
         }
 
         return buildFollowStatus(following, true, "Theo dõi người dùng thành công");
@@ -148,7 +160,11 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new BusinessException("Người dùng cần bỏ theo dõi không tồn tại"));
 
         userFollowRepository.findByFollowerAndFollowing(follower, following)
-                .ifPresent(userFollowRepository::delete);
+                .ifPresent(userFollow -> {
+                    userFollowRepository.delete(userFollow);
+                    evictUserCounters(follower.getUserId());
+                    evictUserCounters(following.getUserId());
+                });
 
         return buildFollowStatus(following, false, "Đã hủy theo dõi người dùng");
     }
@@ -211,20 +227,18 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Page<LeaderboardEntryResponse> getXpLeaderboard(LeaderboardFilterRequest filter) {
-        // Thứ tự sắp xếp nằm trong chính câu query nên Pageable ở đây chỉ để phân trang
         Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize());
-        Page<User> page = userRepository.findLeaderboardByXp(
-                UserStatus.ACTIVE, UserRole.EXPLORER, pageable);
+
+        LeaderboardPageCache cached = leaderboardCacheService.loadPage(
+                filter.getPage(), filter.getSize());
 
         User viewer = findCurrentUserOrNull();
-        int offset = filter.getPage() * filter.getSize();
 
-        List<User> users = page.getContent();
-        List<LeaderboardEntryResponse> entries = new ArrayList<>(users.size());
-        for (int i = 0; i < users.size(); i++) {
-            entries.add(toLeaderboardEntry(users.get(i), offset + i + 1, viewer));
-        }
-        return new PageImpl<>(entries, pageable, page.getTotalElements());
+        List<LeaderboardEntryResponse> entries = cached.getEntries();
+        entries.forEach(entry -> entry.setIsCurrentUser(
+                viewer == null ? null : viewer.getUserId().equals(entry.getUserId())));
+
+        return new PageImpl<>(entries, pageable, cached.getTotalElements());
     }
 
     @Override
@@ -235,15 +249,12 @@ public class UserServiceImpl implements UserService {
             throw new BusinessException("Tài khoản của bạn không tham gia bảng xếp hạng");
         }
 
-        // COALESCE khớp với ORDER BY của findLeaderboardByXp để hạng không lệch với danh sách
         int xp = me.getTotalXp() != null ? me.getTotalXp() : 0;
-        long above = userRepository.countUsersRankedAbove(
-                UserStatus.ACTIVE, UserRole.EXPLORER, xp, me.getCreatedAt(), me.getUserId());
+        long above = leaderboardCacheService.countRankedAbove(me.getUserId(), xp, me.getCreatedAt());
 
         MyLeaderboardRankResponse response = new MyLeaderboardRankResponse();
         response.setEntry(toLeaderboardEntry(me, (int) (above + 1), me));
-        response.setTotalParticipants(
-                userRepository.countByStatusAndRole(UserStatus.ACTIVE, UserRole.EXPLORER));
+        response.setTotalParticipants(leaderboardCacheService.countParticipants());
         return response;
     }
 
@@ -278,6 +289,7 @@ public class UserServiceImpl implements UserService {
         UserStatus oldStatus = user.getStatus();
         user.setStatus(UserStatus.INACTIVE);
         userRepository.save(user);
+        userIdCacheService.evict(user.getKeycloakUserId());
 
         syncKeycloakEnabledStatus(user, false, "khóa");
 
@@ -296,6 +308,7 @@ public class UserServiceImpl implements UserService {
         UserStatus oldStatus = user.getStatus();
         user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
+        userIdCacheService.evict(user.getKeycloakUserId());
 
         syncKeycloakEnabledStatus(user, true, "mở khóa");
 
@@ -343,8 +356,13 @@ public class UserServiceImpl implements UserService {
                 () -> new RuntimeException("Không tìm thấy thông tin người dùng hiện tại")
         );
 
-        User user = userRepository.findByKeycloakUserId(keycloakUserId)
+        Long userId = userIdCacheService.resolveUserId(keycloakUserId);
+
+        User user = (userId != null
+                ? userRepository.findById(userId)
+                : userRepository.findByKeycloakUserId(keycloakUserId))
                 .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
+
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw new BusinessException("Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa");
         }
@@ -414,6 +432,22 @@ public class UserServiceImpl implements UserService {
 
     private UserProfileResponse enrichProfileResponse(User user) {
         UserProfileResponse response = userMapper.toProfileResponse(user);
+        applyCounters(response, user);
+        return response;
+    }
+
+    private void applyCounters(UserProfileResponse response, User user) {
+        String key = String.format(CacheNames.KEY_USER_COUNTS, user.getUserId());
+
+        Map<Object, Object> cached = circuitBreaker.read("user.counts.get",
+                () -> redisTemplate.opsForHash().entries(key), Map.of());
+
+        if (cached != null && cached.size() == 3) {
+            response.setTotalFollowers(Long.parseLong(cached.get("followers").toString()));
+            response.setTotalFollowing(Long.parseLong(cached.get("following").toString()));
+            response.setTotalPosts(Long.parseLong(cached.get("posts").toString()));
+            return;
+        }
 
         long followers = userFollowRepository.countByFollowing(user);
         long following = userFollowRepository.countByFollower(user);
@@ -422,11 +456,24 @@ public class UserServiceImpl implements UserService {
         response.setTotalFollowers(followers);
         response.setTotalFollowing(following);
         response.setTotalPosts(posts);
-        return response;
+
+        circuitBreaker.write("user.counts.set", () -> {
+            redisTemplate.opsForHash().putAll(key, Map.of(
+                    "followers", String.valueOf(followers),
+                    "following", String.valueOf(following),
+                    "posts", String.valueOf(posts)));
+            redisTemplate.expire(key, Duration.ofMinutes(15));
+        });
     }
 
-    //isFollowing chỉ có ý nghĩa khi xem profile người khác, nên không tính trong hàm chung
-    //(getAllUsersWithFilter map cả trang user, tính ở đó sẽ thành N+1).
+    public void evictUserCounters(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        circuitBreaker.write("user.counts.evict",
+                () -> redisTemplate.delete(String.format(CacheNames.KEY_USER_COUNTS, userId)));
+    }
+
     private UserProfileResponse enrichProfileResponse(User user, User viewer) {
         UserProfileResponse response = enrichProfileResponse(user);
         if (viewer != null && !viewer.getUserId().equals(user.getUserId())) {

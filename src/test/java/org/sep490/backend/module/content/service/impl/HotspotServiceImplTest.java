@@ -1,5 +1,11 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.content.service.inter.GeoQueryService;
+
+import org.sep490.backend.module.content.service.inter.CheckInStatusService;
+
+import org.sep490.backend.module.content.service.inter.RatingSummaryService;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,7 +51,19 @@ class HotspotServiceImplTest {
     @Mock private MediaService mediaService;
     @Mock private UserHotspotProgressRepository userHotspotProgressRepository;
 
+    @Mock private RatingSummaryService ratingSummaryService;
+    @Mock private CheckInStatusService checkInStatusService;
+    @Mock private GeoQueryService geoQueryService;
     @InjectMocks private HotspotServiceImpl hotspotService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUpAppliers() {
+        // Trong code thật các applier trả về chính đối số sau khi gán rating/check-in
+        when(ratingSummaryService.applyToHotspot(any(HotspotResponse.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(checkInStatusService.apply(any(HotspotResponse.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+    }
 
     // =====================================================================
     // Function: create (Hotspot)
@@ -69,7 +87,7 @@ class HotspotServiceImplTest {
         @Test
         void createHotspot_locationOutsideVietnam_throwsInvalidLocation() {
             HotspotRequest request = hotspotRequest();
-            when(hotspotRepository.isLocationInVietnam(105.85, 21.02)).thenReturn(false);
+            when(geoQueryService.isLocationInVietnam(105.85, 21.02)).thenReturn(false);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> hotspotService.create(request));
@@ -83,7 +101,7 @@ class HotspotServiceImplTest {
             HotspotRequest request = hotspotRequest();
             request.setStartTime(LocalTime.of(17, 0));
             request.setEndTime(LocalTime.of(8, 0));
-            when(hotspotRepository.isLocationInVietnam(any(), any())).thenReturn(true);
+            when(geoQueryService.isLocationInVietnam(any(), any())).thenReturn(true);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> hotspotService.create(request));
@@ -97,7 +115,7 @@ class HotspotServiceImplTest {
             HotspotRequest request = hotspotRequest();
             request.setEstimatedDurationMin(90L);
             request.setEstimatedDurationMax(30L);
-            when(hotspotRepository.isLocationInVietnam(any(), any())).thenReturn(true);
+            when(geoQueryService.isLocationInVietnam(any(), any())).thenReturn(true);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> hotspotService.create(request));
@@ -109,7 +127,7 @@ class HotspotServiceImplTest {
         @Test
         void createHotspot_valid_createsDraftHotspot() {
             HotspotRequest request = hotspotRequest();
-            when(hotspotRepository.isLocationInVietnam(any(), any())).thenReturn(true);
+            when(geoQueryService.isLocationInVietnam(any(), any())).thenReturn(true);
             Hotspot hotspot = new Hotspot();
             when(hotspotMapper.toEntity(request)).thenReturn(hotspot);
             when(userService.getCurrentUser()).thenReturn(new User());

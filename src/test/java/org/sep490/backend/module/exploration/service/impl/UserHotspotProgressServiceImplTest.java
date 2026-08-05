@@ -1,5 +1,7 @@
 package org.sep490.backend.module.exploration.service.impl;
 
+import org.sep490.backend.module.content.service.inter.CheckInStatusService;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,7 @@ class UserHotspotProgressServiceImplTest {
     @Mock private UserService userService;
     @Mock private ApplicationEventPublisher eventPublisher;
 
+    @Mock private CheckInStatusService checkInStatusService;
     @InjectMocks private UserHotspotProgressServiceImpl service;
 
     // ~0.000450 độ kinh/vĩ tuyến tại Hà Nội xấp xỉ 50m theo chiều bắc-nam

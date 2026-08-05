@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.config.redis.CacheNames;
 import org.sep490.backend.module.admin.dto.filter.SubscriptionPlanFilterRequest;
 import org.sep490.backend.module.admin.dto.request.SubscriptionPlanRequest;
 import org.sep490.backend.module.admin.dto.response.SubscriptionPlanResponse;
@@ -20,6 +21,8 @@ import org.sep490.backend.module.admin.repository.SubscriptionPlanRepository;
 import org.sep490.backend.module.admin.repository.PlanRuleRepository;
 import org.sep490.backend.module.admin.service.SubscriptionPlanService;
 import org.sep490.backend.module.admin.specification.SubscriptionPlanSpecification;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +43,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
     @Override
     @Transactional
+    @CacheEvict(value = CacheNames.SUBSCRIPTION_PLANS, allEntries = true)
     public SubscriptionPlanResponse createSubscriptionPlan(SubscriptionPlanRequest request) {
         if (subscriptionPlanRepository.existsBySubscriptionPlanNameIgnoreCase(request.getSubscriptionPlanName())) {
             throw new BusinessException("Gói dịch vụ với tên \"" + request.getSubscriptionPlanName() + "\" đã tồn tại");
@@ -56,6 +60,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
     @Override
     @Transactional
+    @CacheEvict(value = CacheNames.SUBSCRIPTION_PLANS, allEntries = true)
     public SubscriptionPlanResponse updateSubscriptionPlan(Long id, SubscriptionPlanRequest request) {
         SubscriptionPlan plan = getSubscriptionPlanById(id);
         if (plan.getStatus() == SubscriptionPlanStatus.INACTIVE) {
@@ -112,6 +117,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
     @Override
     @Transactional
+    @CacheEvict(value = CacheNames.SUBSCRIPTION_PLANS, allEntries = true)
     public void deleteSubscriptionPlan(Long id) {
         SubscriptionPlan plan = getSubscriptionPlanById(id);
         if (plan.getStatus() == SubscriptionPlanStatus.DELETED) {
@@ -134,6 +140,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
     }
 
     @Override
+    @Cacheable(value = CacheNames.SUBSCRIPTION_PLANS, key = "#type.name()")
     public List<SubscriptionPlanResponse> getActivePlanByType(PlanType type) {
         return subscriptionPlanRepository.findByPlanTypeAndStatusOrderByPriceMonthlyAsc(type, SubscriptionPlanStatus.ACTIVE)
                 .stream()

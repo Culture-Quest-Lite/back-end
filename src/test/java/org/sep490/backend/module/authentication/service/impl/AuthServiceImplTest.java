@@ -1,5 +1,7 @@
 package org.sep490.backend.module.authentication.service.impl;
 
+import org.sep490.backend.module.authentication.service.AuthTokenService;
+
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,13 +25,9 @@ import org.sep490.backend.module.authentication.dto.request.ResetPasswordRequest
 import org.sep490.backend.module.authentication.dto.request.SendOtpRequest;
 import org.sep490.backend.module.authentication.dto.request.VerifyOtpRequest;
 import org.sep490.backend.module.authentication.dto.response.LoginResponse;
-import org.sep490.backend.module.authentication.entity.EmailOtp;
-import org.sep490.backend.module.authentication.entity.PasswordResetToken;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
-import org.sep490.backend.module.authentication.repository.EmailOtpRepository;
-import org.sep490.backend.module.authentication.repository.PasswordResetTokenRepository;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.entity.enumeration.LevelStatus;
@@ -62,10 +60,9 @@ class AuthServiceImplTest {
     @Mock private TransactionCompensationService txCompensation;
     @Mock private UserMapper userMapper;
     @Mock private JavaMailSender mailSender;
-    @Mock private EmailOtpRepository emailOtpRepository;
     @Mock private LevelRepository levelRepository;
-    @Mock private PasswordResetTokenRepository tokenRepository;
     @Mock private LevelProgressRepository levelProgressRepository;
+    @Mock private AuthTokenService authTokenService;
 
     @InjectMocks private AuthServiceImpl authService;
 
@@ -304,24 +301,22 @@ class AuthServiceImplTest {
             return request;
         }
 
-        // UTCID01 - Abnormal: chưa từng yêu cầu OTP
+        // UTCID01 - Abnormal: chưa từng yêu cầu OTP (hoặc OTP đã hết TTL trên Redis)
         @Test
         void verifyOtp_noOtpRequest_throwsOtpRequestNotFound() {
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.empty());
+            when(authTokenService.findOtp("a@gmail.com")).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.verifyEmailWithOtp(otpRequest("a@gmail.com", "123456")));
 
-            assertEquals("Không tìm thấy yêu cầu xác thực OTP", ex.getMessage());
+            assertEquals("Mã OTP không tồn tại hoặc đã hết hiệu lực. Vui lòng yêu cầu gửi lại",
+                    ex.getMessage());
         }
 
         // UTCID02 - Abnormal: nhập sai mã OTP
         @Test
         void verifyOtp_wrongOtpCode_throwsIncorrectOtp() {
-            EmailOtp emailOtp = new EmailOtp("a@gmail.com", "123456", 2);
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.of(emailOtp));
+            when(authTokenService.findOtp("a@gmail.com")).thenReturn(Optional.of("123456"));
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.verifyEmailWithOtp(otpRequest("a@gmail.com", "999999")));
@@ -329,27 +324,23 @@ class AuthServiceImplTest {
             assertEquals("Mã OTP không chính xác", ex.getMessage());
         }
 
-        // UTCID03 - Abnormal: OTP đúng nhưng đã hết hạn
+        // UTCID03 - Abnormal: OTP hết hạn. Redis tự xoá theo TTL nên findOtp trả empty,
+        // không còn cần kiểm tra isExpired() thủ công như trước.
         @Test
         void verifyOtp_expiredOtp_throwsOtpExpired() {
-            EmailOtp emailOtp = new EmailOtp("a@gmail.com", "123456", 2);
-            emailOtp.setExpiryDate(LocalDateTime.now().minusMinutes(1));
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.of(emailOtp));
+            when(authTokenService.findOtp("a@gmail.com")).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.verifyEmailWithOtp(otpRequest("a@gmail.com", "123456")));
 
-            assertEquals("Mã OTP đã hết hiệu lực. Vui lòng thử lại sau", ex.getMessage());
-            verify(emailOtpRepository).delete(emailOtp);
+            assertEquals("Mã OTP không tồn tại hoặc đã hết hiệu lực. Vui lòng yêu cầu gửi lại",
+                    ex.getMessage());
         }
 
         // UTCID04 - Abnormal: OTP hợp lệ nhưng không có user khớp email
         @Test
         void verifyOtp_userNotFound_throwsUserNotFound() {
-            EmailOtp emailOtp = new EmailOtp("a@gmail.com", "123456", 2);
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.of(emailOtp));
+            when(authTokenService.findOtp("a@gmail.com")).thenReturn(Optional.of("123456"));
             when(userRepository.findByEmailIgnoreCase("a@gmail.com")).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -361,9 +352,7 @@ class AuthServiceImplTest {
         // UTCID05 - Normal: xác thực OTP thành công, tài khoản chuyển sang ACTIVE
         @Test
         void verifyOtp_validOtp_activatesAccount() {
-            EmailOtp emailOtp = new EmailOtp("a@gmail.com", "123456", 2);
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.of(emailOtp));
+            when(authTokenService.findOtp("a@gmail.com")).thenReturn(Optional.of("123456"));
 
             User user = new User();
             user.setStatus(UserStatus.PENDING);
@@ -373,15 +362,13 @@ class AuthServiceImplTest {
 
             assertEquals(UserStatus.ACTIVE, user.getStatus());
             verify(userRepository).save(user);
-            verify(emailOtpRepository).deleteByEmailIgnoreCase("a@gmail.com");
+            verify(authTokenService).deleteOtp("a@gmail.com");
         }
 
         // UTCID06 - Boundary: OTP có khoảng trắng thừa vẫn được chấp nhận sau khi trim
         @Test
         void verifyOtp_otpWithSurroundingSpaces_isTrimmedAndAccepted() {
-            EmailOtp emailOtp = new EmailOtp("a@gmail.com", "123456", 2);
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.of(emailOtp));
+            when(authTokenService.findOtp("a@gmail.com")).thenReturn(Optional.of("123456"));
 
             User user = new User();
             user.setStatus(UserStatus.PENDING);
@@ -390,6 +377,20 @@ class AuthServiceImplTest {
             authService.verifyEmailWithOtp(otpRequest("  a@gmail.com  ", "  123456  "));
 
             assertEquals(UserStatus.ACTIVE, user.getStatus());
+        }
+
+        // UTCID07 - Security: chặn vét cạn OTP (trước đây KHÔNG có giới hạn nào)
+        @Test
+        void verifyOtp_tooManyAttempts_isBlocked() {
+            when(authTokenService.isAttemptExceeded("a@gmail.com")).thenReturn(true);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> authService.verifyEmailWithOtp(otpRequest("a@gmail.com", "123456")));
+
+            assertEquals("Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới sau ít phút.",
+                    ex.getMessage());
+            // Bị chặn thì không được đọc OTP nữa
+            verify(authTokenService, never()).findOtp(anyString());
         }
     }
 
@@ -522,7 +523,7 @@ class AuthServiceImplTest {
             assertSame(expected, actual);
             assertEquals(UserStatus.PENDING, mapped.getStatus());
             assertEquals("kc-001", mapped.getKeycloakUserId());
-            verify(emailOtpRepository).save(any(EmailOtp.class));
+            verify(authTokenService).saveOtp(anyString(), anyString());
             verify(mailSender).send(any(MimeMessage.class));
             verify(keyCloakAuthClient, never()).safeDeleteUser(anyString());
         }
@@ -541,30 +542,25 @@ class AuthServiceImplTest {
             return request;
         }
 
-        private EmailOtp otpCreatedSecondsAgo(long secondsAgo) {
-            EmailOtp emailOtp = new EmailOtp("a@gmail.com", "123456", 2);
-            emailOtp.setCreatedAt(LocalDateTime.now().minusSeconds(secondsAgo));
-            return emailOtp;
-        }
+        // Cooldown giờ do Redis quyết định (SET NX EX 30) chứ không tính từ createdAt:
+        // acquireResendSlot trả 0 = được gửi, > 0 = số giây còn phải đợi.
 
         // UTCID01 - Normal: chưa từng gửi OTP -> gửi OTP mới
         @Test
         void resendOtp_noPreviousOtp_sendsNewOtp() {
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.empty());
+            when(authTokenService.acquireResendSlot("a@gmail.com")).thenReturn(0L);
             when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
 
             authService.resendOtp(sendOtpRequest());
 
-            verify(emailOtpRepository).save(any(EmailOtp.class));
+            verify(authTokenService).saveOtp(eq("a@gmail.com"), anyString());
             verify(mailSender).send(any(MimeMessage.class));
         }
 
-        // UTCID02 - Abnormal: OTP vừa gửi 10 giây trước (< 30) -> báo chờ
+        // UTCID02 - Abnormal: OTP vừa gửi 10 giây trước (còn 20 giây) -> báo chờ
         @Test
         void resendOtp_within10Seconds_throwsCooldown() {
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.of(otpCreatedSecondsAgo(10)));
+            when(authTokenService.acquireResendSlot("a@gmail.com")).thenReturn(20L);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.resendOtp(sendOtpRequest()));
@@ -574,11 +570,10 @@ class AuthServiceImplTest {
             verify(mailSender, never()).send(any(MimeMessage.class));
         }
 
-        // UTCID03 - Boundary: OTP gửi 29 giây trước (ngay dưới ngưỡng 30) -> vẫn báo chờ
+        // UTCID03 - Boundary: còn đúng 1 giây cuối -> vẫn báo chờ
         @Test
         void resendOtp_at29Seconds_throwsCooldown() {
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.of(otpCreatedSecondsAgo(29)));
+            when(authTokenService.acquireResendSlot("a@gmail.com")).thenReturn(1L);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.resendOtp(sendOtpRequest()));
@@ -587,29 +582,27 @@ class AuthServiceImplTest {
             verify(mailSender, never()).send(any(MimeMessage.class));
         }
 
-        // UTCID04 - Boundary: OTP gửi đúng 30 giây trước (chạm ngưỡng) -> gửi OTP mới
+        // UTCID04 - Boundary: key vừa hết TTL (trả 0) -> gửi OTP mới
         @Test
         void resendOtp_at30Seconds_sendsNewOtp() {
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.of(otpCreatedSecondsAgo(30)));
+            when(authTokenService.acquireResendSlot("a@gmail.com")).thenReturn(0L);
             when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
 
             authService.resendOtp(sendOtpRequest());
 
-            verify(emailOtpRepository).save(any(EmailOtp.class));
+            verify(authTokenService).saveOtp(eq("a@gmail.com"), anyString());
             verify(mailSender).send(any(MimeMessage.class));
         }
 
-        // UTCID05 - Normal: OTP gửi 60 giây trước (đã qua cooldown) -> gửi OTP mới
+        // UTCID05 - Normal: đã qua cooldown từ lâu -> gửi OTP mới
         @Test
         void resendOtp_after60Seconds_sendsNewOtp() {
-            when(emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc("a@gmail.com"))
-                    .thenReturn(Optional.of(otpCreatedSecondsAgo(60)));
+            when(authTokenService.acquireResendSlot("a@gmail.com")).thenReturn(0L);
             when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
 
             authService.resendOtp(sendOtpRequest());
 
-            verify(emailOtpRepository).save(any(EmailOtp.class));
+            verify(authTokenService).saveOtp(eq("a@gmail.com"), anyString());
             verify(mailSender).send(any(MimeMessage.class));
         }
     }
@@ -636,7 +629,7 @@ class AuthServiceImplTest {
                     () -> authService.forgotPassword(forgotRequest()));
 
             assertEquals("Vui lòng kiểm tra lại email", ex.getMessage());
-            verify(tokenRepository, never()).save(any());
+            verify(authTokenService, never()).savePasswordResetToken(anyString(), anyLong());
         }
 
         // UTCID02 - Abnormal: tài khoản chưa kích hoạt hoặc bị khóa
@@ -650,13 +643,14 @@ class AuthServiceImplTest {
                     () -> authService.forgotPassword(forgotRequest()));
 
             assertEquals("Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa", ex.getMessage());
-            verify(tokenRepository, never()).save(any());
+            verify(authTokenService, never()).savePasswordResetToken(anyString(), anyLong());
         }
 
         // UTCID03 - Normal: tài khoản hợp lệ -> tạo token và gửi email đặt lại mật khẩu
         @Test
         void forgotPassword_activeAccount_savesTokenAndSendsEmail() {
             User user = new User();
+            user.setUserId(7L);
             user.setStatus(UserStatus.ACTIVE);
             user.setEmail("a@gmail.com");
             when(userRepository.findByEmailIgnoreCase("a@gmail.com")).thenReturn(Optional.of(user));
@@ -664,8 +658,8 @@ class AuthServiceImplTest {
 
             authService.forgotPassword(forgotRequest());
 
-            verify(tokenRepository).deleteByUser(user);
-            verify(tokenRepository).save(any(PasswordResetToken.class));
+            // savePasswordResetToken tự vô hiệu token cũ nên không cần deleteByUser riêng
+            verify(authTokenService).savePasswordResetToken(anyString(), eq(7L));
             verify(mailSender).send(any(MimeMessage.class));
         }
     }
@@ -697,7 +691,7 @@ class AuthServiceImplTest {
         // UTCID02 - Abnormal: token không tồn tại
         @Test
         void resetPassword_tokenNotFound_throwsInvalidLink() {
-            when(tokenRepository.findByToken("valid-token")).thenReturn(Optional.empty());
+            when(authTokenService.findUserIdByResetToken("valid-token")).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.resetPassword(resetRequest("newpass1", "newpass1")));
@@ -705,34 +699,32 @@ class AuthServiceImplTest {
             assertEquals("Liên kết đổi mật khẩu không hợp lệ hoặc đã hết hạn", ex.getMessage());
         }
 
-        // UTCID03 - Abnormal: token đã hết hạn
+        // UTCID03 - Abnormal: token hết hạn. Redis tự xoá theo TTL nên
+        // findUserIdByResetToken trả empty, gộp chung thông báo với token không hợp lệ.
         @Test
         void resetPassword_expiredToken_throwsExpiredLink() {
-            User user = new User();
-            user.setKeycloakUserId("kc-001");
-            PasswordResetToken token = new PasswordResetToken("valid-token", user);
-            token.setExpiryDate(LocalDateTime.now().minusMinutes(1));
-            when(tokenRepository.findByToken("valid-token")).thenReturn(Optional.of(token));
+            when(authTokenService.findUserIdByResetToken("valid-token")).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> authService.resetPassword(resetRequest("newpass1", "newpass1")));
 
-            assertEquals("Liên kết đổi mật khẩu đã hết hạn, vui lòng yêu cầu gửi lại email mới", ex.getMessage());
-            verify(tokenRepository).delete(token);
+            assertEquals("Liên kết đổi mật khẩu không hợp lệ hoặc đã hết hạn", ex.getMessage());
+            verify(keyCloakAuthClient, never()).resetUserPassword(anyString(), anyString());
         }
 
         // UTCID04 - Normal: token hợp lệ -> đặt lại mật khẩu trên Keycloak
         @Test
         void resetPassword_validToken_resetsPassword() {
             User user = new User();
+            user.setUserId(7L);
             user.setKeycloakUserId("kc-001");
-            PasswordResetToken token = new PasswordResetToken("valid-token", user);
-            when(tokenRepository.findByToken("valid-token")).thenReturn(Optional.of(token));
+            when(authTokenService.findUserIdByResetToken("valid-token")).thenReturn(Optional.of(7L));
+            when(userRepository.findById(7L)).thenReturn(Optional.of(user));
 
             authService.resetPassword(resetRequest("newpass1", "newpass1"));
 
             verify(keyCloakAuthClient).resetUserPassword("kc-001", "newpass1");
-            verify(tokenRepository).delete(token);
+            verify(authTokenService).deletePasswordResetToken("valid-token", 7L);
         }
     }
 

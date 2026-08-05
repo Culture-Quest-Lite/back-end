@@ -1,5 +1,7 @@
 package org.sep490.backend.module.authentication.service.impl;
 
+import org.sep490.backend.module.authentication.service.AuthTokenService;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.MessagingException;
@@ -7,22 +9,19 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.config.keycloak.KeyCloakTokenResponse;
 import org.sep490.backend.common.service.TransactionCompensationService;
 import org.sep490.backend.module.authentication.dto.request.*;
 import org.sep490.backend.module.authentication.dto.response.LoginResponse;
-import org.sep490.backend.module.authentication.entity.EmailOtp;
-import org.sep490.backend.module.authentication.entity.PasswordResetToken;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
-import org.sep490.backend.module.authentication.repository.EmailOtpRepository;
 import org.sep490.backend.module.user.entity.LevelProgress;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.repository.LevelProgressRepository;
 import org.sep490.backend.module.user.repository.LevelRepository;
-import org.sep490.backend.module.authentication.repository.PasswordResetTokenRepository;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.user.entity.enumeration.LevelStatus;
 import org.sep490.backend.module.authentication.service.AuthService;
@@ -39,7 +38,9 @@ import org.springframework.util.StreamUtils;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -60,10 +61,11 @@ public class AuthServiceImpl implements AuthService {
     private final TransactionCompensationService txCompensation;
     private final UserMapper userMapper;
     private final JavaMailSender mailSender;
-    private final EmailOtpRepository emailOtpRepository;
     private final LevelRepository levelRepository;
-    private final PasswordResetTokenRepository tokenRepository;
     private final LevelProgressRepository levelProgressRepository;
+    private final AuthTokenService authTokenService;
+
+    private static final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
     private String frontendUrl;
@@ -110,23 +112,24 @@ public class AuthServiceImpl implements AuthService {
         String email = request.getEmail().trim();
         String userOtp = request.getOtpCode().trim();
 
-        EmailOtp emailOtp = emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc(email)
-                .orElseThrow(() -> new BusinessException("Không tìm thấy yêu cầu xác thực OTP"));
-
-        if (!emailOtp.getOtpCode().equals(userOtp)) {
-            throw new BusinessException("Mã OTP không chính xác");
+        if (authTokenService.isAttemptExceeded(email)) {
+            throw new BusinessException("Bạn đã nhập sai quá nhiều lần. Vui lòng yêu cầu mã mới sau ít phút.");
         }
 
-        if (emailOtp.isExpired()) {
-            emailOtpRepository.delete(emailOtp);
-            throw new BusinessException("Mã OTP đã hết hiệu lực. Vui lòng thử lại sau");
+        String storedOtp = authTokenService.findOtp(email)
+                .orElseThrow(() -> new BusinessException(
+                        "Mã OTP không tồn tại hoặc đã hết hiệu lực. Vui lòng yêu cầu gửi lại"));
+
+        if (!storedOtp.equals(userOtp)) {
+            throw new BusinessException("Mã OTP không chính xác");
         }
 
         User user = userRepository.findByEmailIgnoreCase(email)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy người dùng khớp với email này"));
         user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
-        emailOtpRepository.deleteByEmailIgnoreCase(email);
+
+        authTokenService.deleteOtp(email);
     }
 
     @Override
@@ -134,15 +137,10 @@ public class AuthServiceImpl implements AuthService {
     public void resendOtp(SendOtpRequest request) {
         String email = request.getEmail().trim();
 
-        Optional<EmailOtp> existingOtp = emailOtpRepository.findFirstByEmailIgnoreCaseOrderByCreatedAtDesc(email);
-        if (existingOtp.isPresent()) {
-            EmailOtp emailOtp = existingOtp.get();
-            long secondsSinceLastOtp = Duration.between(emailOtp.getCreatedAt(), LocalDateTime.now()).getSeconds();
-            if (secondsSinceLastOtp < 30) {
-                long secondsLeft = 30 - secondsSinceLastOtp;
-                throw new BusinessException(
-                        "Vui lòng đợi thêm " + secondsLeft + " giây nữa để yêu cầu gửi lại mã OTP.");
-            }
+        long secondsLeft = authTokenService.acquireResendSlot(email);
+        if (secondsLeft > 0) {
+            throw new BusinessException(
+                    "Vui lòng đợi thêm " + secondsLeft + " giây nữa để yêu cầu gửi lại mã OTP.");
         }
         sendVerificationOtp(email);
     }
@@ -209,6 +207,19 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void logout(String refreshToken) {
         keyCloakAuthClient.logout(refreshToken);
+
+        SecurityUtils.getCurrentJwt().ifPresent(jwt -> {
+            String jti = jwt.getId();
+            Instant expiresAt = jwt.getExpiresAt();
+            if (jti == null || expiresAt == null) {
+                return;
+            }
+            try {
+                authTokenService.denyToken(jti, Duration.between(Instant.now(), expiresAt));
+            } catch (Exception e) {
+                log.warn("Không ghi được denylist cho jti {}: {}", jti, e.getMessage());
+            }
+        });
     }
 
     @Override
@@ -221,10 +232,8 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa");
         }
 
-        tokenRepository.deleteByUser(user);
         String token = UUID.randomUUID().toString();
-        PasswordResetToken resetToken = new PasswordResetToken(token, user);
-        tokenRepository.save(resetToken);
+        authTokenService.savePasswordResetToken(token, user.getUserId());
 
         String resetUrl = frontendUrl + "/reset-password?token=" + token;
 
@@ -253,18 +262,16 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException("Mật khẩu không trùng khớp");
         }
 
-        PasswordResetToken resetToken = tokenRepository.findByToken(request.getToken())
-                .orElseThrow(() -> new BusinessException("Liên kết đổi mật khẩu không hợp lệ hoặc đã hết hạn"));
+        Long userId = authTokenService.findUserIdByResetToken(request.getToken())
+                .orElseThrow(() -> new BusinessException(
+                        "Liên kết đổi mật khẩu không hợp lệ hoặc đã hết hạn"));
 
-        if (resetToken.isExpired()) {
-            tokenRepository.delete(resetToken);
-            throw new BusinessException("Liên kết đổi mật khẩu đã hết hạn, vui lòng yêu cầu gửi lại email mới");
-        }
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin người dùng"));
 
-        User user = resetToken.getUser();
         keyCloakAuthClient.resetUserPassword(user.getKeycloakUserId(), request.getNewPassword());
         userRepository.save(user);
-        tokenRepository.delete(resetToken);
+        authTokenService.deletePasswordResetToken(request.getToken(), userId);
     }
 
     @Override
@@ -499,11 +506,9 @@ public class AuthServiceImpl implements AuthService {
 
     private void sendVerificationOtp(String rawEmail) {
         String email = rawEmail.trim();
-        String otpCode = String.format("%06d", new Random().nextInt(1000000));
-        emailOtpRepository.deleteByEmailIgnoreCase(email);
-        emailOtpRepository.flush();
-        EmailOtp emailOtp = new EmailOtp(email, otpCode, 2);
-        emailOtpRepository.save(emailOtp);
+        String otpCode = String.format("%06d", secureRandom.nextInt(1000000));
+
+        authTokenService.saveOtp(email, otpCode);
 
         try {
             MimeMessage message = mailSender.createMimeMessage();

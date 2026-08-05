@@ -116,7 +116,7 @@ class SaveRouteServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> service.unsaveRoute(50L));
 
-            assertEquals("Route not found", ex.getMessage());
+            assertEquals("Tuyến đường không tồn tại", ex.getMessage());
         }
 
         // UTCID02 - Abnormal: bản ghi thuộc về người dùng khác

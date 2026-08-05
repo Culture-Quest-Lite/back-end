@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.config.redis.CacheNames;
 import org.sep490.backend.module.content.entity.enumeration.TagStatus;
 import org.sep490.backend.module.content.dto.filter.TagFilterRequest;
 import org.sep490.backend.module.content.dto.request.TagRequest;
@@ -20,6 +21,8 @@ import org.sep490.backend.module.content.repository.TagRepository;
 import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.content.service.inter.TagService;
 import org.sep490.backend.module.content.specification.TagSpecification;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -47,6 +50,7 @@ public class TagServiceImpl implements TagService {
 
     @Override
     @Transactional
+    @CacheEvict(value = CacheNames.TAGS, allEntries = true)
     public TagResponse create(TagRequest request) {
         if (tagRepository.existsByTagNameIgnoreCase(request.getTagName())) {
             throw new BusinessException("Tag với tên \"" + request.getTagName() + "\" đã tồn tại");
@@ -61,6 +65,7 @@ public class TagServiceImpl implements TagService {
 
     @Override
     @Transactional
+    @CacheEvict(value = CacheNames.TAGS, allEntries = true)
     public TagResponse update(Long id, TagRequest request) {
         Tag tag = getById(id);
         if (tag.getTagStatus() == TagStatus.INACTIVE) {
@@ -78,6 +83,7 @@ public class TagServiceImpl implements TagService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.TAGS, key = "#id")
     public TagResponse getDetail(Long id) {
         TagResponse response = tagMapper.toResponse(getById(id));
         response.setRouteCount(routeRepository.countByTag_TagIdAndStatusNot(id, RouteStatus.DELETED));
@@ -116,6 +122,7 @@ public class TagServiceImpl implements TagService {
 
     @Override
     @Transactional
+    @CacheEvict(value = CacheNames.TAGS, allEntries = true)
     public void delete(Long id) {
         Tag tag = getById(id);
         if (tag.getTagStatus() == TagStatus.DELETED) {
