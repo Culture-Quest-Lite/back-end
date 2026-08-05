@@ -227,7 +227,7 @@ class RouteParticipantServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> service.getRouteProgress(50L));
 
-            assertEquals("User route progress not found", ex.getMessage());
+            assertEquals("Không tìm thấy tiến độ tuyến đường của người dùng", ex.getMessage());
         }
 
         // UTCID02 - Abnormal: bản ghi không thuộc về người dùng hiện tại

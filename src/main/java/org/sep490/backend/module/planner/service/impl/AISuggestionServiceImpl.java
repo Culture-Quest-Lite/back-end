@@ -1,5 +1,11 @@
 package org.sep490.backend.module.planner.service.impl;
 
+import org.sep490.backend.module.content.service.inter.GeoQueryService;
+
+import org.sep490.backend.module.content.service.inter.CheckInStatusService;
+
+import org.sep490.backend.module.content.service.inter.RatingSummaryService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -14,19 +20,22 @@ import org.sep490.backend.module.content.mapper.HotspotMapper;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
-import org.sep490.backend.module.content.service.impl.CheckInStatusApplier;
-import org.sep490.backend.module.content.service.impl.RatingSummaryApplier;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.planner.dto.record.HotspotPick;
 import org.sep490.backend.module.planner.dto.record.HotspotPickList;
 import org.sep490.backend.module.planner.dto.request.DescriptionSuggestRequest;
 import org.sep490.backend.module.planner.dto.request.NearbySuggestRequest;
 import org.sep490.backend.module.planner.dto.response.HotspotSuggestionResponse;
+import org.sep490.backend.config.redis.CacheNames;
+import org.sep490.backend.config.redis.RedisCircuitBreaker;
 import org.sep490.backend.module.planner.service.AISuggestionService;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.*;
 
 @Slf4j
@@ -45,8 +54,11 @@ public class AISuggestionServiceImpl implements AISuggestionService {
     HotspotService hotspotService;
     HotspotMapper hotspotMapper;
     StoryMapper storyMapper;
-    RatingSummaryApplier ratingSummaryApplier;
-    CheckInStatusApplier checkInStatusApplier;
+    RatingSummaryService ratingSummaryService;
+    CheckInStatusService checkInStatusService;
+    RedisTemplate<String, Object> redisTemplate;
+    RedisCircuitBreaker circuitBreaker;
+    GeoQueryService geoQueryService;
 
     @Override
     @Transactional(readOnly = true)
@@ -94,7 +106,8 @@ public class AISuggestionServiceImpl implements AISuggestionService {
 
         for (Long anchorId : anchors) {
             Hotspot anchor = hotspotService.getById(anchorId);
-            List<Hotspot> nearBy = hotspotRepository.findNearbyHotspotsWithStatus(
+            // Qua cache: ST_DWithin ~118ms, mà đây là vòng lặp theo từng anchor
+            List<Hotspot> nearBy = geoQueryService.findNearby(
                     anchor.getLocation().getX(),
                     anchor.getLocation().getY(),
                     radius,
@@ -132,10 +145,10 @@ public class AISuggestionServiceImpl implements AISuggestionService {
                 .stream()
                 .map(storyMapper::toResponse)
                 .toList();
-        ratingSummaryApplier.applyToStories(stories);
+        ratingSummaryService.applyToStories(stories);
         response.setStories(stories);
-        checkInStatusApplier.apply(response);
-        return ratingSummaryApplier.applyToHotspot(response);
+        checkInStatusService.apply(response);
+        return ratingSummaryService.applyToHotspot(response);
     }
 
     private List<Point> resolveOrigins(DescriptionSuggestRequest request) {
@@ -166,7 +179,7 @@ public class AISuggestionServiceImpl implements AISuggestionService {
         if (anchors != null && !anchors.isEmpty()) {
             for (Long anchorId : anchors) {
                 Hotspot anchor = hotspotService.getById(anchorId);
-                hotspotRepository.findNearbyHotspotsWithStatus(
+                geoQueryService.findNearby(
                         anchor.getLocation().getX(),
                         anchor.getLocation().getY(),
                         radius,
@@ -189,6 +202,41 @@ public class AISuggestionServiceImpl implements AISuggestionService {
     }
 
     private HotspotPickList rerankWithLlm(String description, List<Hotspot> candidates) {
+        String cacheKey = buildRerankKey(description, candidates);
+
+        Object cached = circuitBreaker.read("ai.get",
+                () -> redisTemplate.opsForValue().get(cacheKey), null);
+        if (cached instanceof HotspotPickList hit) {
+            return hit;
+        }
+
+        HotspotPickList result = callLlm(description, candidates);
+
+        if (result != null) {
+            circuitBreaker.write("ai.set",
+                    () -> redisTemplate.opsForValue().set(cacheKey, result, CacheNames.TTL_AI));
+        }
+        return result;
+    }
+
+    private String buildRerankKey(String description, List<Hotspot> candidates) {
+        String ids = candidates.stream()
+                .map(Hotspot::getHotspotId)
+                .sorted()
+                .map(String::valueOf)
+                .reduce((x, y) -> x + "," + y)
+                .orElse("");
+        String raw = (description == null ? "" : description.trim().toLowerCase()) + "|" + ids;
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(raw.getBytes(StandardCharsets.UTF_8));
+            return "ai:rerank:" + HexFormat.of().formatHex(digest);
+        } catch (Exception e) {
+            return "ai:rerank:" + raw.hashCode();
+        }
+    }
+
+    private HotspotPickList callLlm(String description, List<Hotspot> candidates) {
         StringBuilder sb = new StringBuilder();
         for (Hotspot h : candidates) {
             sb.append("- id=").append(h.getHotspotId())

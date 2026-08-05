@@ -31,15 +31,13 @@ public interface PostMapper {
     @Mapping(target = "hotspotIds", expression = "java(mapHotspotsToIds(post.getTaggedHotspots()))")
     @Mapping(target = "routeIds", expression = "java(mapRoutesToIds(post.getTaggedRoutes()))")
     @Mapping(target = "tags", expression = "java(mapTagsToDtos(post.getTags()))")
-    @Mapping(target = "likeCount", expression = "java(countActions(post.getPostActions(), PostActionType.LIKE))")
-    @Mapping(target = "commentCount", expression = "java(countActions(post.getPostActions(), PostActionType.COMMENT))")
-    @Mapping(target = "shareCount", expression = "java(countActions(post.getPostActions(), PostActionType.SHARE))")
+    // Counter được gán ở PostServiceImpl (đọc từ Redis, miss thì đếm bằng 1 query GROUP BY).
+    // Trước đây 3 dòng này nạp TOÀN BỘ collection postActions vào bộ nhớ chỉ để .count():
+    // một post 1000 like phải load 1000 row, nhân với số post mỗi trang newsfeed.
+    @Mapping(target = "likeCount", ignore = true)
+    @Mapping(target = "commentCount", ignore = true)
+    @Mapping(target = "shareCount", ignore = true)
     PostResponse toResponse(Post post);
-
-    default long countActions(List<PostAction> actions, PostActionType type) {
-        if (actions == null) return 0;
-        return actions.stream().filter(a -> a.getActionType() == type).count();
-    }
 
     default List<Long> mapHotspotsToIds(Set<Hotspot> hotspots) {
         if (hotspots == null) return List.of();

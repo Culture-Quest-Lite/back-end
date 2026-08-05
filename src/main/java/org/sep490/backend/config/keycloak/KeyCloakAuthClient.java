@@ -9,7 +9,10 @@ import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.config.redis.CacheNames;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -19,6 +22,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +38,10 @@ public class KeyCloakAuthClient {
     private final RestClient.Builder restClientBuilder;
     private final KeyCloakClientProperties properties;
     private final Keycloak keycloak;
+
+    /** DB 1 — admin token là secret nên không đi qua CacheManager JSON. */
+    @Qualifier("authRedisTemplate")
+    private final StringRedisTemplate authRedis;
 
     public KeyCloakTokenResponse login(String username, String password) {
         MultiValueMap<String, String> form = baseClientForm();
@@ -111,7 +119,7 @@ public class KeyCloakAuthClient {
                 .getLocation();
 
         if (location == null) {
-            throw new BusinessException("keycloak.create.user.failed");
+            throw new BusinessException("Tạo tài khoản trên hệ thống bảo mật thất bại. Vui lòng thử lại sau");
         }
 
         String keycloakUserId = extractUserIdFromLocation(location.toString());
@@ -196,7 +204,7 @@ public class KeyCloakAuthClient {
                 .getLocation();
 
         if (location == null) {
-            throw new BusinessException("keycloak.create.user.failed");
+            throw new BusinessException("Tạo tài khoản trên hệ thống bảo mật thất bại. Vui lòng thử lại sau");
         }
 
         String keycloakUserId = extractUserIdFromLocation(location.toString());
@@ -278,7 +286,21 @@ public class KeyCloakAuthClient {
         assignRealmRoles(adminToken, keycloakUserId, newRoles);
     }
 
+    /**
+     * Cache admin token trong Redis DB 1 với TTL = expires_in - 10s (biên an toàn).
+     * Trước đây mỗi createUser/deleteUser/updateUserPassword... đều gọi Keycloak mới hoàn toàn.
+     * Redis lỗi thì chỉ ghi log rồi gọi Keycloak như cũ (không được chặn luồng nghiệp vụ).
+     */
     private String fetchAdminAccessToken() {
+        try {
+            String cached = authRedis.opsForValue().get(CacheNames.KEY_KC_ADMIN_TOKEN);
+            if (cached != null && !cached.isBlank()) {
+                return cached;
+            }
+        } catch (Exception e) {
+            log.warn("Không đọc được admin token từ Redis, gọi Keycloak: {}", e.getMessage());
+        }
+
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("client_id", properties.getAdminClientId());
         form.add("client_secret", properties.getAdminClientSecret());
@@ -294,9 +316,20 @@ public class KeyCloakAuthClient {
 
         if (tokenResponse == null || tokenResponse.getAccessToken() == null
                 || tokenResponse.getAccessToken().isBlank()) {
-            throw new BusinessException(HttpStatus.UNAUTHORIZED, "keycloak.admin.token.failed");
+            throw new BusinessException(HttpStatus.UNAUTHORIZED,
+                    "Không lấy được quyền quản trị từ hệ thống bảo mật. Vui lòng thử lại sau");
         }
-        return tokenResponse.getAccessToken();
+
+        String token = tokenResponse.getAccessToken();
+        try {
+            long ttl = tokenResponse.getExpiresIn() != null
+                    ? Math.max(tokenResponse.getExpiresIn() - 10, 5)
+                    : 30;
+            authRedis.opsForValue().set(CacheNames.KEY_KC_ADMIN_TOKEN, token, Duration.ofSeconds(ttl));
+        } catch (Exception e) {
+            log.warn("Không ghi được admin token vào Redis: {}", e.getMessage());
+        }
+        return token;
     }
 
     private void assignRealmRoles(String adminToken, String keycloakUserId, List<String> realmRoles) {
@@ -331,7 +364,7 @@ public class KeyCloakAuthClient {
     private String extractUserIdFromLocation(String location) {
         int idx = location.lastIndexOf('/');
         if (idx < 0 || idx == location.length() - 1) {
-            throw new BusinessException("keycloak.invalid.user.location");
+            throw new BusinessException("Phản hồi từ hệ thống bảo mật không hợp lệ. Vui lòng thử lại sau");
         }
         return location.substring(idx + 1);
     }
