@@ -1,5 +1,7 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.content.service.inter.RatingSummaryService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -43,6 +45,7 @@ public class StoryServiceImpl implements StoryService {
     MediaService mediaService;
     TagRepository tagRepository;
     HotspotService hotspotService;
+    RatingSummaryService ratingSummaryService;
 
     @Override
     @Transactional
@@ -70,7 +73,7 @@ public class StoryServiceImpl implements StoryService {
                 throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
             }
         }
-        return response;
+        return ratingSummaryService.applyToStory(response);
     }
 
     @Override
@@ -99,13 +102,13 @@ public class StoryServiceImpl implements StoryService {
                 throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
             }
         }
-        return response;
+        return ratingSummaryService.applyToStory(response);
     }
 
     @Override
     @Transactional(readOnly = true)
     public StoryResponse getDetail(Long id) {
-        return storyMapper.toResponse(storyRepository.getOne(id));
+        return ratingSummaryService.applyToStory(storyMapper.toResponse(getById(id)));
     }
 
     @Override
@@ -133,9 +136,11 @@ public class StoryServiceImpl implements StoryService {
             stories = storyRepository.findByRoute_RouteIdAndHotspot_HotspotIdAndStatus(routeId, hotspotId, ContentStatus.PUBLISHED);
         }
 
-        return stories.stream()
+        List<StoryResponse> responses = stories.stream()
                 .map(storyMapper::toResponse)
                 .toList();
+        ratingSummaryService.applyToStories(responses);
+        return responses;
     }
 
     @Override
@@ -164,7 +169,9 @@ public class StoryServiceImpl implements StoryService {
 
         Specification<Story> spec = StorySpecification.filter(filter);
 
-        return storyRepository.findAll(spec, pageable).map(storyMapper::toResponse);
+        Page<StoryResponse> page = storyRepository.findAll(spec, pageable).map(storyMapper::toResponse);
+        ratingSummaryService.applyToStories(page.getContent());
+        return page;
     }
 
     @Override
@@ -176,6 +183,6 @@ public class StoryServiceImpl implements StoryService {
 
         storyRepository.save(story);
 
-        return storyMapper.toResponse(story);
+        return ratingSummaryService.applyToStory(storyMapper.toResponse(story));
     }
 }

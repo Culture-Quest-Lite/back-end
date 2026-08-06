@@ -25,6 +25,8 @@ public interface ReviewService {
 
     ReviewResponse updateReviewStatus(Long id, ReviewStatus status);
 
+    ReviewResponse toggleLikeReview(Long id);
+
     void deleteReview(Long id);
 
     Review getReviewById(Long id);

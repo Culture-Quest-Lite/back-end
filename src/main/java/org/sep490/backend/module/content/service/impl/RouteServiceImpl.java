@@ -1,5 +1,9 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.content.service.inter.CheckInStatusService;
+
+import org.sep490.backend.module.content.service.inter.RatingSummaryService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -60,6 +64,8 @@ public class RouteServiceImpl implements RouteService {
     StoryMapper storyMapper;
     TagRepository tagRepository;
     HotspotMapper hotspotMapper;
+    RatingSummaryService ratingSummaryService;
+    CheckInStatusService checkInStatusService;
 
     @Override
     @Transactional
@@ -437,13 +443,15 @@ public class RouteServiceImpl implements RouteService {
             }
         }
 
+        ratingSummaryService.applyToHotspots(hotspotResponses);
+        checkInStatusService.apply(hotspotResponses);
         response.setHotspots(hotspotResponses);
 
         if (route.getTag() != null) {
             response.setTag(storyMapper.toTagResponse(route.getTag()));
         }
 
-        return response;
+        return ratingSummaryService.applyToRoute(response);
     }
 
     private HotspotResponse buildHotspotResponseForRoute(Hotspot hotspot, Route route) {
@@ -460,6 +468,7 @@ public class RouteServiceImpl implements RouteService {
         List<StoryResponse> storyResponses = stories.stream()
                 .map(storyMapper::toResponse)
                 .toList();
+        ratingSummaryService.applyToStories(storyResponses);
         response.setStories(storyResponses);
 
         return response;

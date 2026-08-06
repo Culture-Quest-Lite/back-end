@@ -1,5 +1,10 @@
 package org.sep490.backend.module.user.service.impl;
 
+import org.sep490.backend.module.user.service.LeaderboardCacheService;
+import org.sep490.backend.module.user.service.UserIdCacheService;
+
+import org.springframework.data.redis.core.RedisTemplate;
+import org.sep490.backend.config.redis.RedisCircuitBreaker;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -47,6 +52,10 @@ class UserServiceImplTest {
     @Mock private PostRepository postRepository;
     @Mock private AuditLogService auditLogService;
 
+    @Mock private LeaderboardCacheService leaderboardCacheService;
+    @Mock private UserIdCacheService userIdCacheService;
+    @Mock private RedisTemplate<String, Object> redisTemplate;
+    @Mock private RedisCircuitBreaker circuitBreaker;
     @InjectMocks private UserServiceImpl userService;
 
     @AfterEach

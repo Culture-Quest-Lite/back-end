@@ -3,6 +3,7 @@ package org.sep490.backend.module.curator.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.config.redis.CacheNames;
 import org.sep490.backend.module.admin.dto.projection.DailyCountProjection;
 import org.sep490.backend.module.admin.dto.projection.RouteEngagementProjection;
 import org.sep490.backend.module.content.dto.projection.HotspotRatingSummaryProjection;
@@ -29,6 +30,7 @@ import org.sep490.backend.module.curator.service.CuratorDashboardService;
 import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
 import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.sep490.backend.module.exploration.repository.UserHotspotProgressRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +69,7 @@ public class CuratorDashboardServiceImpl implements CuratorDashboardService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.CURATOR_DASHBOARD, key = "'current'", unless = "#result == null")
     public CuratorDashboardResponse getDashboard() {
         LocalDate today = LocalDate.now(clock);
         LocalDateTime dayFrom = today.minusDays(CHECK_IN_DAYS - 1L).atStartOfDay();

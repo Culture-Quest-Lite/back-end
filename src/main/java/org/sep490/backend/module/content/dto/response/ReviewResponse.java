@@ -25,6 +25,9 @@ public class ReviewResponse {
     String comment;
     ReviewStatus status;
     List<MediaResponse> medias;
+    //Luôn được set trong ReviewServiceImpl.toResponse nên @JsonInclude(NON_NULL) không ẩn mất
+    Long likeCount;
+    Boolean isLiked;
     Boolean isOwner;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;

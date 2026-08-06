@@ -61,6 +61,10 @@ public class Review {
     @Builder.Default
     List<Media> medias = new ArrayList<>();
 
+    @OneToMany(mappedBy = "review", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    List<ReviewAction> reviewActions = new ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt;
@@ -69,7 +73,6 @@ public class Review {
     @Column(name = "updated_at")
     LocalDateTime updatedAt;
 
-    //Một đánh giá chỉ gắn với đúng một đối tượng (hotspot, route hoặc story)
     public ReviewTargetType getTargetType() {
         if (hotspot != null) {
             return ReviewTargetType.HOTSPOT;

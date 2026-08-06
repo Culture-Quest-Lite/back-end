@@ -36,4 +36,9 @@ public class PremiumSubscriptionController {
     public ResponseEntity<List<PremiumSubscriptionResponse>> getMyPremiumSubscriptions() {
         return ResponseEntity.ok(premiumSubscriptionService.getMyPremiumSubscription());
     }
+
+    @PostMapping("/{invoiceId}/confirm")
+    public ResponseEntity<PremiumSubscriptionResponse> confirmPayment(@PathVariable Long invoiceId) {
+        return ResponseEntity.ok(premiumSubscriptionService.confirmPayment(invoiceId));
+    }
 }

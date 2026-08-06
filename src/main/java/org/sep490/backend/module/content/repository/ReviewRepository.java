@@ -2,6 +2,7 @@ package org.sep490.backend.module.content.repository;
 
 import org.sep490.backend.module.content.dto.projection.HotspotRatingSummaryProjection;
 import org.sep490.backend.module.content.dto.projection.ReviewRatingCountProjection;
+import org.sep490.backend.module.content.dto.projection.TargetRatingSummaryProjection;
 import org.sep490.backend.module.content.entity.Review;
 import org.sep490.backend.module.content.entity.enumeration.ReviewStatus;
 import org.sep490.backend.module.curator.dto.projection.RatingSummaryProjection;
@@ -49,6 +50,24 @@ public interface ReviewRepository extends JpaRepository<Review, Long>, JpaSpecif
             "GROUP BY r.hotspot.hotspotId")
     List<HotspotRatingSummaryProjection> summarizeRatingsByHotspotIds(@Param("hotspotIds") List<Long> hotspotIds,
                                                                       @Param("status") ReviewStatus status);
+
+    @Query("SELECT r.route.routeId AS targetId, " +
+            "AVG(r.rating) AS averageRating, " +
+            "COUNT(r) AS totalReviews " +
+            "FROM Review r " +
+            "WHERE r.route.routeId IN :routeIds AND r.status = :status " +
+            "GROUP BY r.route.routeId")
+    List<TargetRatingSummaryProjection> summarizeRatingsByRouteIds(@Param("routeIds") List<Long> routeIds,
+                                                                   @Param("status") ReviewStatus status);
+
+    @Query("SELECT r.story.storyId AS targetId, " +
+            "AVG(r.rating) AS averageRating, " +
+            "COUNT(r) AS totalReviews " +
+            "FROM Review r " +
+            "WHERE r.story.storyId IN :storyIds AND r.status = :status " +
+            "GROUP BY r.story.storyId")
+    List<TargetRatingSummaryProjection> summarizeRatingsByStoryIds(@Param("storyIds") List<Long> storyIds,
+                                                                   @Param("status") ReviewStatus status);
 
     @Query("SELECT AVG(r.rating) AS averageRating, COUNT(r) AS totalReviews " +
             "FROM Review r " +

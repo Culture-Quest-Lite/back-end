@@ -19,6 +19,10 @@ public interface ReviewMapper {
     @Mapping(source = "user.username", target = "username")
     @Mapping(source = "user.displayName", target = "displayName")
     @Mapping(source = "user.avatarUrl", target = "avatarUrl")
+    // likeCount được gán ở ReviewServiceImpl bằng query đếm theo lô.
+    // Cách cũ nạp toàn bộ collection reviewActions vào bộ nhớ chỉ để .count().
+    @Mapping(target = "likeCount", ignore = true)
+    @Mapping(target = "isLiked", ignore = true)
     @Mapping(target = "isOwner", ignore = true)
     ReviewResponse toResponse(Review review);
 
