@@ -109,6 +109,16 @@ public class CustomRouteServiceImpl implements CustomRouteService {
         Route route = routeService.getById(request.getRouteId());
         User user = userService.getCurrentUser();
 
+        List<Story> stories = route.getStories();
+
+        int totalStops = stories.size();
+        long totalDistance;
+        long estimateTime;
+
+        if(totalStops < 4) {
+            throw new BusinessException("Hành trình cá nhân phải có ít nhất 4 điểm dừng (Hotspot) để hoàn tất");
+        }
+
         if(!route.getStatus().equals(RouteStatus.DRAFT)) {
             throw new BusinessException("Chỉ có thể hoàn tất hành trình cá nhân đang ở trạng thái DRAFT");
         }
@@ -123,6 +133,9 @@ public class CustomRouteServiceImpl implements CustomRouteService {
 
         route.setStatus(RouteStatus.PUBLISHED);
         route.setDescription(request.getDescription());
+        route.setTotalStops(totalStops);
+        route.setXp(500L);
+        route.setPoint(500L);
         route = routeRepository.save(route);
 
         return buildRouteResponse(route, route.getStories());

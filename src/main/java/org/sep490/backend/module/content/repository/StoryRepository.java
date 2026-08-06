@@ -111,4 +111,6 @@ public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecific
             "WHERE s.status <> :excludedStatus " +
             "GROUP BY s.status")
     List<ContentStatusCountProjection> countStoriesByStatus(@Param("excludedStatus") ContentStatus excludedStatus);
+
+    Integer countByRoute_RouteId(Long routeId);
 }
