@@ -14,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecificationExecutor<Story> {
 
@@ -113,4 +114,6 @@ public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecific
     List<ContentStatusCountProjection> countStoriesByStatus(@Param("excludedStatus") ContentStatus excludedStatus);
 
     Integer countByRoute_RouteId(Long routeId);
+    @Query("SELECT s.createdBy.userId FROM Story s WHERE s.storyId = :id")
+    Optional<Long> findOwnerId(@Param("id") Long id);
 }

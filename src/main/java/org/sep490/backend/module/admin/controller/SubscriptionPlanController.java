@@ -15,6 +15,7 @@ import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -33,6 +34,7 @@ public class SubscriptionPlanController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('PERM_SUBSCRIPTION_PLAN_MANAGE')")
     @Auditable(value = AuditAction.CREATE_SUBSCRIPTION_PLAN, tableName = "subscription_plan")
     public ResponseEntity<SubscriptionPlanResponse> create(
             @Valid @RequestBody SubscriptionPlanRequest request) {
@@ -40,6 +42,7 @@ public class SubscriptionPlanController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('PERM_SUBSCRIPTION_PLAN_MANAGE')")
     @Auditable(value = AuditAction.UPDATE_SUBSCRIPTION_PLAN, tableName = "subscription_plan")
     public ResponseEntity<SubscriptionPlanResponse> update(
             @PathVariable Long id,
@@ -48,6 +51,7 @@ public class SubscriptionPlanController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('PERM_SUBSCRIPTION_PLAN_MANAGE')")
     @Auditable(value = AuditAction.DELETE_SUBSCRIPTION_PLAN, tableName = "subscription_plan")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         subscriptionPlanService.deleteSubscriptionPlan(id);

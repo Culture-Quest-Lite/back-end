@@ -18,6 +18,7 @@ import org.sep490.backend.common.filter.dto.BaseFilterRequest;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -34,6 +35,7 @@ public class AdminController {
     private final PartnerSubscriptionService partnerSubscriptionService;
 
     @GetMapping("/users")
+    @PreAuthorize("hasAuthority('PERM_USER_VIEW_ALL')")
     public ResponseEntity<Page<UserProfileResponse>> getAllUsers(
             @ParameterObject @ModelAttribute BaseFilterRequest filterRequest
     ) {
@@ -42,6 +44,7 @@ public class AdminController {
     }
 
     @PutMapping("/{id}/lock")
+    @PreAuthorize("hasAuthority('PERM_USER_LOCK')")
     @Auditable(value = AuditAction.LOCK_USER, tableName = "users", skipAspect = true)
     public ResponseEntity<Map<String, String>> lockUser(@PathVariable Long id) {
         userService.lockUser(id);
@@ -51,6 +54,7 @@ public class AdminController {
     }
 
     @PutMapping("/{id}/unlock")
+    @PreAuthorize("hasAuthority('PERM_USER_LOCK')")
     @Auditable(value = AuditAction.UNLOCK_USER, tableName = "users", skipAspect = true)
     public ResponseEntity<Map<String, String>> unlockUser(@PathVariable Long id) {
         userService.unlockUser(id);
@@ -60,6 +64,7 @@ public class AdminController {
     }
 
     @PutMapping("/{id}/role")
+    @PreAuthorize("hasAuthority('PERM_USER_UPDATE_ROLE')")
     @Auditable(value = AuditAction.UPDATE_USER_ROLE, tableName = "users", skipAspect = true)
     public ResponseEntity<Map<String, String>> updateUserRole(
             @PathVariable Long id,
@@ -72,6 +77,7 @@ public class AdminController {
     }
 
     @PutMapping("/post/{id}/approve")
+    @PreAuthorize("hasAuthority('PERM_POST_MODERATE')")
     @Auditable(value = AuditAction.APPROVE_POST, tableName = "posts")
     public ResponseEntity<PostResponse> approvePost(@PathVariable Long id) {
         PostResponse response = postService.approvePost(id);
@@ -79,6 +85,7 @@ public class AdminController {
     }
 
     @PutMapping("/post/{id}/reject")
+    @PreAuthorize("hasAuthority('PERM_POST_MODERATE')")
     @Auditable(value = AuditAction.REJECT_POST, tableName = "posts")
     public ResponseEntity<PostResponse> rejectPost(
             @PathVariable Long id,
@@ -89,6 +96,7 @@ public class AdminController {
     }
 
     @PutMapping("/{id}/ban")
+    @PreAuthorize("hasAuthority('PERM_POST_MODERATE')")
     @Auditable(value = AuditAction.BAN_POST, tableName = "posts", skipAspect = true)
     public ResponseEntity<PostResponse> banPost(
             @PathVariable Long id,
@@ -99,6 +107,7 @@ public class AdminController {
     }
 
     @GetMapping("/subscriptions")
+    @PreAuthorize("hasAuthority('PERM_SUBSCRIPTION_VERIFY')")
     public ResponseEntity<List<PartnerSubscriptionResponse>> getAllSubscriptions(
             @RequestParam(required = false) InvoiceStatus status) {
         List<PartnerSubscriptionResponse> response = partnerSubscriptionService.getAllSubscriptions(status);
@@ -106,6 +115,7 @@ public class AdminController {
     }
 
     @PatchMapping("/subscription/{id}/verify")
+    @PreAuthorize("hasAuthority('PERM_SUBSCRIPTION_VERIFY')")
     @Auditable(value = AuditAction.VERIFY_SUBSCRIPTION, tableName = "invoice")
     public ResponseEntity<PartnerSubscriptionResponse> verifiedSubscription(
             @PathVariable Long id,

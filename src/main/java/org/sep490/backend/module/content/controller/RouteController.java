@@ -15,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -46,12 +47,14 @@ public class RouteController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('PERM_ROUTE_MANAGE')")
     public ResponseEntity<RouteResponse> create(@Valid @ModelAttribute RouteRequest routeRequest) {
         RouteResponse routeResponse = routeService.create(routeRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(routeResponse);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'ROUTE', 'ROUTE_MANAGE')")
     public ResponseEntity<RouteResponse> update(@PathVariable Long id, @Valid @RequestBody RouteRequest routeRequest) {
         RouteResponse routeResponse = routeService.update(id, routeRequest);
         return ResponseEntity.ok(routeResponse);
@@ -70,6 +73,7 @@ public class RouteController {
 //    }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'ROUTE', 'ROUTE_MANAGE')")
     public ResponseEntity<String> delete(@PathVariable Long id) {
         routeService.delete(id);
         return ResponseEntity.ok("Route deleted successfully");

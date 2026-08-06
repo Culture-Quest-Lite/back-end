@@ -16,6 +16,7 @@ public class CacheNames {
     public static final String ADMIN_DASHBOARD = "adminDashboard";
     public static final String CURATOR_DASHBOARD = "curatorDashboard";
     public static final String GOONG_MATRIX = "goongMatrix";
+    public static final String PARTNER_DASHBOARD = "partnerDashboard";
     public static final String AI_RERANK = "aiRerank";
 
     // Phase 6 - user
@@ -29,6 +30,16 @@ public class CacheNames {
     public static final String HOTSPOT_DETAIL = "hotspotDetail";
     public static final String ROUTE_DETAIL = "routeDetail";
     public static final String STORY_DETAIL = "storyDetail";
+
+    // Phase 8 - authorization
+    public static final String ROLE_PERMISSIONS = "rolePermissions";
+    public static final String USER_PERMISSION_OVERRIDES = "userPermOverrides";
+    public static final String USER_ENTITLEMENTS = "userEntitlements";
+
+    public static final Duration TTL_PERMISSIONS = Duration.ofMinutes(30);
+    public static final Duration TTL_USER_OVERRIDES = Duration.ofMinutes(10);
+    public static final Duration TTL_ENTITLEMENTS = Duration.ofMinutes(5);
+
 
     //TTL
     public static final Duration TTL_MASTER_DATA = Duration.ofHours(6);

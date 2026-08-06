@@ -16,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.sep490.backend.module.social.dto.response.CommentResponse;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +28,7 @@ public class PostController {
     private final PostService postService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('PERM_POST_CREATE')")
     public ResponseEntity<PostResponse> createPost(
             @Valid @ModelAttribute PostRequest request
     ) {
@@ -50,6 +52,7 @@ public class PostController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'POST', 'POST_UPDATE_ANY')")
     public ResponseEntity<PostResponse> updatePost(
             @PathVariable Long id,
             @Valid @ModelAttribute UpdatePostRequest request
@@ -58,12 +61,14 @@ public class PostController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'POST', 'POST_DELETE_ANY')")
     public ResponseEntity<String> deletePost(@PathVariable Long id) {
         postService.deletePost(id);
         return ResponseEntity.ok("Deleted post successfully!");
     }
 
     @DeleteMapping("/{id}/permanent")
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'POST', 'POST_DELETE_ANY')")
     public ResponseEntity<String> deletePostPermanently(@PathVariable Long id) {
         postService.deletePostPermanently(id);
         return ResponseEntity.ok("Deleted post permanent successfully!");

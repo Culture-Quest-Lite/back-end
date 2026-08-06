@@ -8,6 +8,7 @@ import org.sep490.backend.module.user.dto.response.LevelProgressResponse;
 import org.sep490.backend.module.user.service.LevelService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,12 +21,14 @@ public class LevelController {
     private final LevelService levelService;
 
     @PostMapping
+    @PreAuthorize("hasAuthority('PERM_LEVEL_MANAGE')")
     public ResponseEntity<LevelResponse> createLevel(@Valid @RequestBody LevelRequest request) {
         LevelResponse response = levelService.createLevel(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAuthority('PERM_LEVEL_MANAGE')")
     public ResponseEntity<LevelResponse> updateLevel(
             @PathVariable("id") Long levelId,
             @Valid @RequestBody LevelRequest request) {
@@ -34,6 +37,7 @@ public class LevelController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAuthority('PERM_LEVEL_MANAGE')")
     public ResponseEntity<Void> deleteLevel(@PathVariable("id") Long levelId) {
         levelService.deleteLevel(levelId);
         return ResponseEntity.noContent().build();

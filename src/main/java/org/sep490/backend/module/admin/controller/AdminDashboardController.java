@@ -20,7 +20,7 @@ public class AdminDashboardController {
     AdminDashboardService adminDashboardService;
 
     @GetMapping
-//    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('PERM_DASHBOARD_ADMIN_VIEW')")
     public ResponseEntity<AdminDashboardResponse> getDashboard() {
         return ResponseEntity.ok(adminDashboardService.getDashboard());
     }
