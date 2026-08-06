@@ -47,12 +47,16 @@ public class PayOsInvoicePaymentServiceImpl implements PayOsInvoicePaymentServic
                     ? redirectUrl
                     : payOsProperties.getReturnUrl();
 
+            String effectiveCancelUrl = (redirectUrl != null && !redirectUrl.isBlank())
+                    ? appendQueryParam(redirectUrl, "cancelled=true")
+                    : payOsProperties.getCancelUrl();
+
             CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
                     .orderCode(orderCode)
                     .amount(invoice.getPaidAmount())
                     .description(description)
                     .returnUrl(effectiveReturnUrl)
-                    .cancelUrl(payOsProperties.getCancelUrl())
+                    .cancelUrl(effectiveCancelUrl)
                     .build();
 
             try {
@@ -76,6 +80,8 @@ public class PayOsInvoicePaymentServiceImpl implements PayOsInvoicePaymentServic
                         .subscriptionId(invoice.getInvoiceId())
                         .gateway(PaymentGateway.PAYOS)
                         .checkoutUrl(response.getCheckoutUrl())
+                        .payUrl(response.getCheckoutUrl())
+                        .deeplink(effectiveReturnUrl)
                         .qrCode(response.getQrCode())
                         .amount(invoice.getPaidAmount())
                         .orderInfo(description)
@@ -84,6 +90,13 @@ public class PayOsInvoicePaymentServiceImpl implements PayOsInvoicePaymentServic
                 log.error("[PayOS] Tạo link thanh toán thất bại: {}", e.getMessage());
                 throw new BusinessException("Không thể tạo link thanh toán PayOS: " + e.getMessage());
             }
+    }
+
+    private String appendQueryParam(String url, String param) {
+        if (url.contains("?")) {
+            return url + "&" + param;
+        }
+        return url + "?" + param;
     }
 
     private long generateOrderCode(Invoice invoice) {
