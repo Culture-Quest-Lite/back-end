@@ -9,11 +9,13 @@ import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
 import org.sep490.backend.module.admin.service.SubscriptionPlanService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
+@PreAuthorize("hasRole('PARTNER')")
 @RequestMapping("/api/partner")
 @RequiredArgsConstructor
 public class PartnerSubscriptionController {

@@ -38,4 +38,7 @@ public interface RouteRepository extends JpaRepository<Route, Long>, JpaSpecific
             "WHERE r.status <> :excludedStatus " +
             "GROUP BY r.status")
     List<RouteStatusCountProjection> countRoutesByStatus(@Param("excludedStatus") RouteStatus excludedStatus);
+
+    @Query("SELECT r.createdBy.userId FROM Route r WHERE r.routeId = :id")
+    Optional<Long> findOwnerId(@Param("id") Long id);
 }

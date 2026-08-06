@@ -11,6 +11,7 @@ public enum AuditAction {
     CREATE_SUBSCRIPTION_PLAN,
     UPDATE_SUBSCRIPTION_PLAN,
     DELETE_SUBSCRIPTION_PLAN,
-    //Endpoint admin chưa được khai báo @Auditable vẫn được ghi lại kèm endpoint đầy đủ
+    UPDATE_ROLE_PERMISSION,
+    UPDATE_USER_PERMISSION,
     UNKNOWN
 }

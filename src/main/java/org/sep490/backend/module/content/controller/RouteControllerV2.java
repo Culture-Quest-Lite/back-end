@@ -10,6 +10,7 @@ import org.sep490.backend.module.content.service.inter.RouteService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,12 +22,14 @@ public class RouteControllerV2 {
     RouteService routeService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('PERM_ROUTE_MANAGE')")
     public ResponseEntity<RouteResponse> createV2(@Valid @ModelAttribute RouteRequestV2 request) {
         RouteResponse routeResponse = routeService.createV2(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(routeResponse);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'ROUTE', 'ROUTE_MANAGE')")
     public ResponseEntity<RouteResponse> updateV2(@PathVariable Long id, @Valid @RequestBody RouteRequestV2 routeRequest) {
         RouteResponse routeResponse = routeService.updateV2(id, routeRequest);
         return ResponseEntity.ok(routeResponse);

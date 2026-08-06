@@ -2,6 +2,8 @@ package org.sep490.backend.config.security;
 
 import org.sep490.backend.module.authentication.service.AuthTokenService;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -9,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -38,6 +41,14 @@ class JwtDenylistFilterTest {
 
     @Mock
     private FilterChain filterChain;
+
+    /**
+     * @Spy chứ không @Mock: test dưới khẳng định body chứa "TOKEN_REVOKED",
+     * mà mock rỗng thì không ghi gì ra response.
+     */
+    @Spy
+    private SecurityResponseWriter responseWriter =
+            new SecurityResponseWriter(new ObjectMapper().registerModule(new JavaTimeModule()));
 
     @InjectMocks
     private JwtDenylistFilter filter;
@@ -70,10 +81,8 @@ class JwtDenylistFilterTest {
 
         assertThat(response.getStatus()).isEqualTo(401);
         assertThat(response.getContentAsString()).contains("TOKEN_REVOKED");
-        // Request không được đi tiếp vào controller
         verify(filterChain, never()).doFilter(org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any());
-        // Context phải được xoá để không rò rỉ danh tính sang phần sau
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
     }
 
