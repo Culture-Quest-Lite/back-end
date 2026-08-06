@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.TagStatus;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -19,4 +20,5 @@ public class TagResponse {
     Long storyCount;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
+    List<TagUsageResponse> usages;
 }
