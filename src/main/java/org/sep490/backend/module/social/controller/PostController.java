@@ -2,11 +2,9 @@ package org.sep490.backend.module.social.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.sep490.backend.module.social.dto.request.CommentRequest;
-import org.sep490.backend.module.social.dto.request.PostRequest;
-import org.sep490.backend.module.social.dto.request.ShareRequest;
-import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
+import org.sep490.backend.module.social.dto.request.*;
 import org.sep490.backend.module.social.dto.response.PostResponse;
+import org.sep490.backend.module.social.dto.response.ReportPostResponse;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
 import org.sep490.backend.module.social.service.PostService;
 import org.springdoc.core.annotations.ParameterObject;
@@ -18,6 +16,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.sep490.backend.module.social.dto.response.CommentResponse;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/posts")
@@ -129,5 +129,19 @@ public class PostController {
     ) {
         Slice<CommentResponse> responses = postService.getCommentsByPostId(id, page, size);
         return ResponseEntity.ok(responses);
+    }
+
+    @PostMapping("/{id}/reports")
+    public ResponseEntity<ReportPostResponse> reportPost(
+            @PathVariable Long id,
+            @Valid @RequestBody ReportPostRequest request
+    ) {
+        ReportPostResponse response = postService.reportPost(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/reports")
+    public ResponseEntity<List<ReportPostResponse>> getReports() {
+        return ResponseEntity.ok(postService.getAllReportPosts());
     }
 }

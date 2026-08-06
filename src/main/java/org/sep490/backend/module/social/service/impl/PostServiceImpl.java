@@ -1,5 +1,7 @@
 package org.sep490.backend.module.social.service.impl;
 
+import org.sep490.backend.module.social.dto.request.*;
+import org.sep490.backend.module.social.dto.response.ReportPostResponse;
 import org.sep490.backend.module.social.service.PostCounterService;
 
 import lombok.AccessLevel;
@@ -11,6 +13,7 @@ import org.sep490.backend.module.content.entity.Media;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.S3Service;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.springframework.beans.factory.annotation.Value;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.service.TransactionCompensationService;
@@ -27,13 +30,7 @@ import org.sep490.backend.module.content.repository.TagRepository;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
 import org.sep490.backend.module.gamification.service.RewardTransactionService;
 import org.sep490.backend.module.gamification.dto.request.RewardTransactionRequest;
-import org.sep490.backend.module.social.dto.request.CommentRequest;
-import org.sep490.backend.module.social.dto.request.DeletePostRequest;
-import org.sep490.backend.module.social.dto.request.PostRequest;
-import org.sep490.backend.module.social.dto.request.ShareRequest;
 import org.sep490.backend.module.social.entity.enumeration.PostVisibility;
-import org.sep490.backend.module.social.dto.request.RejectPostRequest;
-import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
 import org.sep490.backend.module.social.dto.response.CommentResponse;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.entity.PostAction;
@@ -529,6 +526,52 @@ public class PostServiceImpl implements PostService {
         return rootComments.map(this::mapToCommentResponse);
     }
 
+    @Override
+    public ReportPostResponse reportPost(Long id, ReportPostRequest request) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+        User currentUser = userService.getCurrentUser();
+
+        Optional<PostAction> existingReport = postActionRepository.findByPost_PostIdAndUser_UserIdAndActionType(
+                id, currentUser.getUserId(), PostActionType.REPORT);
+
+        if (existingReport.isPresent()) {
+            throw new BusinessException("Bạn đã báo cáo bài viết này trước đó");
+        }
+
+        PostAction reportAction = PostAction.builder()
+                .post(post)
+                .user(currentUser)
+                .actionType(PostActionType.REPORT)
+                .comment(request.getComment())
+                .isReportResolved(false)
+                .build();
+
+        reportAction = postActionRepository.save(reportAction);
+
+        return toReportPostResponse(reportAction);
+    }
+
+    @Override
+    public List<ReportPostResponse> getAllReportPosts() {
+
+        User user = userService.getCurrentUser();
+
+        if(user.getRole().equals(UserRole.EXPLORER)) {
+            return postActionRepository.findByActionTypeAndUser_UserId(PostActionType.REPORT, user.getUserId())
+                    .stream()
+                    .map(this::toReportPostResponse)
+                    .toList();
+        } else if (user.getRole().equals(UserRole.ADMIN)) {
+            return postActionRepository.findByActionTypeAndIsReportResolved(PostActionType.REPORT, false)
+                    .stream()
+                    .map(this::toReportPostResponse)
+                    .toList();
+        } else {
+            throw new BusinessException("Người dùng không có quyền truy cập danh sách báo cáo bài viết");
+        }
+    }
+
     private PostResponse toResponseWithLiked(Post post, Long currentUserId) {
         PostResponse response = postMapper.toResponse(post);
         postCounterService.apply(response, post.getPostId());
@@ -573,6 +616,17 @@ public class PostServiceImpl implements PostService {
                 .comment(action.getComment())
                 .createdAt(action.getCreatedAt())
                 .replies(childReplies)
+                .build();
+    }
+
+    private ReportPostResponse toReportPostResponse(PostAction action) {
+        return ReportPostResponse.builder()
+                .postActionId(action.getPostActionId())
+                .postId(action.getPost().getPostId())
+                .createdUserId(action.getUser().getUserId())
+                .createdDisplayName(action.getUser().getDisplayName())
+                .comment(action.getComment())
+                .createdAt(action.getCreatedAt())
                 .build();
     }
 }

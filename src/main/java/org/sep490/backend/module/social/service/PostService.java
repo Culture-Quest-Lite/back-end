@@ -1,19 +1,16 @@
 package org.sep490.backend.module.social.service;
 
-import org.sep490.backend.module.social.dto.request.DeletePostRequest;
-import org.sep490.backend.module.social.dto.request.PostRequest;
-import org.sep490.backend.module.social.dto.request.RejectPostRequest;
-import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
+import jakarta.validation.Valid;
+import org.sep490.backend.module.social.dto.request.*;
 import org.sep490.backend.module.social.dto.response.PostResponse;
+import org.sep490.backend.module.social.dto.response.ReportPostResponse;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
-import org.sep490.backend.module.social.dto.request.CommentRequest;
-
 import org.sep490.backend.module.social.dto.response.CommentResponse;
 
-import org.sep490.backend.module.social.dto.request.ShareRequest;
+import java.util.List;
 
 public interface PostService {
     PostResponse createPost(PostRequest postRequest);
@@ -33,4 +30,6 @@ public interface PostService {
     PostResponse commentPost(Long id, CommentRequest request);
     PostResponse sharePost(Long id, ShareRequest request);
     Slice<CommentResponse> getCommentsByPostId(Long id, int page, int size);
+    ReportPostResponse reportPost(Long id, ReportPostRequest request);
+    List<ReportPostResponse> getAllReportPosts();
 }

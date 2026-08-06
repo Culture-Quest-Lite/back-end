@@ -28,4 +28,7 @@ public interface PostActionRepository extends JpaRepository<PostAction, Long> {
     /** Kiểm tra user đã like post chưa — thay cho việc stream cả collection. */
     boolean existsByPost_PostIdAndUser_UserIdAndActionType(
             Long postId, Long userId, PostActionType actionType);
+
+    List<PostAction> findByActionTypeAndIsReportResolved(PostActionType actionType, Boolean isReportResolved);
+    List<PostAction> findByActionTypeAndUser_UserId(PostActionType actionType, Long userId);
 }
