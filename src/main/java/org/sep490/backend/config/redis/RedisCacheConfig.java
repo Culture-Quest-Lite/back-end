@@ -40,6 +40,7 @@ public class RedisCacheConfig {
         configs.put(CacheNames.SUBSCRIPTION_PLANS, base.entryTtl(CacheNames.TTL_MASTER_DATA));
         configs.put(CacheNames.ADMIN_DASHBOARD, base.entryTtl(CacheNames.TTL_DASHBOARD));
         configs.put(CacheNames.CURATOR_DASHBOARD, base.entryTtl(CacheNames.TTL_DASHBOARD));
+        configs.put(CacheNames.PARTNER_DASHBOARD, base.entryTtl(CacheNames.TTL_DASHBOARD));
         configs.put(CacheNames.GOONG_MATRIX, base.entryTtl(CacheNames.TTL_GOONG));
         configs.put(CacheNames.AI_RERANK, base.entryTtl(CacheNames.TTL_AI));
         configs.put(CacheNames.LEADERBOARD, base.entryTtl(CacheNames.TTL_LEADERBOARD));

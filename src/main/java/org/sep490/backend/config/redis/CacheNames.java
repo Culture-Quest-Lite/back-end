@@ -16,6 +16,7 @@ public class CacheNames {
     public static final String ADMIN_DASHBOARD = "adminDashboard";
     public static final String CURATOR_DASHBOARD = "curatorDashboard";
     public static final String GOONG_MATRIX = "goongMatrix";
+    public static final String PARTNER_DASHBOARD = "partnerDashboard";
     public static final String AI_RERANK = "aiRerank";
 
     // Phase 6 - user

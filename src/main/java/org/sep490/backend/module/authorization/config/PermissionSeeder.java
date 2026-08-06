@@ -58,6 +58,7 @@ public class PermissionSeeder implements ApplicationRunner {
 
         CATALOG.put(DASHBOARD_ADMIN_VIEW,   new String[]{"SYSTEM", "Xem dashboard quản trị"});
         CATALOG.put(DASHBOARD_CURATOR_VIEW, new String[]{"SYSTEM", "Xem dashboard kiểm duyệt"});
+        CATALOG.put(DASHBOARD_PARTNER_VIEW, new String[]{"SYSTEM", "Xem dashboard đối tác"});
         CATALOG.put(AUDIT_LOG_VIEW,         new String[]{"SYSTEM", "Xem nhật ký hệ thống"});
         CATALOG.put(PERMISSION_MANAGE,      new String[]{"SYSTEM", "Cấu hình ma trận phân quyền"});
     }
@@ -67,7 +68,7 @@ public class PermissionSeeder implements ApplicationRunner {
             UserRole.CURATOR, List.of(
                     HOTSPOT_MANAGE, ROUTE_MANAGE, STORY_MANAGE, TAG_MANAGE,
                     POST_MODERATE, REVIEW_MODERATE, DASHBOARD_CURATOR_VIEW),
-            UserRole.PARTNER, List.of(VOUCHER_PARTNER_MANAGE),
+            UserRole.PARTNER, List.of(VOUCHER_PARTNER_MANAGE, DASHBOARD_PARTNER_VIEW),
             UserRole.EXPLORER, List.of(POST_CREATE)
     );
 

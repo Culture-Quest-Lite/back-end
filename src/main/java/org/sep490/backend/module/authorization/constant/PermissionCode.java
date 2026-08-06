@@ -41,6 +41,7 @@ public final class PermissionCode {
     // --- SYSTEM ---
     public static final String DASHBOARD_ADMIN_VIEW   = "DASHBOARD_ADMIN_VIEW";
     public static final String DASHBOARD_CURATOR_VIEW = "DASHBOARD_CURATOR_VIEW";
+    public static final String DASHBOARD_PARTNER_VIEW = "DASHBOARD_PARTNER_VIEW";
     public static final String AUDIT_LOG_VIEW         = "AUDIT_LOG_VIEW";
     public static final String PERMISSION_MANAGE      = "PERMISSION_MANAGE";
 }
