@@ -54,8 +54,6 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse createGroup(GroupRequest request) {
 
-        isLoggedIn("createGroup");
-
         User user = userService.getCurrentUser();
         List<User> members = validateListMember(user.getUserId(), request.getUserIds(), request.getGroupName());
 
@@ -90,15 +88,14 @@ public class GroupServiceImpl implements GroupService {
     public GroupResponse updateGroup(Long groupId, GroupUpdateRequest request) {
 
         User user = userService.getCurrentUser();
-
-        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserIdAndRole(groupId, user.getUserId(), GroupRole.LEADER)) {
-            throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể update thông tin nhóm");
-        }
-
         Group group = getGroup(groupId);
 
         if(group.getStatus().equals(GroupStatus.DELETED)) {
             throw new BusinessException("Nhóm đã bị xóa");
+        }
+
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserIdAndRole(groupId, user.getUserId(), GroupRole.LEADER)) {
+            throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể update thông tin nhóm");
         }
 
         group.setGroupName(request.getGroupName());
@@ -202,7 +199,7 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse joinGroup(String shareToken) { // join through link
 
-        isLoggedIn("joinGroup");
+        //isLoggedIn("joinGroup");
 
         User user = userService.getCurrentUser();
         GroupUtils.TokenInfo tokenInfo = GroupUtils.parseToken(shareToken);
@@ -234,7 +231,7 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse addUserToGroup(Long userId, Long groupId) { // leader add
 
-        isLoggedIn("addUserToGroup");
+        //isLoggedIn("addUserToGroup");
 
         Group group = getGroup(groupId);
         User currentUser = userService.getCurrentUser();
@@ -244,7 +241,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Không thể add thành viên khi nhóm đã bị xóa");
         }
 
-        if(!currentUser.equals(group.getCreatedBy())) {
+        if(!isLeader(currentUser.getUserId(), groupId)) {
             throw new GroupAuthorizeException("Chỉ có trưởng nhóm mới có thể add thành viên");
         }
 
@@ -269,7 +266,7 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse kickUserFromGroup(Long userId, Long groupId) {
 
-        isLoggedIn("kickUserFromGroup");
+        //isLoggedIn("kickUserFromGroup");
 
         Group group = getGroup(groupId);
         User leader = userService.getCurrentUser();
@@ -287,8 +284,8 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Bạn không thể kick chính mình");
         }
 
-        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, userId, GroupParticipantAction.KICKED)) {
-            throw new BusinessException("Thành viên này đã bị kick khỏi nhóm");
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, userId, GroupParticipantAction.JOIN)) {
+            throw new BusinessException("Thành viên này không thuộc nhóm");
         }
 
         groupParticipantService.updateAction(member, group, GroupParticipantAction.KICKED);
@@ -304,7 +301,7 @@ public class GroupServiceImpl implements GroupService {
     @Transactional
     public GroupResponse leaveGroup(Long groupId) {
 
-        isLoggedIn("leaveGroup");
+        //isLoggedIn("leaveGroup");
 
         Group group = getGroup(groupId);
         User user = userService.getCurrentUser();
@@ -313,20 +310,16 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Nhóm đã bị xóa");
         }
 
-        if(!groupParticipantService.isParticipant(user, group)) {
-            throw new GroupAuthorizeException("Người dùng không phải là thành viên của nhóm");
+        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.PENDING)) {
+            throw new BusinessException("Bạn không thể rời nhóm khi đang chờ duyệt. Hãy hủy yêu cầu tham gia nhóm");
+        }
+
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
+            throw new BusinessException("Bạn không thuộc nhóm này");
         }
 
         if(groupParticipantService.isLeader(user, group)) {
             throw new BusinessException("Trưởng nhóm không thể rời nhóm. Hãy chuyển quyền trưởng nhóm cho người khác trước khi rời nhóm");
-        }
-
-        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.LEAVE)) {
-            throw new BusinessException("Bạn đã rời nhóm này");
-        }
-
-        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.PENDING)) {
-            throw new BusinessException("Bạn chưa là thành viên để rời nhóm này");
         }
 
         groupParticipantService.updateAction(user, group, GroupParticipantAction.LEAVE);
@@ -365,9 +358,10 @@ public class GroupServiceImpl implements GroupService {
     }
 
     @Override
+    @Transactional
     public GroupResponse refreshSharedToken(Long groupId) {
 
-        isLoggedIn("refreshSharedToken");
+        //isLoggedIn("refreshSharedToken");
 
         User user = userService.getCurrentUser();
         Group group = getGroup(groupId);
@@ -401,6 +395,13 @@ public class GroupServiceImpl implements GroupService {
         return groupParticipantService.updateAction(groupParticipantId, action);
     }
 
+    @Override
+    public Boolean isLeader(Long userId, Long groupId) {
+        User user = userService.getUserById(userId);
+        Group group = getGroup(groupId);
+        return groupParticipantService.isLeader(user, group);
+    }
+
 
     // for temporary, remove after implement authen
     private void isLoggedIn(String methodName) {
@@ -410,7 +411,8 @@ public class GroupServiceImpl implements GroupService {
         }
     }
 
-    private Long getLeaderFromGroup(Long groupId) {
+    @Override
+    public Long getLeaderFromGroup(Long groupId) {
         GroupParticipant gp = groupParticipantRepository.findByGroup_GroupIdAndRole(groupId, GroupRole.LEADER);
         return gp != null ? gp.getUser().getUserId() : null;
     }
@@ -424,7 +426,7 @@ public class GroupServiceImpl implements GroupService {
         List<Long> valid = userFollowRepository.findMutualFollowerIds(leaderId, memberIds);
 
         if(valid == null || valid.isEmpty() || valid.size() < 1) {
-            throw new BusinessException("Bạn cần ít nhất 2 thành viên follow nhau để tạo nhóm");
+            throw new BusinessException("Bạn và 1 thành viên cần phải theo dõi nhau để tạo nhóm");
         }
 
 //          để show notification cho leader khi tạo nhóm

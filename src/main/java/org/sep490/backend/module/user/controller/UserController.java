@@ -134,8 +134,9 @@ public class UserController {
     }
 
     @GetMapping("/mutual-follow")
-    public ResponseEntity<List<FollowUserResponse>> getMutualFollowers() {
-        List<FollowUserResponse> mutualFollowers = userService.getFriends();
+    public ResponseEntity<List<FollowUserResponse>> getMutualFollowers(
+            @RequestParam(value = "display_name", required = false) String displayName) {
+        List<FollowUserResponse> mutualFollowers = userService.getFriends(displayName);
         return ResponseEntity.ok(mutualFollowers);
     }
 }
