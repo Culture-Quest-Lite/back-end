@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p WHERE (CAST(:status AS string) IS NULL OR p.status = :status)")
@@ -67,4 +68,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     long countByUser(User user);
 
     long countByStatus(PostStatus status);
+
+    @Query("SELECT p.user.userId FROM Post p WHERE p.postId = :id")
+    Optional<Long> findOwnerId(@Param("id") Long id);
 }

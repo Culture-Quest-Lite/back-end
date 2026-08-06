@@ -1,5 +1,11 @@
 package org.sep490.backend.config.security;
 
+import org.sep490.backend.module.authorization.constant.PermissionCode;
+import org.sep490.backend.module.authorization.service.PermissionCacheService;
+import org.sep490.backend.module.authorization.util.PermissionResolver;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
+import org.sep490.backend.module.user.service.UserIdCacheService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -20,15 +26,16 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @EnableWebSecurity
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
+
+    @Value("${app.cors.allowed-origins}")
+    private String[] allowedOrigins;
 
     private static final String[] SWAGGER_WHITELIST = {
             "/swagger-ui/**",
@@ -37,7 +44,7 @@ public class SecurityConfig {
             "/v3/api-docs"
     };
 
-    private static final String[] PUBLIC_ENDPOINTS = {
+    private static final String[] PUBLIC_AUTH_ENDPOINTS = {
             "/api/auth/register",
             "/api/auth/login",
             "/api/auth/logout",
@@ -47,7 +54,10 @@ public class SecurityConfig {
             "/api/auth/verify-otp",
             "/api/auth/resend-otp",
             "/api/auth/login-by-google",
-            "/api/auth/login-by-facebook",
+            "/api/auth/login-by-facebook"
+    };
+
+    private static final String[] PUBLIC_GET_ENDPOINTS = {
             "/api/v1/hotspots/**",
             "/api/v1/stories/**",
             "/api/v1/routes/**",
@@ -58,8 +68,12 @@ public class SecurityConfig {
     };
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   JwtDenylistFilter jwtDenylistFilter) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            JwtDenylistFilter jwtDenylistFilter,
+            JwtAuthenticationConverter jwtAuthenticationConverter,
+            RestAuthenticationEntryPoint authenticationEntryPoint,
+            RestAccessDeniedHandler accessDeniedHandler) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
@@ -67,15 +81,20 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(SWAGGER_WHITELIST).permitAll()
-                        .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(PUBLIC_AUTH_ENDPOINTS).permitAll()
+                        .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                         .requestMatchers("/api/payment/payos/webhook").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        // Ngoại lệ PHẢI đứng trước rule /api/admin/** bên dưới
                         .requestMatchers(HttpMethod.GET, "/api/admin/subscription-plans").authenticated()
-                        .requestMatchers("/api/admin/**").permitAll()
-                        .requestMatchers("/api/curator/**").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/curator/**").hasAnyRole("CURATOR", "ADMIN")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
-                        .jwtAuthenticationConverter(jwtAuthenticationConverter())))
+                        .jwtAuthenticationConverter(jwtAuthenticationConverter)))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
                 // Đặt SAU BearerTokenAuthenticationFilter để SecurityContext đã có Jwt
                 .addFilterAfter(jwtDenylistFilter, BearerTokenAuthenticationFilter.class);
 
@@ -85,7 +104,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOriginPatterns(List.of(allowedOrigins));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
@@ -96,19 +115,45 @@ public class SecurityConfig {
     }
 
     @Bean
-    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+    public JwtAuthenticationConverter jwtAuthenticationConverter(
+            PermissionCacheService permissionCacheService,
+            UserIdCacheService userIdCacheService) {
+
         JwtGrantedAuthoritiesConverter defaultAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
         defaultAuthoritiesConverter.setAuthorityPrefix("SCOPE_");
 
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Collection<GrantedAuthority> authorities = defaultAuthoritiesConverter.convert(jwt);
+
+            // --- 1. Role từ Keycloak + quyền của role ---
+            Set<String> rolePermissions = new HashSet<>();
             Map<String, Object> realmAccess = jwt.getClaim("realm_access");
             if (realmAccess != null && realmAccess.get("roles") instanceof Collection<?> roles) {
-                authorities.addAll(roles.stream()
-                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toString().toUpperCase()))
-                        .collect(Collectors.toList()));
+                for (Object raw : roles) {
+                    String roleName = raw.toString().toUpperCase();
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + roleName));
+
+                    UserRole userRole = PermissionResolver.parseRole(roleName);
+                    if (userRole != null) {
+                        // Gọi qua bean -> đi qua proxy -> cache hoạt động
+                        rolePermissions.addAll(permissionCacheService.getByRole(userRole));
+                    }
+                }
             }
+
+            // --- 2. Ngoại lệ cá nhân, đè lên quyền của role ---
+            Set<String> finalPermissions = rolePermissions;
+            Long userId = userIdCacheService.resolveUserId(jwt.getSubject());   // đã cache 30'
+            if (userId != null) {
+                finalPermissions = PermissionResolver.merge(
+                        rolePermissions, permissionCacheService.getUserOverrides(userId));
+            }
+
+            // --- 3. Đổ vào authorities ---
+            finalPermissions.forEach(code ->
+                    authorities.add(new SimpleGrantedAuthority(PermissionCode.PREFIX + code)));
+
             return authorities;
         });
         return converter;

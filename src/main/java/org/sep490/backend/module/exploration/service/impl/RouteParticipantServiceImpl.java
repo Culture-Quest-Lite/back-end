@@ -44,6 +44,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Transactional
@@ -184,7 +185,7 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
         User progressUser = participant.getUser();
         User currentUser = userService.getCurrentUser();
 
-        if (!progressUser.equals(currentUser)) {
+        if (!Objects.equals(progressUser.getUserId(), currentUser.getUserId())) {
             throw new BusinessException("Bạn chưa bắt đầu tuyến đường này");
         }
 

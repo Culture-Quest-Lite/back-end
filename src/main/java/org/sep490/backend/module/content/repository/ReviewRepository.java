@@ -73,4 +73,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long>, JpaSpecif
             "FROM Review r " +
             "WHERE r.status = :status")
     RatingSummaryProjection summarizeGlobalRatings(@Param("status") ReviewStatus status);
+
+    @Query("SELECT r.user.userId FROM Review r WHERE r.reviewId = :id")
+    Optional<Long> findOwnerId(@Param("id") Long id);
 }

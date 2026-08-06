@@ -1,12 +1,15 @@
 package org.sep490.backend.common.utils;
 
-import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.module.authorization.constant.PermissionCode;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class SecurityUtils {
 
@@ -24,19 +27,19 @@ public class SecurityUtils {
         return getCurrentJwt().map(Jwt::getSubject);
     }
 
-    public static Long getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    public static Set<String> getCurrentAuthorities() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) return Set.of();
+        return auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toSet());
+    }
 
-        if (authentication != null && authentication.getPrincipal() instanceof Jwt) {
-            Jwt jwt = (Jwt) authentication.getPrincipal();
+    public static boolean hasPermission(String permissionCode) {
+        return getCurrentAuthorities().contains(PermissionCode.PREFIX + permissionCode);
+    }
 
-            Object claimValue = jwt.getClaim("custom_internal_user_id");
-
-            if (claimValue instanceof Number) {
-                return ((Number) claimValue).longValue();
-            }
-        }
-
-        throw new BusinessException("User chưa đăng nhập hoặc token không hợp lệ");
+    public static boolean hasRole(String role) {
+        return getCurrentAuthorities().contains("ROLE_" + role);
     }
 }
