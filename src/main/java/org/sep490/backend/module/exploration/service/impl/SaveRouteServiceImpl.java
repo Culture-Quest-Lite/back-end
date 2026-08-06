@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @Transactional
@@ -54,7 +55,7 @@ public class SaveRouteServiceImpl implements SavedRouteService {
         SavedRoute savedRoute = findById(savedRouteId);
         User user = userService.getCurrentUser();
 
-        if(user.getUserId() != savedRoute.getUser().getUserId()) {
+        if (!Objects.equals(user.getUserId(), savedRoute.getUser().getUserId())) {
             throw new BusinessException("Bạn không có thể bỏ lưu tuyến đường này");
         }
 

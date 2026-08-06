@@ -90,7 +90,7 @@ public class GroupController {
         return ResponseEntity.ok(groupService.updateGroupParticipantAction(gpId, action));
     }
 
-    @DeleteMapping("/delete/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<GroupResponse> deleteGroup(@PathVariable("id") Long groupId) {
         GroupResponse groupResponse = groupService.deleteGroup(groupId);
         return ResponseEntity.ok(groupResponse);

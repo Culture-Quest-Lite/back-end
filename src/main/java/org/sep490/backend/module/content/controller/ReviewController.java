@@ -16,6 +16,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -58,6 +59,7 @@ public class ReviewController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@perm.isOwner(#id, 'REVIEW')")
     public ResponseEntity<ReviewResponse> update(@PathVariable Long id,
                                                  @Valid @ModelAttribute ReviewUpdateRequest reviewRequest) {
         ReviewResponse response = reviewService.updateReview(id, reviewRequest);
@@ -66,6 +68,7 @@ public class ReviewController {
 
     //Ẩn hoặc hiện đánh giá (dành cho kiểm duyệt viên)
     @PutMapping("/{id}/status")
+    @PreAuthorize("hasAuthority('PERM_REVIEW_MODERATE')")
     public ResponseEntity<ReviewResponse> updateStatus(@PathVariable Long id, @RequestParam ReviewStatus status) {
         ReviewResponse response = reviewService.updateReviewStatus(id, status);
         return ResponseEntity.ok(response);
@@ -77,6 +80,7 @@ public class ReviewController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'REVIEW', 'REVIEW_DELETE_ANY')")
     public ResponseEntity<String> delete(@PathVariable Long id) {
         reviewService.deleteReview(id);
         return ResponseEntity.ok("Deleted");

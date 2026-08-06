@@ -16,25 +16,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/**
- * Chặn access token đã logout.
- *
- * Keycloak thu hồi được refresh token nhưng KHÔNG thu hồi access token đã cấp —
- * token đó vẫn hợp lệ tới khi hết hạn tự nhiên. Filter này đóng khoảng trống đó.
- *
- * ĐÁNH ĐỔI: thêm một round-trip Redis (~0.2ms) vào MỌI request đã xác thực.
- * Với một instance thì chấp nhận được, và nó vá một lỗ hổng thật.
- *
- * FAIL-OPEN CÓ CHỦ Ý: Redis chết thì cho request đi qua, không chặn toàn bộ người dùng.
- * Nhất quán với nguyên tắc "Redis chết → app vẫn chạy". Rủi ro là trong lúc Redis chết,
- * token đã logout tạm thời dùng lại được — chấp nhận được so với việc sập toàn hệ thống.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtDenylistFilter extends OncePerRequestFilter {
 
     private final AuthTokenService authTokenService;
+    private final SecurityResponseWriter responseWriter;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -56,11 +44,8 @@ public class JwtDenylistFilter extends OncePerRequestFilter {
 
                 if (denied) {
                     SecurityContextHolder.clearContext();
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType("application/json;charset=UTF-8");
-                    response.getWriter().write(
-                            "{\"status\":401,\"errorCode\":\"TOKEN_REVOKED\","
-                                    + "\"message\":\"Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại\"}");
+                    responseWriter.write(response, HttpServletResponse.SC_UNAUTHORIZED,
+                            "TOKEN_REVOKED", "Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại");
                     return;
                 }
             }
