@@ -7,6 +7,7 @@ import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
 import org.sep490.backend.module.admin.repository.InvoiceRepository;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.authorization.service.EntitlementCacheService;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class PremiumExpiryScheduler {
 
     private final InvoiceRepository invoiceRepository;
     private final UserRepository userRepository;
+    private final EntitlementCacheService entitlementCacheService;
 
     @Scheduled(cron = "0 0 0 * * *")
     @Transactional
@@ -37,6 +39,8 @@ public class PremiumExpiryScheduler {
                 u.setIsPremium(false);
                 userRepository.save(u);
             }
+            // Evict kể cả khi vẫn còn gói khác: tập PlanRule đã đổi.
+            entitlementCacheService.evict(u.getUserId());
         }
         invoiceRepository.saveAll(expired);
         if (!expired.isEmpty()) {

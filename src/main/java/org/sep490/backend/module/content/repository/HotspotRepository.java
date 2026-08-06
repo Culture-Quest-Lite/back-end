@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpecificationExecutor<Hotspot> {
     @Query(value = "SELECT * FROM hotspots h " +
@@ -52,4 +53,7 @@ public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpec
             "WHERE h.status <> :excludedStatus " +
             "GROUP BY h.status")
     List<ContentStatusCountProjection> countHotspotsByStatus(@Param("excludedStatus") ContentStatus excludedStatus);
+
+    @Query("SELECT h.createdBy.userId FROM Hotspot h WHERE h.hotspotId = :id")
+    Optional<Long> findOwnerId(@Param("id") Long id);
 }

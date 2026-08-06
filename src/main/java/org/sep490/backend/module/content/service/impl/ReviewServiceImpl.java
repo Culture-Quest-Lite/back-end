@@ -47,6 +47,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -115,7 +116,7 @@ public class ReviewServiceImpl implements ReviewService {
         Review review = getReviewById(id);
 
         if (!review.getUser().getUserId().equals(currentUser.getUserId())) {
-            throw new BusinessException("Bạn không có quyền chỉnh sửa đánh giá của người khác");
+            throw new AccessDeniedException("Bạn không có quyền chỉnh sửa đánh giá của người khác");
         }
 
         reviewMapper.updateFromRequest(review, reviewRequest);
@@ -199,11 +200,9 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public ReviewResponse updateReviewStatus(Long id, ReviewStatus status) {
-        User currentUser = userService.getCurrentUser();
-        if (currentUser.getRole() != UserRole.ADMIN && currentUser.getRole() != UserRole.CURATOR) {
-            throw new BusinessException("Bạn không có quyền kiểm duyệt đánh giá");
-        }
-
+        // Phân quyền do @PreAuthorize("hasAuthority('PERM_REVIEW_MODERATE')") ở controller đảm nhiệm.
+        // KHÔNG hardcode UserRole ở đây: làm vậy sẽ vô hiệu hoá tính động — admin gỡ quyền
+        // khỏi CURATOR trong ma trận nhưng if-check vẫn cho qua.
         Review review = getReviewById(id);
         review.setStatus(status);
         reviewRepository.save(review);
@@ -235,13 +234,8 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public void deleteReview(Long id) {
-        User currentUser = userService.getCurrentUser();
+        // Owner-or-permission do @perm.isOwnerOrHasPerm(#id,'REVIEW','REVIEW_DELETE_ANY') đảm nhiệm.
         Review review = getReviewById(id);
-
-        boolean isOwner = review.getUser().getUserId().equals(currentUser.getUserId());
-        if (!isOwner && currentUser.getRole() != UserRole.ADMIN) {
-            throw new BusinessException("Bạn không có quyền xóa đánh giá này!");
-        }
 
         review.setStatus(ReviewStatus.DELETED);
         reviewRepository.save(review);

@@ -13,6 +13,7 @@ import org.sep490.backend.module.admin.repository.InvoiceRepository;
 import org.sep490.backend.module.admin.repository.SystemTransactionRepository;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.authorization.service.EntitlementCacheService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ public class InvoiceActivationServiceImpl implements InvoiceActivationService {
     private final InvoiceRepository invoiceRepository;
     private final UserRepository userRepository;
     private final SystemTransactionRepository systemTransactionRepository;
+    private final EntitlementCacheService entitlementCacheService;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -68,6 +70,11 @@ public class InvoiceActivationServiceImpl implements InvoiceActivationService {
 
         buyer.setIsPremium(true);
         userRepository.save(buyer);
+
+        // Không có dòng này thì user vừa trả tiền phải chờ hết TTL cache (5') mới dùng được
+        // tính năng Premium.
+        entitlementCacheService.evict(buyer.getUserId());
+
         log.info("[Premium] Đã nâng cấp user {} lên Premium, hạn tới {}", buyer.getUserId(), invoice.getEndDate());
     }
 
