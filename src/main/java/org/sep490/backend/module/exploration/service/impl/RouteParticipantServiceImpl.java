@@ -326,4 +326,12 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
             routeParticipantRepository.saveAll(newParticipants);
         }
     }
+
+    @Override
+    public RouteParticipantResponse getByRouteId(Long routeId) {
+        User user = userService.getCurrentUser();
+        RouteParticipant rp = routeParticipantRepository.findByRoute_RouteIdAndUser_UserId(routeId, user.getUserId())
+                .orElseThrow(() -> new BusinessException("Không tìm thấy thông tin tham gia tuyến đường"));
+        return routeParticipantMapper.toResponse(rp);
+    }
 }

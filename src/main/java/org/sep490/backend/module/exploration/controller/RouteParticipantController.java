@@ -63,4 +63,10 @@ public class RouteParticipantController {
         routeParticipantService.startGroupQuest(request);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
+
+    @GetMapping("/{id}/me")
+    public ResponseEntity<RouteParticipantResponse> getByRouteId(@PathVariable("id") Long routeId) {
+        RouteParticipantResponse response = routeParticipantService.getByRouteId(routeId);
+        return ResponseEntity.ok(response);
+    }
 }
