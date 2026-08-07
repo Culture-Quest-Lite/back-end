@@ -11,4 +11,8 @@ public interface GeoQueryService {
     List<Hotspot> findNearby(double longitude, double latitude, double radiusInMeters, String status);
 
     void evictNearby();
+
+    String parseGeoJsonToWkt(String geoJson);
+
+    String findBoundaryGeoJson(Long hotspotId);
 }

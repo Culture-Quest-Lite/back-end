@@ -27,12 +27,15 @@ public interface HotspotMapper {
     @Mapping(source = "createdBy.userId", target = "createByUserId")
     @Mapping(target = "latitude", expression = "java(hotspot.getLocation() != null ? hotspot.getLocation().getY() : null)")
     @Mapping(target = "longitude", expression = "java(hotspot.getLocation() != null ? hotspot.getLocation().getX() : null)")
+    @Mapping(target = "boundaryGeoJson", ignore = true)
     HotspotResponse toResponse(Hotspot hotspot);
 
     @Mapping(target = "location", expression = "java(toPoint(request.getLongitude(), request.getLatitude()))")
+    @Mapping(target = "boundary", ignore = true)
     void updateFromRequest(@MappingTarget Hotspot hotspot, HotspotRequest request);
 
     @Mapping(target = "location", expression = "java(toPoint(request.getLongitude(), request.getLatitude()))")
+    @Mapping(target = "boundary", ignore = true)
     @Mapping(source = "point", target = "point")
     Hotspot toEntity(HotspotRequest request);
 
