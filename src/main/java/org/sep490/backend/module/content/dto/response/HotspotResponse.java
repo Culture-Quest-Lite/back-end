@@ -23,6 +23,8 @@ public class HotspotResponse {
     String historyInformation;
     Double latitude;
     Double longitude;
+    Integer checkInRadius;
+    String boundaryGeoJson;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     Long xp;

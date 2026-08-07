@@ -9,7 +9,15 @@ import org.sep490.backend.module.content.service.inter.RatingSummaryService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.utils.SpatialUtils;
+import org.sep490.backend.module.exploration.service.impl.CheckInPolicy;
+import org.springframework.util.StringUtils;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
@@ -60,19 +68,10 @@ public class HotspotServiceImpl implements HotspotService {
     @Transactional
     public HotspotResponse create(HotspotRequest request) {
 
-        if (!geoQueryService.isLocationInVietnam(request.getLongitude(), request.getLatitude())) {
-            throw new BusinessException("Tọa độ của Hotspot phải thuộc lãnh thổ Việt Nam");
-        }
-
-        if (request.getEndTime().isBefore(request.getStartTime())) {
-            throw new BusinessException("Thời gian kết thúc không hợp lệ");
-        }
-
-        if (request.getEstimatedDurationMax() < request.getEstimatedDurationMin()) {
-            throw new BusinessException("Thời gian tham quan dự kiến không hợp lệ");
-        }
+        validateHotspotRequest(request);
 
         Hotspot hotspot = hotspotMapper.toEntity(request);
+        applyCheckInZone(hotspot, request);
         hotspot.setCreatedBy(userService.getCurrentUser());
         hotspot.setStatus(ContentStatus.DRAFT);
         hotspot = hotspotRepository.save(hotspot);
@@ -97,7 +96,10 @@ public class HotspotServiceImpl implements HotspotService {
     @Transactional
     public HotspotResponse update(Long id, HotspotRequest request) {
         Hotspot hotspot = getById(id);
+        // Trước đây update không validate gì cả nên có thể sửa toạ độ ra ngoài Việt Nam.
+        validateHotspotRequest(request);
         hotspotMapper.updateFromRequest(hotspot, request);
+        applyCheckInZone(hotspot, request);
         hotspot = hotspotRepository.save(hotspot);
         geoQueryService.evictNearby();
 
@@ -129,7 +131,12 @@ public class HotspotServiceImpl implements HotspotService {
     @Transactional(readOnly = true)
     public HotspotResponse getDetail(Long id) {
         Hotspot hotspot = getById(id);
-        return applyRatingSummary(buildHotspotResponse(hotspot));
+        HotspotResponse response = buildHotspotResponse(hotspot);
+        // Chỉ đổ ranh giới ở màn chi tiết; list/filter bỏ qua để tránh N+1.
+        if (hotspot.getBoundary() != null) {
+            response.setBoundaryGeoJson(geoQueryService.findBoundaryGeoJson(id));
+        }
+        return applyRatingSummary(response);
     }
 
     @Override
@@ -192,6 +199,61 @@ public class HotspotServiceImpl implements HotspotService {
                 .toList();
         applyRatingSummary(responses);
         return responses;
+    }
+
+    private void validateHotspotRequest(HotspotRequest request) {
+        if (!geoQueryService.isLocationInVietnam(request.getLongitude(), request.getLatitude())) {
+            throw new BusinessException("Tọa độ của Hotspot phải thuộc lãnh thổ Việt Nam");
+        }
+
+        if (request.getEndTime().isBefore(request.getStartTime())) {
+            throw new BusinessException("Thời gian kết thúc không hợp lệ");
+        }
+
+        if (request.getEstimatedDurationMax() < request.getEstimatedDurationMin()) {
+            throw new BusinessException("Thời gian tham quan dự kiến không hợp lệ");
+        }
+    }
+
+    private void applyCheckInZone(Hotspot hotspot, HotspotRequest request) {
+        if (request.getCheckInRadius() != null) {
+            hotspot.setCheckInRadius(request.getCheckInRadius());
+        } else if (hotspot.getCheckInRadius() == null) {
+            hotspot.setCheckInRadius(CheckInPolicy.DEFAULT_RADIUS_METERS);
+        }
+
+        if (!StringUtils.hasText(request.getBoundaryGeoJson())) {
+            hotspot.setBoundary(null);
+            return;
+        }
+
+        String wkt = geoQueryService.parseGeoJsonToWkt(request.getBoundaryGeoJson());
+        if (!StringUtils.hasText(wkt)) {
+            throw new BusinessException("Ranh giới không đúng định dạng GeoJSON");
+        }
+
+        Geometry geometry;
+        try {
+            geometry = new WKTReader().read(wkt);
+        } catch (ParseException e) {
+            throw new BusinessException("Ranh giới không đúng định dạng GeoJSON");
+        }
+
+        if (!(geometry instanceof Polygon polygon)) {
+            throw new BusinessException("Ranh giới phải là một vùng khép kín (Polygon)");
+        }
+
+        if (!polygon.isValid()) {
+            throw new BusinessException("Ranh giới bị tự cắt, vui lòng vẽ lại");
+        }
+
+        Point center = SpatialUtils.fromCoordinates(request.getLongitude(), request.getLatitude());
+        if (center == null || !polygon.covers(center)) {
+            throw new BusinessException("Toạ độ hotspot phải nằm trong ranh giới đã vẽ");
+        }
+
+        polygon.setSRID(4326);
+        hotspot.setBoundary(polygon);
     }
 
     private HotspotResponse applyRatingSummary(HotspotResponse response) {
