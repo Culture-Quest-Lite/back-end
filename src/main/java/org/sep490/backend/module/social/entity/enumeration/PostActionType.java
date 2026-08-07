@@ -4,5 +4,6 @@ public enum PostActionType {
     LIKE,
     COMMENT,
     SHARE,
-    REPORT
+    REPORT,
+    RESOLVE_REPORT
 }

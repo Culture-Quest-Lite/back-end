@@ -32,4 +32,5 @@ public interface PostService {
     Slice<CommentResponse> getCommentsByPostId(Long id, int page, int size);
     ReportPostResponse reportPost(Long id, ReportPostRequest request);
     List<ReportPostResponse> getAllReportPosts();
+    PostResponse handleReport(Long postActionId, List<HandleReportPostRequest> requests);
 }

@@ -539,6 +539,9 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException("Bạn đã báo cáo bài viết này trước đó");
         }
 
+        post.setStatus(PostStatus.REPORTING);
+        postRepository.save(post);
+
         PostAction reportAction = PostAction.builder()
                 .post(post)
                 .user(currentUser)
@@ -558,7 +561,7 @@ public class PostServiceImpl implements PostService {
         User user = userService.getCurrentUser();
 
         if(user.getRole().equals(UserRole.EXPLORER)) {
-            return postActionRepository.findByActionTypeAndUser_UserId(PostActionType.REPORT, user.getUserId())
+            return postActionRepository.findByActionTypeAndUser_UserIdAndIsReportResolved(PostActionType.REPORT, user.getUserId(), false)
                     .stream()
                     .map(this::toReportPostResponse)
                     .toList();
@@ -570,6 +573,60 @@ public class PostServiceImpl implements PostService {
         } else {
             throw new BusinessException("Người dùng không có quyền truy cập danh sách báo cáo bài viết");
         }
+    }
+
+    @Override
+    public PostResponse handleReport(Long postActionId, List<HandleReportPostRequest> requests) {
+
+        User admin = userService.getCurrentUser();
+
+        if(!admin.getRole().equals(UserRole.ADMIN)) {
+            throw new BusinessException("Người dùng không có quyền xử lý báo cáo bài viết");
+        }
+
+        PostAction action = postActionRepository.findById(postActionId)
+                .orElseThrow(() -> new BusinessException("Báo cáo bài viết không tồn tại"));
+
+        if(action.getIsReportResolved() != null && action.getIsReportResolved()) {
+            throw new BusinessException("Báo cáo bài viết đã được xử lý trước đó");
+        }
+
+        // list for one time call repository
+        List<PostAction> actionList = new ArrayList<>();
+
+        Post post = action.getPost();
+        String reason;
+
+//        if(request.getIsApproveReport()) {
+//            reason = "ADMIN approve report: " + request.getReason();
+//            post.setStatus(PostStatus.REPORTED);
+//        } else {
+//            reason = "ADMIN reject report: " + request.getReason();
+//            post.setStatus(PostStatus.APPROVED);
+//        }
+
+        // create latest action for post
+        PostAction resolvedAction = PostAction.builder()
+                .post(post)
+                .user(admin)
+                .actionType(PostActionType.RESOLVE_REPORT)
+                .comment(null)
+                .build();
+
+        action.setIsReportResolved(true);
+        actionList.add(resolvedAction);
+        actionList.add(action);
+
+        postActionRepository.saveAll(actionList);
+        postRepository.save(post);
+
+        return PostResponse.builder()
+                .postId(post.getPostId())
+                .content(post.getContent())
+                .visibility(post.getVisibility())
+                .status(post.getStatus())
+                .createdAt(post.getCreatedAt())
+                .build();
     }
 
     private PostResponse toResponseWithLiked(Post post, Long currentUserId) {
@@ -628,5 +685,9 @@ public class PostServiceImpl implements PostService {
                 .comment(action.getComment())
                 .createdAt(action.getCreatedAt())
                 .build();
+    }
+
+    private void resolveRemainReport(Long postId) {
+
     }
 }
