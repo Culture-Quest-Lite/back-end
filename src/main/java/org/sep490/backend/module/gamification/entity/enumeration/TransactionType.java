@@ -8,4 +8,5 @@ public enum TransactionType {
     ROUTE_COMPLETION,
     POST_CREATION,
     ROUTE_FEEDBACK,
+    WEEKLY_LEADERBOARD_BONUS
 }

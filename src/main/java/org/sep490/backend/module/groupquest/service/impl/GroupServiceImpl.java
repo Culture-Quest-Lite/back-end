@@ -26,6 +26,7 @@ import org.sep490.backend.module.groupquest.service.inter.GroupParticipantServic
 import org.sep490.backend.module.groupquest.service.inter.GroupService;
 import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
 import org.sep490.backend.module.notification.service.FcmService;
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.repository.UserFollowRepository;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.stereotype.Service;
@@ -49,6 +50,7 @@ public class GroupServiceImpl implements GroupService {
     GroupParticipantMapper groupParticipantMapper;
     GroupParticipantRepository groupParticipantRepository;
     FcmService fcmService;
+    NotificationService notificationService;
 
     @Override
     @Transactional
@@ -300,34 +302,44 @@ public class GroupServiceImpl implements GroupService {
     @Override
     @Transactional
     public GroupResponse leaveGroup(Long groupId) {
-
-        //isLoggedIn("leaveGroup");
-
+        // isLoggedIn("leaveGroup"); // Bỏ qua nếu đã auth filter
         Group group = getGroup(groupId);
         User user = userService.getCurrentUser();
 
-        if(group.getStatus().equals(GroupStatus.DELETED)) {
-            throw new BusinessException("Nhóm đã bị xóa");
+        if (group.getStatus().equals(GroupStatus.DELETED)) {
+            throw new BusinessException("Nhóm đã xóa");
         }
 
-        if(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.PENDING)) {
+        if (groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.PENDING)) {
             throw new BusinessException("Bạn không thể rời nhóm khi đang chờ duyệt. Hãy hủy yêu cầu tham gia nhóm");
         }
 
-        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
+        if (!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
             throw new BusinessException("Bạn không thuộc nhóm này");
         }
 
-        if(groupParticipantService.isLeader(user, group)) {
+        if (groupParticipantService.isLeader(user, group)) {
             throw new BusinessException("Trưởng nhóm không thể rời nhóm. Hãy chuyển quyền trưởng nhóm cho người khác trước khi rời nhóm");
         }
 
         groupParticipantService.updateAction(user, group, GroupParticipantAction.LEAVE);
-
         group.setTotalMembers(countMember(group.getGroupId()));
         groupRepository.save(group);
 
-        return groupMapper.toResponse(group, getLeaderFromGroup(group.getGroupId()));
+        // THÊM LOGIC BÁO CHO LEADER
+        Long leaderId = getLeaderFromGroup(groupId);
+        if (leaderId != null) {
+            User leader = userService.getUserById(leaderId);
+            notificationService.sendAndSave(
+                    leader,
+                    "Thành viên rời nhóm",
+                    "Thành viên " + user.getDisplayName() + " đã rời khỏi nhóm " + group.getGroupName() + ".",
+                    NotificationType.GROUP,
+                    groupId
+            );
+        }
+
+        return groupMapper.toResponse(group, leaderId);
     }
 
     @Override

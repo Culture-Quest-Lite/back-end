@@ -33,6 +33,8 @@ import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.S3Service;
+import org.sep490.backend.module.notification.service.FcmService;
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.beans.factory.annotation.Value;
@@ -73,6 +75,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     UserRepository userRepository;
     S3Service s3Service;
     MediaService mediaService;
+    NotificationService notificationService;
 
     private final JavaMailSender mailSender;
     private final PayOsProperties payOsProperties;
@@ -155,6 +158,12 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                 throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
             }
         }
+        notificationService.sendAndSave(
+                currentPartner,
+                "Đăng ký gói dịch vụ",
+                "Bạn đã đăng ký gói dịch vụ " + plan.getSubscriptionPlanName() + ". Vui lòng chờ admin duyệt.",
+                null,
+                invoice.getInvoiceId());
         return response;
     }
 
