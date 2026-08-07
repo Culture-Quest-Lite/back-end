@@ -106,9 +106,9 @@ services:
     environment:
       REDIS_HOST: redis
       DB_HOST: postgres
-      IDP_URL: ${IDP_URL}
-      ISSUER_URI: ${ISSUER_URI}
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://localhost:8081/realms/${REALM:-culture-quest-lite}/protocol/openid-connect/certs
+      IDP_URL: http://keycloak:8080
+      ISSUER_URI: https://auth.culturequestlite.com/realms/${REALM}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/${REALM:-culture-quest-lite}/protocol/openid-connect/certs
     ports:
       - "127.0.0.1:${PORT}:8080"
     depends_on:
