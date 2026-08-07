@@ -1,6 +1,5 @@
 package org.sep490.backend.module.social.service;
 
-import jakarta.validation.Valid;
 import org.sep490.backend.module.social.dto.request.*;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.dto.response.ReportPostResponse;
@@ -33,4 +32,5 @@ public interface PostService {
     ReportPostResponse reportPost(Long id, ReportPostRequest request);
     List<ReportPostResponse> getAllReportPosts();
     PostResponse handleReport(Long postId, HandleReportPostRequest request);
+    PostResponse approvePendingPost(Long postId, PostStatus status);
 }

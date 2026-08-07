@@ -64,4 +64,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
                                @Param("xp") Integer xp,
                                @Param("createdAt") LocalDateTime createdAt,
                                @Param("userId") Long userId);
+
+    List<User> findByRoleAndStatus(UserRole role, UserStatus status);
+    List<User> findByIsPremiumTrueAndStatus(UserStatus status);
 }

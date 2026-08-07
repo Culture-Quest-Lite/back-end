@@ -19,6 +19,8 @@ import org.sep490.backend.module.groupquest.repository.GroupParticipantRepositor
 import org.sep490.backend.module.groupquest.repository.GroupRepository;
 import org.sep490.backend.module.groupquest.service.inter.GroupParticipantService;
 import org.sep490.backend.module.groupquest.service.inter.GroupService;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,6 +38,7 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
     GroupRepository groupRepository;
     UserService userService;
     GroupParticipantMapper mapper;
+    NotificationService notificationService;
 
     @Override
     @Transactional
@@ -79,6 +82,18 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
         group.setTotalMembers(countMember(group.getGroupId()));
         groupRepository.save(group);
 
+        if (action == GroupParticipantAction.PENDING) {
+            GroupParticipant leaderGp = repository.findByGroup_GroupIdAndRole(group.getGroupId(), GroupRole.LEADER);
+            if (leaderGp != null) {
+                notificationService.sendAndSave(
+                        leaderGp.getUser(),
+                        "Yêu cầu tham gia nhóm",
+                        user.getDisplayName() + " đang xin gia nhập nhóm " + group.getGroupName(),
+                        NotificationType.GROUP,
+                        group.getGroupId()
+                );
+            }
+        }
 
         return groupParticipant;
     }

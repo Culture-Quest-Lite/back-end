@@ -158,4 +158,12 @@ public class PostController {
         PostResponse response = postService.handleReport(postId, request);
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/{id}/approve-pending")
+    public ResponseEntity<PostResponse> approvePendingPost(
+            @PathVariable("id") Long postId,
+            @Valid @RequestParam PostStatus status
+    ) {
+        return ResponseEntity.ok(postService.approvePendingPost(postId, status));
+    }
 }
