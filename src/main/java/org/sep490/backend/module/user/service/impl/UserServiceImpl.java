@@ -14,6 +14,8 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.social.repository.PostRepository;
 import org.sep490.backend.module.user.dto.filter.LeaderboardFilterRequest;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
@@ -62,6 +64,7 @@ public class UserServiceImpl implements UserService {
     private final UserIdCacheService userIdCacheService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final RedisCircuitBreaker circuitBreaker;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -143,6 +146,14 @@ public class UserServiceImpl implements UserService {
             evictUserCounters(follower.getUserId());
             evictUserCounters(following.getUserId());
         }
+
+        notificationService.sendAndSave(
+                following,
+                "Người theo dõi mới",
+                follower.getDisplayName() + " đã bắt đầu theo dõi bạn.",
+                NotificationType.FOLLOW,
+                follower.getUserId()
+        );
 
         return buildFollowStatus(following, true, "Theo dõi người dùng thành công");
     }

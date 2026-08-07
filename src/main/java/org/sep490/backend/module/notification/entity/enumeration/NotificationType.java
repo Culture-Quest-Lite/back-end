@@ -6,5 +6,10 @@ public enum NotificationType {
     EARN,
     LOGIN,
     LEVEL_UP,
-    GROUP
+    GROUP,
+    SUBSCRIPTION,
+    POST,
+    USER,
+    CONTENT, // route, hotspot, story
+    FOLLOW,
 }

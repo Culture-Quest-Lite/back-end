@@ -37,4 +37,6 @@ public interface VoucherUsageRepository extends JpaRepository<VoucherUsage, Long
             "GROUP BY vu.voucher.voucherId, vu.voucher.voucherName, vu.voucher.voucherCode " +
             "ORDER BY COUNT(vu) DESC")
     List<TopVoucherProjection> findTopRedeemedVouchers(@Param("partnerId") Long partnerId, Pageable pageable);
+
+    List<VoucherUsage> findByExpiredAtBetweenAndIsUsedFalse(LocalDateTime start, LocalDateTime end);
 }
