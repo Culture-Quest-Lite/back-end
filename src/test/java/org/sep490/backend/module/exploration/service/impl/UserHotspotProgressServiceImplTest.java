@@ -15,6 +15,7 @@ import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
+import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.exploration.dto.request.UserHotspotProgressRequest;
 import org.sep490.backend.module.exploration.dto.response.UserHotspotProgressResponse;
@@ -28,16 +29,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit test cho luồng CHECK-IN HOTSPOT (Exploration).
- * Ngưỡng bán kính check-in: 50m (biên tại đúng 50m).
- */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class UserHotspotProgressServiceImplTest {
 
     @Mock private UserHotspotProgressRepository userHotspotProgressRepository;
     @Mock private HotspotService hotspotService;
+    @Mock private HotspotRepository hotspotRepository;
     @Mock private UserService userService;
     @Mock private ApplicationEventPublisher eventPublisher;
 
@@ -115,8 +113,78 @@ class UserHotspotProgressServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> service.checkIn(request(HOTSPOT_LAT + 0.0009, HOTSPOT_LNG)));
 
-            assertEquals("Bạn đang ở ngoài vùng check-in. Hãy di chuyển vào bán kính 50m để check-in",
-                    ex.getMessage());
+            // Thông báo giờ nêu khoảng cách thật và ngưỡng thật của từng hotspot
+            assertTrue(ex.getMessage().contains("cần vào trong phạm vi"), ex.getMessage());
+        }
+
+        // UTCID06 - Normal: hotspot khai báo bán kính rộng (khu du lịch lớn)
+        // -> đứng cách tâm 500m vẫn check-in được
+        @Test
+        void checkIn_customLargeRadius_succeedsFarFromCenter() {
+            Hotspot large = hotspot();
+            large.setCheckInRadius(800);
+
+            when(userService.getCurrentUser()).thenReturn(user(1L));
+            when(hotspotService.getById(100L)).thenReturn(large);
+            when(userHotspotProgressRepository.existsByUser_UserIdAndHotspot_HotspotId(1L, 100L)).thenReturn(false);
+            when(userHotspotProgressRepository.save(any(UserHotspotProgress.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+
+            // ~0.0045 độ vĩ tuyến ~ 500m -> trước đây bị từ chối, giờ hợp lệ
+            UserHotspotProgressResponse response = service.checkIn(request(HOTSPOT_LAT + 0.0045, HOTSPOT_LNG));
+
+            assertNotNull(response);
+            assertTrue(response.getIsCheckedIn());
+        }
+
+        // UTCID07 - Normal: sai số GPS nới ngưỡng cho người đứng sát mép vùng
+        @Test
+        void checkIn_gpsAccuracyExtendsThreshold_succeeds() {
+            when(userService.getCurrentUser()).thenReturn(user(1L));
+            when(hotspotService.getById(100L)).thenReturn(hotspot());
+            when(userHotspotProgressRepository.existsByUser_UserIdAndHotspot_HotspotId(1L, 100L)).thenReturn(false);
+            when(userHotspotProgressRepository.save(any(UserHotspotProgress.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+
+            // ~78m: ngoài bán kính 50m nhưng accuracy 40m nới ngưỡng lên 90m
+            UserHotspotProgressRequest request = request(HOTSPOT_LAT + 0.0007, HOTSPOT_LNG);
+            request.setAccuracy(40.0);
+
+            UserHotspotProgressResponse response = service.checkIn(request);
+
+            assertNotNull(response);
+            assertTrue(response.getIsCheckedIn());
+        }
+
+        // UTCID08 - Abnormal: accuracy khai khống vẫn bị chặn bởi trần 100m
+        @Test
+        void checkIn_spoofedHugeAccuracy_stillRejected() {
+            when(userService.getCurrentUser()).thenReturn(user(1L));
+            when(hotspotService.getById(100L)).thenReturn(hotspot());
+            when(userHotspotProgressRepository.existsByUser_UserIdAndHotspot_HotspotId(1L, 100L)).thenReturn(false);
+
+            // ~5km với accuracy 99999 -> ngưỡng tối đa chỉ là 50 + 100 = 150m
+            UserHotspotProgressRequest request = request(HOTSPOT_LAT + 0.045, HOTSPOT_LNG);
+            request.setAccuracy(99999.0);
+
+            assertThrows(BusinessException.class, () -> service.checkIn(request));
+        }
+
+        // UTCID09 - Abnormal: hotspot thiếu toạ độ không được âm thầm cho qua
+        // (SpatialUtils trả 0.0 khi Point null nên trước đây sẽ luôn thành công)
+        @Test
+        void checkIn_hotspotWithoutLocation_throws() {
+            Hotspot broken = hotspot();
+            broken.setLocation(null);
+
+            when(userService.getCurrentUser()).thenReturn(user(1L));
+            when(hotspotService.getById(100L)).thenReturn(broken);
+            when(userHotspotProgressRepository.existsByUser_UserIdAndHotspot_HotspotId(1L, 100L)).thenReturn(false);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> service.checkIn(request(HOTSPOT_LAT, HOTSPOT_LNG)));
+
+            assertEquals("Hotspot chưa có toạ độ hợp lệ", ex.getMessage());
         }
 
         // UTCID04 - Boundary: đứng sát mép bán kính (~45m, ngay dưới ngưỡng 50m) -> thành công

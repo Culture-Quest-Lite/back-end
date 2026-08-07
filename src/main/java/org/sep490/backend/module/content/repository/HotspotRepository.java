@@ -40,6 +40,40 @@ public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpec
             ")", nativeQuery = true)
     boolean isLocationInVietnam(@Param("longitude") Double longitude, @Param("latitude") Double latitude);
 
+    @Query(value = "SELECT ST_DWithin(" +
+            "    CAST(h.boundary AS geography), " +
+            "    CAST(ST_SetSRID(ST_MakePoint(:lon, :lat), 4326) AS geography), " +
+            "    :toleranceMeters" +
+            ") " +
+            "FROM hotspots h WHERE h.hotspot_id = :hotspotId AND h.boundary IS NOT NULL",
+            nativeQuery = true)
+    Boolean isWithinBoundary(@Param("hotspotId") Long hotspotId,
+                             @Param("lon") double lon,
+                             @Param("lat") double lat,
+                             @Param("toleranceMeters") double toleranceMeters);
+
+    // Khoảng cách tới mép polygon, dùng cho thông báo lỗi động.
+    @Query(value = "SELECT ST_Distance(" +
+            "    CAST(h.boundary AS geography), " +
+            "    CAST(ST_SetSRID(ST_MakePoint(:lon, :lat), 4326) AS geography)" +
+            ") " +
+            "FROM hotspots h WHERE h.hotspot_id = :hotspotId AND h.boundary IS NOT NULL",
+            nativeQuery = true)
+    Double distanceToBoundary(@Param("hotspotId") Long hotspotId,
+                              @Param("lon") double lon,
+                              @Param("lat") double lat);
+
+    // Dự án chỉ có jts-core (không có jts-io-common nên không dùng được
+    // GeoJsonReader). Nhờ PostGIS parse GeoJSON rồi trả WKT để WKTReader dựng lại.
+    // Ném DataAccessException khi GeoJSON sai định dạng.
+    @Query(value = "SELECT ST_AsText(ST_SetSRID(ST_GeomFromGeoJSON(CAST(:geoJson AS text)), 4326))",
+            nativeQuery = true)
+    String parseGeoJsonToWkt(@Param("geoJson") String geoJson);
+
+    @Query(value = "SELECT ST_AsGeoJSON(h.boundary) FROM hotspots h WHERE h.hotspot_id = :hotspotId",
+            nativeQuery = true)
+    String findBoundaryGeoJson(@Param("hotspotId") Long hotspotId);
+
     List<Hotspot> findByStatus(ContentStatus status);
 
     @Query("SELECT COUNT(h) AS totalPublished, " +
