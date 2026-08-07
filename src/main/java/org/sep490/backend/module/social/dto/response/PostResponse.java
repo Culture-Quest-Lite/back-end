@@ -1,8 +1,6 @@
 package org.sep490.backend.module.social.dto.response;
 
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
@@ -15,6 +13,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class PostResponse {
