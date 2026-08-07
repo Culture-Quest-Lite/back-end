@@ -578,7 +578,7 @@ public class RouteServiceImpl implements RouteService {
 
         storyRepository.save(story);
         // update story and route fields
-        // calculateIndexAndDistance(route, hotspot, stories, storyToAdd);
+        calculateIndexAndDistance(route, hotspot, stories, story);
     }
 
     private void calculateIndexAndDistance(Route route, Hotspot hotspot, List<Story> stories, Story storyToAdd) {
