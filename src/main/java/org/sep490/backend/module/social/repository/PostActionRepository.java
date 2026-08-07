@@ -31,4 +31,5 @@ public interface PostActionRepository extends JpaRepository<PostAction, Long> {
 
     List<PostAction> findByActionTypeAndIsReportResolved(PostActionType actionType, Boolean isReportResolved);
     List<PostAction> findByActionTypeAndUser_UserIdAndIsReportResolved(PostActionType actionType, Long userId, Boolean isReportResolved);
+    Integer countByActionTypeAndPost_PostIdAndIsReportResolved(PostActionType actionType, Long postId, Boolean isReportResolved);
 }

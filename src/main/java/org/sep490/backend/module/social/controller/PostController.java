@@ -153,9 +153,9 @@ public class PostController {
     @PutMapping("/{id}/reports")
     public ResponseEntity<PostResponse> handleReport(
             @PathVariable("id") Long postId,
-            @Valid @RequestBody List<HandleReportPostRequest> requests
+            @Valid @RequestBody HandleReportPostRequest request
     ) {
-        PostResponse response = postService.handleReport(postId, requests);
+        PostResponse response = postService.handleReport(postId, request);
         return ResponseEntity.ok(response);
     }
 }
