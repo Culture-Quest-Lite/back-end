@@ -216,6 +216,7 @@ public class RouteServiceImpl implements RouteService {
             s.setRoute(null);
             s.setOrderIndex(null);
             s.setDistanceToNext(null);
+            s.setStatus(ContentStatus.DELETED);
         }
 
         storyRepository.saveAll(stories);
