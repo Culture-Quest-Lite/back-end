@@ -14,4 +14,6 @@ public class PayOsProperties {
     private String returnUrl;
     private String cancelUrl;
     private String webhookUrl;
+    /** Tắt (false) khi chạy local không có tunnel public để khỏi confirm webhook mỗi lần khởi động. */
+    private boolean autoRegisterWebhook = true;
 }
