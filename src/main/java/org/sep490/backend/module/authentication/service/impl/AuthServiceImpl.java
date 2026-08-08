@@ -253,7 +253,7 @@ public class AuthServiceImpl implements AuthService {
             helper.setTo(user.getEmail());
             helper.setSubject("[CULTURE QUEST LITE] YÊU CẦU ĐẶT LẠI MẬT KHẨU");
 
-            ClassPathResource resource = new ClassPathResource("templates/reset-password-redirect.html");
+            ClassPathResource resource = new ClassPathResource("templates/reset-password-email.html");
             String content = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
             content = content.replace("{{RESET_LINK}}", resetUrl);
 
