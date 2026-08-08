@@ -7,12 +7,9 @@ import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.entity.Media;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupStatus;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "groups", indexes = {
@@ -41,6 +38,9 @@ public class Group {
     @Column(name = "total_members")
     Integer totalMembers;
 
+    @Column(name = "image_url", length = 500)
+    String imageUrl;
+
     @Column(name = "share_token", length = 10)
     String shareToken;
 
@@ -51,10 +51,6 @@ public class Group {
     @ColumnDefault("false")
     @Builder.Default
     Boolean requiredApproval = false;
-
-    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    List<Media> medias = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")

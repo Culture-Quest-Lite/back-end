@@ -43,6 +43,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -55,6 +56,8 @@ public class AuthServiceImpl implements AuthService {
     private static final String FACEBOOK_USERNAME_PREFIX = "fb_";
     private static final String FACEBOOK_EMAIL_DOMAIN = "@facebook.com";
     private static final int USERNAME_MAX_LENGTH = 50;
+    private static final String PLATFORM_MOBILE = "MOBILE";
+    private static final Pattern RESET_TOKEN_PATTERN = Pattern.compile("^[A-Za-z0-9-]{8,64}$");
 
     private final UserRepository userRepository;
     private final KeyCloakAuthClient keyCloakAuthClient;
@@ -69,6 +72,12 @@ public class AuthServiceImpl implements AuthService {
 
     @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
     private String frontendUrl;
+
+    @Value("${app.mobile.reset-password-link}")
+    private String mobileResetPasswordLink;
+
+    @Value("${app.mobile.deep-link-scheme}")
+    private String mobileDeepLinkScheme;
 
     @Override
     @Transactional
@@ -236,7 +245,7 @@ public class AuthServiceImpl implements AuthService {
         String token = UUID.randomUUID().toString();
         authTokenService.savePasswordResetToken(token, user.getUserId());
 
-        String resetUrl = frontendUrl + "/reset-password?token=" + token;
+        String resetUrl = buildResetPasswordLink(request.getPlatform(), token);
 
         try {
             MimeMessage message = mailSender.createMimeMessage();
@@ -254,6 +263,33 @@ public class AuthServiceImpl implements AuthService {
         } catch (MessagingException | IOException e) {
             log.error("Lỗi khi gửi email đặt lại mật khẩu", e);
             throw new BusinessException("Không thể gửi email lúc này. Vui lòng thử lại sau!");
+        }
+    }
+
+    private String buildResetPasswordLink(String platform, String token) {
+        if (platform != null && PLATFORM_MOBILE.equalsIgnoreCase(platform.trim())) {
+            return mobileResetPasswordLink + "?token=" + token;
+        }
+
+        return frontendUrl + "/reset-password?token=" + token;
+    }
+
+    @Override
+    public String buildResetPasswordRedirectPage(String token) {
+        if (token == null || !RESET_TOKEN_PATTERN.matcher(token).matches()) {
+            throw new BusinessException("Liên kết đổi mật khẩu không hợp lệ hoặc đã hết hạn");
+        }
+
+        try {
+            ClassPathResource resource = new ClassPathResource("templates/reset-password-redirect.html");
+            String content = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
+
+            return content
+                    .replace("{{DEEP_LINK}}", mobileDeepLinkScheme + "://reset-password?token=" + token)
+                    .replace("{{WEB_LINK}}", frontendUrl + "/reset-password?token=" + token);
+        } catch (IOException e) {
+            log.error("Không đọc được template reset-password-redirect.html", e);
+            throw new BusinessException("Không mở được liên kết đổi mật khẩu. Vui lòng thử lại sau!");
         }
     }
 

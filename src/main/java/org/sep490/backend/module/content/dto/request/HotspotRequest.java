@@ -39,6 +39,15 @@ public class HotspotRequest {
     @NotNull(message = "Kinh độ không được để trống")
     Double longitude;
 
+    @Min(value = 20, message = "Bán kính check-in tối thiểu 20m")
+    @Max(value = 5000, message = "Bán kính check-in tối đa 5000m")
+    @Schema(description = "Bán kính vùng check-in (mét). Bỏ trống sẽ dùng mặc định 50m", example = "800")
+    Integer checkInRadius;
+
+    @Schema(description = "Ranh giới GeoJSON dạng Polygon; để trống nếu dùng bán kính",
+            example = "{\"type\":\"Polygon\",\"coordinates\":[[[105.851,21.028],[105.855,21.028],[105.855,21.031],[105.851,21.031],[105.851,21.028]]]}")
+    String boundaryGeoJson;
+
     @NotNull(message = "Điểm kinh nghiệm không được để trống")
     @PositiveOrZero(message = "Điểm kinh nghiệm không được là số âm")
     Long xp;

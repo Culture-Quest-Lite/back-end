@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 
@@ -54,6 +55,13 @@ public class Hotspot implements Serializable {
 
     @Column(name = "location", nullable = false)
     Point location;
+
+    @Column(name = "check_in_radius")
+    Integer checkInRadius;
+
+    // Ranh giới thật của địa điểm. Khi có polygon thì nó được ưu tiên hơn bán kính.
+    @Column(name = "boundary", columnDefinition = "geometry(Polygon, 4326)")
+    Polygon boundary;
 
     @Column(name = "estimated_duration_min", nullable = false)
     Long estimatedDurationMin;

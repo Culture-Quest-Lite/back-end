@@ -6,10 +6,12 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.redis.CacheNames;
 import org.sep490.backend.config.redis.RedisCircuitBreaker;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.repository.HotspotRepository;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -82,6 +84,21 @@ public class GeoQueryServiceImpl implements GeoQueryService {
                 () -> redisTemplate.opsForValue().set(key, ids, CacheNames.TTL_GEO_NEARBY));
 
         return result;
+    }
+
+    @Override
+    public String parseGeoJsonToWkt(String geoJson) {
+        try {
+            return hotspotRepository.parseGeoJsonToWkt(geoJson);
+        } catch (DataAccessException ex) {
+            log.warn("GeoJSON ranh giới không hợp lệ: {}", ex.getMostSpecificCause().getMessage());
+            throw new BusinessException("Ranh giới không đúng định dạng GeoJSON");
+        }
+    }
+
+    @Override
+    public String findBoundaryGeoJson(Long hotspotId) {
+        return hotspotRepository.findBoundaryGeoJson(hotspotId);
     }
 
     @Override

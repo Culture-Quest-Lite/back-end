@@ -14,12 +14,11 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class GroupRequest {
 
-    MultipartFile[] files;
-
     @NotBlank(message = "Tên group không được để trống")
     @Length(max = 255, message = "Tên group không được vượt quá 255 ký tự")
     String groupName;
 
     @NotNull(message = "Bạn cần ít nhất 1 thành viên để tạo nhóm")
     List<Long> userIds;
+    MultipartFile imageFile;
 }

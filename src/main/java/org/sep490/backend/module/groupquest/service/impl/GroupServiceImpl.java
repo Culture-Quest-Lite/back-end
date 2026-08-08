@@ -8,9 +8,7 @@ import org.sep490.backend.common.exception.GroupAuthorizeException;
 import org.sep490.backend.common.utils.GroupUtils;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.dto.response.MediaResponse;
-import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
-import org.sep490.backend.module.content.service.inter.MediaService;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.groupquest.dto.request.GroupRequest;
 import org.sep490.backend.module.groupquest.dto.request.GroupUpdateRequest;
 import org.sep490.backend.module.groupquest.dto.response.GroupParticipantResponse;
@@ -35,7 +33,6 @@ import org.sep490.backend.module.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +43,8 @@ import java.util.stream.Collectors;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class GroupServiceImpl implements GroupService {
 
+    static final String IMAGE_FOLDER = "groups";
+
     GroupRepository groupRepository;
     UserFollowRepository userFollowRepository;
     UserService userService;
@@ -55,7 +54,7 @@ public class GroupServiceImpl implements GroupService {
     GroupParticipantRepository groupParticipantRepository;
     FcmService fcmService;
     NotificationService notificationService;
-    MediaService mediaService;
+    ImageService imageService;
 
     @Override
     @Transactional
@@ -71,6 +70,7 @@ public class GroupServiceImpl implements GroupService {
                 .shareToken(null)
                 .expireAt(null)
                 .status(GroupStatus.ACTIVE)
+                .imageUrl(imageService.resolveImageUrl(null, request.getImageFile(), IMAGE_FOLDER))
                 .build();
 
         group = groupRepository.save(group);
@@ -86,19 +86,7 @@ public class GroupServiceImpl implements GroupService {
         groupParticipantService.addUsersToGroup(members, group);
 
         Long leaderId = getLeaderFromGroup(group.getGroupId());
-        GroupResponse response = groupMapper.toResponse(group, leaderId);
-
-        if (request.getFiles() != null && request.getFiles().length > 0) {
-            try {
-                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.GROUP, group.getGroupId());
-                response.setMedias(mediaResponses);
-            } catch (IOException e) {
-                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
-            }
-        }
-
-        return response;
+        return groupMapper.toResponse(group, leaderId);
     }
 
 
@@ -118,6 +106,7 @@ public class GroupServiceImpl implements GroupService {
         }
 
         group.setGroupName(request.getGroupName());
+        group.setImageUrl(imageService.resolveImageUrl(group.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
 
         if(request.getRequiredApproval() != null) {
             group.setRequiredApproval(request.getRequiredApproval());
@@ -126,19 +115,7 @@ public class GroupServiceImpl implements GroupService {
         groupRepository.save(group);
 
         Long leaderId = getLeaderFromGroup(groupId);
-        GroupResponse response = groupMapper.toResponse(group, leaderId);
-
-        if (request.getFiles() != null && request.getFiles().length > 0) {
-            try {
-                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.GROUP, group.getGroupId());
-                response.setMedias(mediaResponses);
-            } catch (IOException e) {
-                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
-            }
-        }
-
-        return response;
+        return groupMapper.toResponse(group, leaderId);
     }
 
 

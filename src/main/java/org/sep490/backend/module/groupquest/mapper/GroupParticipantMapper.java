@@ -13,5 +13,6 @@ import org.sep490.backend.module.groupquest.entity.GroupParticipant;
 public interface GroupParticipantMapper {
     @Mapping(target = "userId", source = "user.userId")
     @Mapping(target = "groupId", source = "group.groupId")
+    @Mapping(target = "imageUrl", source = "user.avatarUrl")
     GroupParticipantResponse toResponse(GroupParticipant groupParticipant);
 }

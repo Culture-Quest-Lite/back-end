@@ -5,6 +5,5 @@ public enum MediaType {
     VIDEO,
     IMAGE,
     OTHER,
-    HOTSPOT,
-    GROUP
+    HOTSPOT
 }
