@@ -22,4 +22,5 @@ public class GroupRequest {
 
     @NotNull(message = "Bạn cần ít nhất 1 thành viên để tạo nhóm")
     List<Long> userIds;
+    MultipartFile imageFile;
 }

@@ -17,6 +17,7 @@ import org.sep490.backend.common.exception.GroupAuthorizeException;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.common.utils.ShareTokenUtils;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.groupquest.entity.Group;
 import org.sep490.backend.module.groupquest.entity.GroupParticipant;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantAction;
@@ -57,6 +58,7 @@ class GroupServiceImplTest {
     @Mock private GroupParticipantMapper groupParticipantMapper;
     @Mock private GroupParticipantRepository groupParticipantRepository;
     @Mock private FcmService fcmService;
+    @Mock private ImageService imageService;
 
     @InjectMocks private GroupServiceImpl groupService;
 
