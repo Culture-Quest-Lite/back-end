@@ -11,8 +11,6 @@ import org.springframework.web.multipart.MultipartFile;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class GroupUpdateRequest {
 
-    MultipartFile[] files;
-
     @NotBlank(message = "Tên group không được để trống")
     @Length(max = 255, message = "Tên group không được vượt quá 255 ký tự")
     String groupName;

@@ -33,7 +33,6 @@ import org.sep490.backend.module.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,6 +53,7 @@ public class GroupServiceImpl implements GroupService {
     GroupParticipantMapper groupParticipantMapper;
     GroupParticipantRepository groupParticipantRepository;
     FcmService fcmService;
+    NotificationService notificationService;
     ImageService imageService;
 
     @Override
@@ -86,19 +86,7 @@ public class GroupServiceImpl implements GroupService {
         groupParticipantService.addUsersToGroup(members, group);
 
         Long leaderId = getLeaderFromGroup(group.getGroupId());
-        GroupResponse response = groupMapper.toResponse(group, leaderId);
-
-        if (request.getFiles() != null && request.getFiles().length > 0) {
-            try {
-                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.GROUP, group.getGroupId());
-                response.setMedias(mediaResponses);
-            } catch (IOException e) {
-                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
-            }
-        }
-
-        return response;
+        return groupMapper.toResponse(group, leaderId);
     }
 
 
@@ -127,19 +115,7 @@ public class GroupServiceImpl implements GroupService {
         groupRepository.save(group);
 
         Long leaderId = getLeaderFromGroup(groupId);
-        GroupResponse response = groupMapper.toResponse(group, leaderId);
-
-        if (request.getFiles() != null && request.getFiles().length > 0) {
-            try {
-                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.GROUP, group.getGroupId());
-                response.setMedias(mediaResponses);
-            } catch (IOException e) {
-                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
-            }
-        }
-
-        return response;
+        return groupMapper.toResponse(group, leaderId);
     }
 
 
