@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.content.entity.enumeration.MediaType;
+import org.sep490.backend.module.groupquest.entity.Group;
 import org.sep490.backend.module.social.entity.Post;
 import org.sep490.backend.module.admin.entity.PartnerInfo;
 
@@ -44,6 +45,10 @@ public class Media {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "review_id")
     Review review;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id")
+    Group group;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type")
