@@ -96,7 +96,12 @@ public class PostServiceImpl implements PostService {
 
         Post post = postMapper.toEntity(request);
         post.setUser(user);
-        post.setStatus(PostStatus.PENDING);
+
+        if(request.getVisibility().equals(PostVisibility.PUBLIC)) {
+            post.setStatus(PostStatus.PENDING);
+        } else {
+            post.setStatus(PostStatus.APPROVED);
+        }
 
         applyTaggedHotspots(post, request.getHotspotIds());
         applyTaggedRoutes(post, request.getRouteIds());
@@ -172,6 +177,11 @@ public class PostServiceImpl implements PostService {
 
         post.setContent(request.getContent());
         if (request.getVisibility() != null) {
+            if(request.getVisibility().equals(PostVisibility.PUBLIC) && !post.getVisibility().equals(PostVisibility.PUBLIC)) {
+                post.setStatus(PostStatus.PENDING);
+            } else {
+                post.setStatus(PostStatus.APPROVED);
+            }
             post.setVisibility(request.getVisibility());
         }
 
