@@ -13,6 +13,7 @@ public interface AuthService {
     LoginResponse refreshToken(String refreshToken);
     void logout(String refreshToken);
     void forgotPassword(ForgotPasswordRequest request);
+    String buildResetPasswordRedirectPage(String token);
     void resetPassword(ResetPasswordRequest request);
     void changePassword(String keycloakUserId, ChangePasswordRequest request);
     LoginResponse loginGoogle(String code, String redirectUri, String clientType);
