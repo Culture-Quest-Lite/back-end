@@ -23,6 +23,8 @@ public class HotspotResponse {
     String historyInformation;
     Double latitude;
     Double longitude;
+    Integer checkInRadius;
+    String boundaryGeoJson;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     Long xp;
@@ -51,4 +53,6 @@ public class HotspotResponse {
     List<StoryResponse> stories;
 
     Boolean isCheckIn;
+    Double averageRating;
+    Long totalReviews;
 }

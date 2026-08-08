@@ -49,6 +49,9 @@ public class PostAction {
     @Builder.Default
     List<PostAction> replies = new ArrayList<>();
 
+    @Column(name = "is_report_resolved", nullable = true)
+    Boolean isReportResolved;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt;

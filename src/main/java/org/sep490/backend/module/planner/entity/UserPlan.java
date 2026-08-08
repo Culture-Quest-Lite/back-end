@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.planner.entity.enumeration.PlanStatus;
@@ -14,6 +15,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "user_plan")
+@SQLRestriction("is_deleted is not true")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -56,6 +58,13 @@ public class UserPlan {
 
     @Column(name = "is_optimized")
     Boolean isOptimized;
+
+    @Column(name = "is_deleted")
+    @Builder.Default
+    Boolean isDeleted = false;
+
+    @Column(name = "deleted_at")
+    LocalDateTime deletedAt;
 
     @OneToMany(mappedBy = "userPlan", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default

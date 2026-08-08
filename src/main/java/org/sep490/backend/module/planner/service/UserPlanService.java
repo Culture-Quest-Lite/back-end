@@ -11,4 +11,5 @@ public interface UserPlanService {
     UserPlanResponse getById(Long planId);
     List<UserPlanResponse> getMyPlans();
     UserPlanResponse start(Long planId);
+    void delete(Long planId);
 }

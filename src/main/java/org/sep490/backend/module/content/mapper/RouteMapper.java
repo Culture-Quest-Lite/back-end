@@ -11,25 +11,29 @@ import org.sep490.backend.module.content.entity.Route;
 
 @Mapper(
         componentModel = "spring",
-        uses = {StoryMapper.class, MediaMapper.class},
+        uses = {StoryMapper.class},
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface RouteMapper {
 
     @Mapping(target = "stories", ignore = true)
     @Mapping(target = "tag", ignore = true)
+    @Mapping(target = "imageUrl", ignore = true)
     Route toEntity(RouteRequest request);
 
     @Mapping(target = "stories", ignore = true)
     @Mapping(target = "tag", ignore = true)
+    @Mapping(target = "imageUrl", ignore = true)
     Route toEntity(RouteRequestV2 request);
 
     @Mapping(target = "stories", ignore = true)
     @Mapping(target = "tag", ignore = true)
+    @Mapping(target = "imageUrl", ignore = true)
     void updateFromRequest(@MappingTarget Route route, RouteRequest request);
 
     @Mapping(target = "stories", ignore = true)
     @Mapping(target = "tag", ignore = true)
+    @Mapping(target = "imageUrl", ignore = true)
     void updateFromRequest(@MappingTarget Route route, RouteRequestV2 request);
 
     RouteResponse toResponse(Route route);

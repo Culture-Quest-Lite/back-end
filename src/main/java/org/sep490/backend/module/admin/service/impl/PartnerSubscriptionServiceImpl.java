@@ -7,6 +7,9 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.service.InvoiceActivationService;
+import org.sep490.backend.common.service.PayOsInvoicePaymentService;
+import org.sep490.backend.common.service.TransactionCompensationService;
 import org.sep490.backend.config.keycloak.KeyCloakAuthClient;
 import org.sep490.backend.config.payos.PayOsProperties;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
@@ -30,12 +33,15 @@ import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.S3Service;
+import org.sep490.backend.module.notification.service.FcmService;
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StreamUtils;
@@ -69,11 +75,15 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     UserRepository userRepository;
     S3Service s3Service;
     MediaService mediaService;
+    NotificationService notificationService;
 
     private final JavaMailSender mailSender;
     private final PayOsProperties payOsProperties;
     private final PayOS payOS;
     private final PlanRuleRepository planRuleRepository;
+    private final PayOsInvoicePaymentService payOsInvoicePaymentService;
+    private final InvoiceActivationService invoiceActivationService;
+    private final TransactionCompensationService txCompensation;
     @Value("${app.frontend-url:${FRONTEND_URL:http://localhost:3000}}")
     @NonFinal
     String frontendUrl;
@@ -148,6 +158,12 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                 throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
             }
         }
+        notificationService.sendAndSave(
+                currentPartner,
+                "Đăng ký gói dịch vụ",
+                "Bạn đã đăng ký gói dịch vụ " + plan.getSubscriptionPlanName() + ". Vui lòng chờ admin duyệt.",
+                null,
+                invoice.getInvoiceId());
         return response;
     }
 
@@ -156,6 +172,10 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     public PartnerSubscriptionResponse verifiedSubscription(Long subscriptionId, boolean isApproved) {
         Invoice invoice = invoiceRepository.findById(subscriptionId)
                 .orElseThrow(() -> new BusinessException("Hóa đơn đăng ký gói không tồn tại"));
+
+        if (invoice.getUser() != null) {
+            throw new BusinessException("Hóa đơn Premium không cần Admin duyệt");
+        }
 
         if (!InvoiceStatus.PENDING.equals(invoice.getStatus())) {
             throw new BusinessException("Chỉ có thể duyệt hóa đơn dịch vụ đang ở trạng thái chờ duyệt");
@@ -250,8 +270,8 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     @Transactional(readOnly = true)
     public List<PartnerSubscriptionResponse> getAllSubscriptions(InvoiceStatus status) {
         List<Invoice> invoices = status != null
-                ? invoiceRepository.findByStatusOrderByCreatedAtDesc(status)
-                : invoiceRepository.findAllByOrderByCreatedAtDesc();
+                ? invoiceRepository.findByPartnerInfoIsNotNullAndStatusOrderByCreatedAtDesc(status)
+                : invoiceRepository.findByPartnerInfoIsNotNullOrderByCreatedAtDesc();
         return invoices.stream()
                 .map(this::toResponseWithMedia)
                 .toList();
@@ -275,6 +295,10 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         Invoice invoice = invoiceRepository.findById(subscriptionId)
                 .orElseThrow(() -> new BusinessException("Hóa đơn không tồn tại"));
 
+        if (invoice.getPartnerInfo() == null) {
+            throw new BusinessException("Hóa đơn này không thuộc luồng đối tác");
+        }
+
         if (!invoice.getPartnerInfo().getUser().getUserId().equals(currentUser.getUserId())) {
             throw new BusinessException("Bạn không có quyền thực hiện thao tác này.");
         }
@@ -288,133 +312,104 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         if (!"PAYOS".equalsIgnoreCase(gateway)) {
             throw new BusinessException("Cổng thanh toán không được hỗ trợ: " + gateway);
         }
-        return initiatePayOsPayment(invoice, redirectUrl);
+        return payOsInvoicePaymentService.initiatePayOsPayment(invoice, redirectUrl);
     }
 
     @Override
-    @Transactional
     public void handlePayOsWebhook(Map<String, Object> body) {
+        WebhookData data;
         try {
-            WebhookData data = payOS.webhooks().verify(body);
-
-            long orderCode = data.getOrderCode();
-            Invoice invoice = invoiceRepository.findByPayosOrderCode(orderCode)
-                    .orElse(null);
-            if (invoice == null) {
-                log.error("[PayOS Webhook] Không tìm thấy hóa đơn với orderCode={}", orderCode);
-                return;
-            }
-            if (InvoicePaymentStatus.PAID.equals(invoice.getPaymentStatus())) {
-                log.warn("[PayOS Webhook] Đã xử lý rồi, bỏ qua. orderCode={}", orderCode);
-                return;
-            }
-
-            SystemTransaction transaction = systemTransactionRepository
-                    .findFirstByGatewayRefOrderByCreatedAtDesc(String.valueOf(orderCode))
-                    .orElse(null);
-
-            if ("00".equals(data.getCode())) {
-                invoice.setPaymentStatus(InvoicePaymentStatus.PAID);
-                invoice.setPayosTransactionId(data.getReference());
-                invoice.setPaidAt(LocalDateTime.now());
-                invoice.setStatus(InvoiceStatus.PENDING);
-                invoiceRepository.save(invoice);
-
-                if (transaction != null) {
-                    transaction.setStatus(SystemTransactionStatus.SUCCESSED);
-                    transaction.setNotes("Thanh toán thành công qua PayOS. Ref: " + data.getReference());
-                    systemTransactionRepository.save(transaction);
-                }
-            } else {
-                invoice.setPaymentStatus(InvoicePaymentStatus.FAILED);
-                invoiceRepository.save(invoice);
-
-                if (transaction != null) {
-                    transaction.setStatus(SystemTransactionStatus.FAILED);
-                    transaction.setNotes("Thanh toán thất bại qua PayOS.");
-                    systemTransactionRepository.save(transaction);
-                }
-            }
+            data = payOS.webhooks().verify(body);
         } catch (Exception e) {
-            log.error("[PayOS Webhook] Lỗi xác thực webhook: {}", e.getMessage());
+            log.error("[PayOS Webhook] Lỗi xác thực chữ ký webhook: {}", e.getMessage(), e);
+            return;
+        }
+
+        long orderCode = data.getOrderCode();
+        Invoice invoice = invoiceRepository.findByPayosOrderCode(orderCode).orElse(null);
+        if (invoice == null) {
+            log.error("[PayOS Webhook] Không tìm thấy hóa đơn với orderCode={}", orderCode);
+            return;
+        }
+
+        if ("00".equals(data.getCode())) {
+            invoiceActivationService.markInvoicePaid(invoice, data.getReference());
+        } else {
+            log.warn("[PayOS Webhook] Thanh toán thất bại. orderCode={}, code={}", orderCode, data.getCode());
+            invoiceActivationService.markInvoiceFailed(invoice);
         }
     }
 
-    private PaymentInitResponse initiatePayOsPayment(Invoice invoice, String redirectUrl) {
-        long orderCode = System.currentTimeMillis() / 1000;
-        String description = "SUB" + invoice.getInvoiceId();
-        String effectiveReturnUrl = (redirectUrl != null && !redirectUrl.isBlank())
-                ? redirectUrl
-                : payOsProperties.getReturnUrl();
-
-        CreatePaymentLinkRequest paymentData = CreatePaymentLinkRequest.builder()
-                .orderCode(orderCode)
-                .amount(invoice.getPaidAmount())
-                .description(description)
-                .returnUrl(effectiveReturnUrl)
-                .cancelUrl(payOsProperties.getCancelUrl())
-                .build();
-
-        try {
-            CreatePaymentLinkResponse response = payOS.paymentRequests().create(paymentData);
-            invoice.setPayosOrderCode(orderCode);
-            invoice.setPayosPaymentLinkId(response.getPaymentLinkId());
-            invoice.setPaymentGateway(PaymentGateway.PAYOS);
-            invoiceRepository.save(invoice);
-
-            SystemTransaction paymentTrans = SystemTransaction.builder()
-                    .invoice(invoice)
-                    .transactionType(SystemTransactionType.PAYMENT)
-                    .amount(invoice.getPaidAmount())
-                    .status(SystemTransactionStatus.PENDING)
-                    .gatewayRef(String.valueOf(orderCode))
-                    .notes("Khởi tạo thanh toán qua PayOS")
-                    .build();
-            systemTransactionRepository.save(paymentTrans);
-
-            return PaymentInitResponse.builder()
-                    .subscriptionId(invoice.getInvoiceId())
-                    .gateway(PaymentGateway.PAYOS)
-                    .checkoutUrl(response.getCheckoutUrl())
-                    .qrCode(response.getQrCode())
-                    .amount(invoice.getPaidAmount())
-                    .orderInfo(description)
-                    .build();
-        } catch (PayOSException e) {
-            log.error("[PayOS] Tạo link thanh toán thất bại: {}", e.getMessage());
-            throw new BusinessException("Không thể tạo link thanh toán PayOS: " + e.getMessage());
-        }
-    }
 
     private void createPartnerSubAccount(Invoice invoice) {
         User owner = invoice.getPartnerInfo().getUser();
+        String ownerEmail = owner.getEmail();
+        String ownerName = owner.getDisplayName();
         String shopEmail = invoice.getPartnerInfo().getShopEmail();
 
         String rawPassword = UUID.randomUUID().toString().substring(0, 8);
-        String partnerUsername = "shop_" + owner.getUsername();
+        String partnerUsername = generateUniqueShopUsername(owner.getUsername());
 
+        String keycloakUserId;
         try {
-            String keycloakUserId = keyCloakAuthClient.createUser(
+            keycloakUserId = keyCloakAuthClient.createUser(
                     partnerUsername,
                     shopEmail,
-                    owner.getDisplayName(),
+                    ownerName,
                     rawPassword,
                     List.of("PARTNER"));
+        } catch (Exception e) {
+            log.error("Tạo tài khoản Keycloak cho Partner thất bại (email: {})", shopEmail, e);
+            throw new BusinessException("Lỗi hệ thống khi tạo tài khoản quản lý cho Partner: " + e.getMessage());
+        }
 
+        txCompensation.runOnRollback(
+                "Xóa Keycloak user " + keycloakUserId,
+                () -> keyCloakAuthClient.safeDeleteUser(keycloakUserId));
+
+        try {
             User partnerAccount = User.builder()
                     .keycloakUserId(keycloakUserId)
                     .username(partnerUsername)
                     .email(shopEmail)
-                    .displayName(owner.getDisplayName())
+                    .displayName(ownerName)
                     .status(UserStatus.ACTIVE)
                     .role(UserRole.PARTNER)
                     .build();
             userRepository.save(partnerAccount);
-            sendPartnerCredentialsEmail(owner.getEmail(), shopEmail, partnerUsername, rawPassword,
-                    owner.getDisplayName());
         } catch (Exception e) {
+            log.error("Lưu tài khoản Partner vào DB thất bại (email: {})", shopEmail, e);
             throw new BusinessException("Lỗi hệ thống khi tạo tài khoản quản lý cho Partner: " + e.getMessage());
         }
+
+        txCompensation.runAfterCommit("Gửi email credentials Partner " + ownerEmail, () -> {
+            try {
+                sendPartnerCredentialsEmail(ownerEmail, shopEmail, partnerUsername, rawPassword, ownerName);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private String generateUniqueShopUsername(String ownerUsername) {
+        String base = "shop_" + ownerUsername;
+        if (base.length() > 50) {
+            base = base.substring(0, 50);
+        }
+        if (!userRepository.existsByUsername(base)) {
+            return base;
+        }
+        for (int i = 2; i <= 50; i++) {
+            String suffix = "_" + i;
+            String prefix = base.length() + suffix.length() > 50
+                    ? base.substring(0, 50 - suffix.length())
+                    : base;
+            String candidate = prefix + suffix;
+            if (!userRepository.existsByUsername(candidate)) {
+                return candidate;
+            }
+        }
+        throw new BusinessException("Không thể sinh tên đăng nhập cho tài khoản shop, vui lòng liên hệ quản trị viên");
     }
 
     private void sendPartnerCredentialsEmail(String ownerEmail, String shopEmail, String username, String password,

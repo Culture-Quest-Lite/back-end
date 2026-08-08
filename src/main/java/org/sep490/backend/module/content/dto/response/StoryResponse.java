@@ -21,4 +21,7 @@ public class StoryResponse {
     List<MediaResponse> medias;
     Long hotspotId;
     Long routeId;
+
+    Double averageRating;
+    Long totalReviews;
 }

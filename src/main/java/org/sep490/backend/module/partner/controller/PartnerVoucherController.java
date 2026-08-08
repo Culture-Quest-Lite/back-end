@@ -14,9 +14,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@PreAuthorize("hasRole('PARTNER') and hasAuthority('PERM_VOUCHER_PARTNER_MANAGE')")
 @RequestMapping("/api/partner")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -36,10 +38,10 @@ public class PartnerVoucherController {
         return ResponseEntity.status(HttpStatus.CREATED).body(voucherService.createVoucher(request));
     }
 
-    @PutMapping("/vouchers/{id}")
+    @PutMapping(value = "/vouchers/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<VoucherResponse> updateVoucher(
             @PathVariable Long id,
-            @Valid @RequestBody VoucherRequest request) {
+            @Valid @ModelAttribute VoucherRequest request) {
         return ResponseEntity.ok(voucherService.updateVoucher(id, request));
     }
 

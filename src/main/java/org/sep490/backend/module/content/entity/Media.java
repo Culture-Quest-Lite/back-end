@@ -8,7 +8,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.content.entity.enumeration.MediaType;
 import org.sep490.backend.module.social.entity.Post;
 import org.sep490.backend.module.admin.entity.PartnerInfo;
-import org.sep490.backend.module.partner.entity.Voucher;
 
 import java.time.LocalDateTime;
 
@@ -43,12 +42,8 @@ public class Media {
     PartnerInfo partnerInfo;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "voucher_id")
-    Voucher voucher;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "route_id")
-    Route route;
+    @JoinColumn(name = "review_id")
+    Review review;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type")

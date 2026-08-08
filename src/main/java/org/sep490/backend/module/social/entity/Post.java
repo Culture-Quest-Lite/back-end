@@ -72,7 +72,11 @@ public class Post {
     @Column(name = "is_tagged_route")
     Boolean isTaggedRoute;
 
-    @ManyToMany
+    // @ManyToMany mặc định là EAGER. Để mặc định thì mỗi Post nạp về đều kéo theo
+    // 3 bảng JOIN này, kể cả khi response không dùng tới -> một trang 10 post
+    // sinh hàng chục query thừa và có thể timeout.
+    // default_batch_fetch_size=100 trong application.yml sẽ gom các lazy này theo lô.
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "post_hotspot",
             joinColumns = @JoinColumn(name = "post_id"),
@@ -82,7 +86,7 @@ public class Post {
     @Builder.Default
     Set<Hotspot> taggedHotspots = new HashSet<>();
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "post_route",
             joinColumns = @JoinColumn(name = "post_id"),
@@ -92,7 +96,7 @@ public class Post {
     @Builder.Default
     Set<Route> taggedRoutes = new HashSet<>();
 
-    @ManyToMany
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "post_tags",
             joinColumns = @JoinColumn(name = "post_id"),

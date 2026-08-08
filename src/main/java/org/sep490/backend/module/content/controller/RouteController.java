@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.filter.dto.SearchRequest;
+import org.sep490.backend.module.content.dto.request.FinalizeCustomRouteRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -45,12 +47,14 @@ public class RouteController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('PERM_ROUTE_MANAGE')")
     public ResponseEntity<RouteResponse> create(@Valid @ModelAttribute RouteRequest routeRequest) {
         RouteResponse routeResponse = routeService.create(routeRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(routeResponse);
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'ROUTE', 'ROUTE_MANAGE')")
     public ResponseEntity<RouteResponse> update(@PathVariable Long id, @Valid @RequestBody RouteRequest routeRequest) {
         RouteResponse routeResponse = routeService.update(id, routeRequest);
         return ResponseEntity.ok(routeResponse);
@@ -69,29 +73,15 @@ public class RouteController {
 //    }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'ROUTE', 'ROUTE_MANAGE')")
     public ResponseEntity<String> delete(@PathVariable Long id) {
         routeService.delete(id);
         return ResponseEntity.ok("Route deleted successfully");
     }
 
-    @PostMapping("/record")
-    public ResponseEntity<RouteResponse> recordJourney() {
-        return ResponseEntity.ok(routeService.recordJourney());
-    }
-
-    @PutMapping("/record/finish")
-    public ResponseEntity<RouteResponse> finishRecordJourney() {
-        return ResponseEntity.ok(routeService.finishRecordJourney());
-    }
-
-    @PutMapping("/record/finalize/{id}")
-    public ResponseEntity<RouteResponse> finalizeRecordJourney(@PathVariable("id") Long routeId) {
-        return ResponseEntity.ok(routeService.finalizeCustomRoute(routeId));
-    }
-
-    @GetMapping("/my-journey")
-    @Operation(summary = "Get Explorer's Journey", description = "RECORDING, DRAFT, TRIAL")
-    public ResponseEntity<List<RouteResponse>> getMyJourney(@RequestParam(required = false) RouteStatus routeStatus) {
-        return ResponseEntity.ok(routeService.getMyJourney(routeStatus));
+    @PutMapping("/{routeid}/generate-link")
+    public ResponseEntity<String> generateLink(@PathVariable Long routeid) {
+        String link = routeService.generateInviteLink(routeid);
+        return ResponseEntity.ok(link);
     }
 }

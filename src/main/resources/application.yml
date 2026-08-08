@@ -1,5 +1,6 @@
 server:
   port: ${PORT}
+  forward-headers-strategy: framework
 
 spring:
   application:
@@ -20,6 +21,23 @@ spring:
       hibernate:
         format_sql: false
         default_batch_fetch_size: 100
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: 0
+      timeout: 2s
+      connect-timeout: 2s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  cache:
+    type: redis
 
   security:
     oauth2:
@@ -71,6 +89,17 @@ app:
     create-post: 20
   firebase:
     service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:classpath:firebase-service-account.json}
+  cache:
+    enabled: ${CACHE_ENABLED:true}
+  redis:
+    auth-database: 1
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+  permission:
+    seed-enabled: ${PERMISSION_SEED_ENABLED:true}
+  mobile:
+    reset-password-link: ${MOBILE_RESET_PASSWORD_LINK:https://api.culturequestlite.com/api/auth/reset-password/open}
+    deep-link-scheme: ${MOBILE_DEEP_LINK_SCHEME:culturequest}
 
 aws:
   s3:
@@ -87,3 +116,9 @@ payos:
   return-url: ${PAYOS_RETURN_URL:http://localhost:3000/payment/result}
   cancel-url: ${PAYOS_CANCEL_URL:http://localhost:3000/payment/cancel}
   webhook-url: ${PAYOS_WEBHOOK_URL:https://your-ngrok.ngrok-free.app/api/payment/payos/webhook}
+  auto-register-webhook: ${PAYOS_AUTO_REGISTER_WEBHOOK:true}
+
+management:
+  health:
+    redis:
+      enabled: false

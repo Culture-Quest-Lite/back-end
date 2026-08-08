@@ -102,6 +102,15 @@ public class UserPlanServiceImpl implements UserPlanService {
         return toResponseWithProgress(plan);
     }
 
+    @Override
+    @Transactional
+    public void delete(Long planId) {
+        UserPlan plan = getEntityOwned(planId);
+        plan.setIsDeleted(true);
+        plan.setDeletedAt(LocalDateTime.now());
+        userPlanRepository.save(plan);
+    }
+
     private void applyStops(UserPlan plan, List<PlanStopRequest> stops) {
         for (int i = 0; i < stops.size(); i++) {
             PlanStopRequest s = stops.get(i);

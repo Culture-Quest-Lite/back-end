@@ -1,17 +1,23 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.content.service.inter.CheckInStatusService;
+
+import org.sep490.backend.module.content.service.inter.RatingSummaryService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
+import org.sep490.backend.common.utils.SecurityUtils;
+import org.sep490.backend.common.utils.ShareTokenUtils;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.content.dto.request.FinalizeCustomRouteRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequestV2;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
-import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
@@ -19,16 +25,19 @@ import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.*;
 import org.sep490.backend.module.content.mapper.HotspotMapper;
-import org.sep490.backend.module.content.mapper.MediaMapper;
 import org.sep490.backend.module.content.mapper.RouteMapper;
 import org.sep490.backend.module.content.mapper.StoryMapper;
+import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.content.service.inter.HotspotService;
-import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.repository.TagRepository;
+import org.sep490.backend.module.exploration.entity.RouteParticipant;
+import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,7 +46,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -46,16 +55,21 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class RouteServiceImpl implements RouteService {
 
+    static final String IMAGE_FOLDER = "routes";
+
     RouteRepository routeRepository;
     RouteMapper routeMapper;
     StoryRepository storyRepository;
+    HotspotRepository hotspotRepository;
     HotspotService hotspotService;
     UserService userService;
-    MediaService mediaService;
-    MediaMapper mediaMapper;
+    ImageService imageService;
     StoryMapper storyMapper;
     TagRepository tagRepository;
     HotspotMapper hotspotMapper;
+    RatingSummaryService ratingSummaryService;
+    CheckInStatusService checkInStatusService;
+    private final RouteParticipantRepository routeParticipantRepository;
 
     @Override
     @Transactional
@@ -77,22 +91,14 @@ public class RouteServiceImpl implements RouteService {
         route.setType(RouteType.OFFICIAL);
         route.setIsLocked(false);
         route.setTotalStops(request.getHotspotIds().size());
+        route.setImageUrl(imageService.resolveImageUrl(
+                null, request.getImageFile(), IMAGE_FOLDER));
 
         route = routeRepository.save(route);
 
         List<Story> stories = processRouteStories(route, request.getHotspotIds());
 
-        RouteResponse response = buildRouteResponse(route, stories);
-        if (request.getFiles() != null && request.getFiles().length > 0) {
-            try {
-                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.ROUTE, route.getRouteId());
-                response.setMedias(mediaResponses);
-            } catch (IOException e) {
-                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
-            }
-        }
-        return response;
+        return buildRouteResponse(route, stories);
     }
 
     @Override
@@ -115,23 +121,14 @@ public class RouteServiceImpl implements RouteService {
         route.setType(RouteType.OFFICIAL);
         route.setIsLocked(false);
         route.setTotalStops(request.getStoryIds().size());
+        route.setImageUrl(imageService.resolveImageUrl(
+                null, request.getImageFile(), IMAGE_FOLDER));
 
         route = routeRepository.save(route);
 
         List<Story> stories = processRouteStoriesV2(route, request.getStoryIds());
 
-        RouteResponse response = buildRouteResponse(route, stories);
-
-        if (request.getFiles() != null && request.getFiles().length > 0) {
-            try {
-                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.ROUTE, route.getRouteId());
-                response.setMedias(mediaResponses);
-            } catch (IOException e) {
-                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
-            }
-        }
-        return response;
+        return buildRouteResponse(route, stories);
     }
 
     @Override
@@ -149,6 +146,8 @@ public class RouteServiceImpl implements RouteService {
         routeMapper.updateFromRequest(currRoute, request);
         currRoute.setTag(tag);
         currRoute.setTotalStops(request.getHotspotIds().size());
+        currRoute.setImageUrl(imageService.resolveImageUrl(
+                currRoute.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
         currRoute = routeRepository.save(currRoute);
 
         // Unset route_id cho tất cả story cũ đang thuộc route này
@@ -178,6 +177,8 @@ public class RouteServiceImpl implements RouteService {
         routeMapper.updateFromRequest(currRoute, request);
         currRoute.setTag(tag);
         currRoute.setTotalStops(request.getStoryIds().size());
+        currRoute.setImageUrl(imageService.resolveImageUrl(
+                currRoute.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
         currRoute = routeRepository.save(currRoute);
 
         // Unset route_id cho tất cả story cũ đang thuộc route này
@@ -215,6 +216,7 @@ public class RouteServiceImpl implements RouteService {
             s.setRoute(null);
             s.setOrderIndex(null);
             s.setDistanceToNext(null);
+            s.setStatus(ContentStatus.DELETED);
         }
 
         storyRepository.saveAll(stories);
@@ -273,59 +275,6 @@ public class RouteServiceImpl implements RouteService {
     }
 
     @Override
-    @Transactional
-    public RouteResponse recordJourney() {
-
-        User creator = userService.getCurrentUser();
-
-        if (routeRepository.findByCreatedByAndTypeAndStatus(creator, RouteType.CUSTOM, RouteStatus.RECORDING).orElse(null) != null) {
-            throw new BusinessException("Người dùng đã có hành trình đang ghi lại. " +
-                    "Vui lòng hoàn thành hành trình trước khi bắt đầu hành trình mới.");
-        }
-
-        // default tag for custom route
-        Tag tag = tagRepository.findByTagName("Hành Trình Cá Nhân")
-                .orElseThrow(() -> new BusinessException("Không tìm thấy tag 'Hành trình cá nhân'"));
-
-        Route route = new Route();
-
-        int createdRoutes = routeRepository.countByCreatedBy(creator);
-
-        route.setRouteName("Hành trình #" + (createdRoutes + 1) + " của " + creator.getDisplayName());
-        route.setDescription("Hành trình #" + (createdRoutes + 1) + " của " + creator.getDisplayName());
-        route.setDifficulty(RouteDifficulty.EASY);
-        route.setXp(0L);
-        route.setPoint(0L);
-        route.setEstimateTime(0.0);
-        route.setTotalDistance(0.0);
-        route.setCreatedBy(creator);
-        route.setStatus(RouteStatus.RECORDING);
-        route.setType(RouteType.CUSTOM);
-        route.setTag(tag);
-        route.setIsLocked(false);
-        route.setTotalStops(0);
-
-        route = routeRepository.save(route);
-
-        return buildRouteResponse(route, new ArrayList<>());
-    }
-
-    @Override
-    @Transactional
-    public RouteResponse finishRecordJourney() {
-
-        User user = userService.getCurrentUser();
-        Route route = findRecordingCustomRouteByUserId(user.getUserId());
-
-        route.setStatus(RouteStatus.DRAFT); // wait for user to finalize their custom route
-        route = routeRepository.save(route);
-
-        List<Story> stories = route.getStories();
-
-        return buildRouteResponse(route, stories);
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public Route findRecordingCustomRouteByUserId(Long userId) {
 
@@ -364,51 +313,25 @@ public class RouteServiceImpl implements RouteService {
     }
 
     @Override
-    @Transactional
-    public RouteResponse finalizeCustomRoute(Long routeId) {
+    public String generateInviteLink(Long routeId) {
+        String keyCloakId = SecurityUtils.getCurrentUserKeyCloakId()
+                .orElseThrow(() -> new BusinessException("Người dùng chưa đăng nhập"));
 
-        Route route = getById(routeId);
         User user = userService.getCurrentUser();
-
-        if(!route.getStatus().equals(RouteStatus.DRAFT)) {
-            throw new BusinessException("Chỉ có thể hoàn tất hành trình cá nhân đang ở trạng thái DRAFT");
-        }
-
-        if(!route.getType().equals(RouteType.CUSTOM)) {
-            throw new BusinessException("Chỉ có thể hoàn tất hành trình cá nhân có loại CUSTOM");
-        }
+        Route route = getById(routeId);
 
         if(!route.getCreatedBy().equals(user)) {
-            throw new BusinessException("Người dùng chỉ được hoàn thành hành trình cá nhân của mình");
+            throw new BusinessException("Người dùng chỉ có thể tạo link mời cho hành trình cá nhân của mình");
         }
 
-        route.setStatus(RouteStatus.TRIAL);
-        route = routeRepository.save(route);
+        String code = ShareTokenUtils.generateToken(route.getRouteId());
+        String path = "/api/v1/route-participants/join/" + code;
 
-        return buildRouteResponse(route, route.getStories());
-    }
+        route.setShareToken(code);
+        route.setShareExpiredAt(LocalDateTime.now().plusDays(30));
+        routeRepository.save(route);
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<RouteResponse> getMyJourney(RouteStatus routeStatus) {
-
-        User user = userService.getCurrentUser();
-        List<Route> routes;
-
-        if (routeStatus == null) {
-            routes = routeRepository.findAllByCreatedByAndType(user, RouteType.CUSTOM);
-        } else {
-            routes = routeRepository.findAllByCreatedByAndTypeAndStatus(user, RouteType.CUSTOM, routeStatus);
-        }
-
-        if (routes.isEmpty()) {
-            throw new BusinessException("Không tìm thấy hành trình cá nhân nào"
-                    + (routeStatus != null ? " với trạng thái: " + routeStatus : ""));
-        }
-
-        return routes.stream()
-                .map(route -> buildRouteResponse(route, route.getStories()))
-                .toList();
+        return path;
     }
 
     private List<Story> processRouteStories(Route route, List<Long> hotspotIds) {
@@ -463,7 +386,22 @@ public class RouteServiceImpl implements RouteService {
             return new ArrayList<>();
         }
 
-        List<Story> stories = storyRepository.findAllByStoryIdIn(storyIds);
+        List<Story> stories = storyRepository.findAllById(storyIds);
+        List<Long> hotspotIds = new ArrayList<>();
+        for (int i = 0; i < stories.size(); i++) {
+            hotspotIds.add(stories.get(i).getHotspot().getHotspotId());
+        }
+        List<Hotspot> hotspots = hotspotRepository.findAllById(hotspotIds);
+
+        long uniqueHotspotCount = hotspots.stream()
+                .map(Hotspot::getHotspotId)
+                .distinct()
+                .count();
+
+        if(uniqueHotspotCount < hotspots.size()) {
+            throw new BusinessException("KHông thể chọn 2 Câu chuyện trong cùng 1 địa điểm");
+        }
+
         // update index
         for (int i = 0; i < storyIds.size(); i++) {
             Story story = stories.get(i);
@@ -499,6 +437,18 @@ public class RouteServiceImpl implements RouteService {
 
     private RouteResponse buildRouteResponse(Route route, List<Story> stories) {
 
+        ProgressStatus progressStatus;
+        String keycloakId = SecurityUtils.getCurrentUserKeyCloakId().orElse(null);
+
+        if(keycloakId == null) {
+            progressStatus = null;
+        } else {
+            User user = userService.getCurrentUser();
+            RouteParticipant rp = routeParticipantRepository.findByRoute_RouteIdAndUser_UserId(route.getRouteId(), user.getUserId())
+                    .orElse(null);
+            progressStatus = rp != null ? rp.getStatus() : null;
+        }
+
         RouteResponse response = routeMapper.toResponse(route);
 
         List<HotspotResponse> hotspotResponses = new ArrayList<>();
@@ -510,13 +460,16 @@ public class RouteServiceImpl implements RouteService {
             }
         }
 
+        ratingSummaryService.applyToHotspots(hotspotResponses);
+        checkInStatusService.apply(hotspotResponses);
         response.setHotspots(hotspotResponses);
+        response.setUserProgress(progressStatus);
 
         if (route.getTag() != null) {
             response.setTag(storyMapper.toTagResponse(route.getTag()));
         }
 
-        return response;
+        return ratingSummaryService.applyToRoute(response);
     }
 
     private HotspotResponse buildHotspotResponseForRoute(Hotspot hotspot, Route route) {
@@ -533,6 +486,7 @@ public class RouteServiceImpl implements RouteService {
         List<StoryResponse> storyResponses = stories.stream()
                 .map(storyMapper::toResponse)
                 .toList();
+        ratingSummaryService.applyToStories(storyResponses);
         response.setStories(storyResponses);
 
         return response;
@@ -625,19 +579,24 @@ public class RouteServiceImpl implements RouteService {
             }
         }
 
-        // create new story, user have to edit later for publish
-        Story storyToAdd = Story.builder()
+        // create story for purely connect between route and hotspot
+        Story story = Story.builder()
                 .tag(route.getTag())
                 .hotspot(hotspot)
                 .route(route)
                 .createdBy(user)
+                .orderIndex(null)
+                .distanceToNext(null)
                 .title("Câu chuyện cho hành trình cá nhân của " + user.getDisplayName())
-                .content("Đây là câu chuyện mặc định cho điểm dừng " + hotspot.getHotspotName() + " trong hành trình cá nhân của bạn. Hãy chỉnh sửa nội dung này để tạo trải nghiệm thú vị hơn cho người dùng.")
+                .content(null)
+                .audioScript(null)
+                .medias(null)
                 .status(ContentStatus.DRAFT)
                 .build();
 
+        storyRepository.save(story);
         // update story and route fields
-        calculateIndexAndDistance(route, hotspot, stories, storyToAdd);
+        calculateIndexAndDistance(route, hotspot, stories, story);
     }
 
     private void calculateIndexAndDistance(Route route, Hotspot hotspot, List<Story> stories, Story storyToAdd) {

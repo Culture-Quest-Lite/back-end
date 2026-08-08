@@ -1,5 +1,7 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.content.service.inter.RatingSummaryService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -43,6 +45,7 @@ public class StoryServiceImpl implements StoryService {
     MediaService mediaService;
     TagRepository tagRepository;
     HotspotService hotspotService;
+    RatingSummaryService ratingSummaryService;
 
     @Override
     @Transactional
@@ -70,7 +73,7 @@ public class StoryServiceImpl implements StoryService {
                 throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
             }
         }
-        return response;
+        return ratingSummaryService.applyToStory(response);
     }
 
     @Override
@@ -99,32 +102,45 @@ public class StoryServiceImpl implements StoryService {
                 throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
             }
         }
-        return response;
+        return ratingSummaryService.applyToStory(response);
     }
 
     @Override
     @Transactional(readOnly = true)
     public StoryResponse getDetail(Long id) {
-        return storyMapper.toResponse(storyRepository.getOne(id));
+        return ratingSummaryService.applyToStory(storyMapper.toResponse(getById(id)));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<StoryResponse> getByHotspot(Long hotspotId, Long routeId) {
         List<Story> stories;
-        if (routeId != null) {
-            List<Long> routeTagIds = storyRepository.findTagIdsByRouteId(routeId);
-            if (!routeTagIds.isEmpty()) {
-                stories = storyRepository.findByHotspotOrderedByRouteTag(hotspotId, routeTagIds);
-            } else {
-                stories = storyRepository.findByHotspotOrderedByIndex(hotspotId);
-            }
+//        if (routeId != null) {
+//            List<Long> routeTagIds = storyRepository.findTagIdsByRouteId(routeId);
+//            if (!routeTagIds.isEmpty()) {
+//                stories = storyRepository.findByHotspotOrderedByRouteTag(hotspotId, routeTagIds);
+//            } else {
+//                stories = storyRepository.findByHotspotOrderedByIndex(hotspotId);
+//            }
+//        } else {
+//            stories = storyRepository.findByHotspotOrderedByIndex(hotspotId);
+//        }
+
+        if (hotspotId == null && routeId == null) {
+            throw new BusinessException("Cần cung cấp ít nhất một trong hai tham số: hotspotId hoặc routeId");
+        } else if (hotspotId == null) {
+            stories = storyRepository.findByRoute_RouteIdAndStatus(routeId, ContentStatus.PUBLISHED);
+        } else if (routeId == null) {
+            stories = storyRepository.findByHotspot_HotspotIdAndStatus(hotspotId, ContentStatus.PUBLISHED);
         } else {
-            stories = storyRepository.findByHotspotOrderedByIndex(hotspotId);
+            stories = storyRepository.findByRoute_RouteIdAndHotspot_HotspotIdAndStatus(routeId, hotspotId, ContentStatus.PUBLISHED);
         }
-        return stories.stream()
+
+        List<StoryResponse> responses = stories.stream()
                 .map(storyMapper::toResponse)
                 .toList();
+        ratingSummaryService.applyToStories(responses);
+        return responses;
     }
 
     @Override
@@ -153,7 +169,9 @@ public class StoryServiceImpl implements StoryService {
 
         Specification<Story> spec = StorySpecification.filter(filter);
 
-        return storyRepository.findAll(spec, pageable).map(storyMapper::toResponse);
+        Page<StoryResponse> page = storyRepository.findAll(spec, pageable).map(storyMapper::toResponse);
+        ratingSummaryService.applyToStories(page.getContent());
+        return page;
     }
 
     @Override
@@ -165,6 +183,6 @@ public class StoryServiceImpl implements StoryService {
 
         storyRepository.save(story);
 
-        return storyMapper.toResponse(story);
+        return ratingSummaryService.applyToStory(storyMapper.toResponse(story));
     }
 }
