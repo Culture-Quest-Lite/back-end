@@ -1,5 +1,12 @@
 package org.sep490.backend.module.social.service.impl;
 
+import org.apache.tomcat.util.buf.ByteChunk;
+import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
+import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.NotificationService;
+import org.sep490.backend.module.social.dto.request.*;
+import org.sep490.backend.module.social.dto.response.ReportPostResponse;
 import org.sep490.backend.module.social.service.PostCounterService;
 
 import lombok.AccessLevel;
@@ -11,6 +18,9 @@ import org.sep490.backend.module.content.entity.Media;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.S3Service;
+import org.sep490.backend.module.user.entity.UserFollow;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
+import org.sep490.backend.module.user.repository.UserFollowRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.service.TransactionCompensationService;
@@ -27,13 +37,7 @@ import org.sep490.backend.module.content.repository.TagRepository;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
 import org.sep490.backend.module.gamification.service.RewardTransactionService;
 import org.sep490.backend.module.gamification.dto.request.RewardTransactionRequest;
-import org.sep490.backend.module.social.dto.request.CommentRequest;
-import org.sep490.backend.module.social.dto.request.DeletePostRequest;
-import org.sep490.backend.module.social.dto.request.PostRequest;
-import org.sep490.backend.module.social.dto.request.ShareRequest;
 import org.sep490.backend.module.social.entity.enumeration.PostVisibility;
-import org.sep490.backend.module.social.dto.request.RejectPostRequest;
-import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
 import org.sep490.backend.module.social.dto.response.CommentResponse;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.entity.PostAction;
@@ -69,6 +73,7 @@ public class PostServiceImpl implements PostService {
     HotspotRepository hotspotRepository;
     RouteRepository routeRepository;
     TagRepository tagRepository;
+    UserRepository userRepository;
     PostMapper postMapper;
     UserService userService;
     RewardTransactionService rewardTransactionService;
@@ -77,6 +82,8 @@ public class PostServiceImpl implements PostService {
     TransactionCompensationService txCompensation;
     AuditLogService auditLogService;
     PostCounterService postCounterService;
+    NotificationService notificationService;
+    UserFollowRepository userFollowRepository;
 
     @NonFinal
     @Value("${app.points.create-post:20}")
@@ -438,6 +445,7 @@ public class PostServiceImpl implements PostService {
         Optional<PostAction> existingLike = postActionRepository.findByPost_PostIdAndUser_UserIdAndActionType(
                 id, currentUser.getUserId(), PostActionType.LIKE);
 
+        boolean isLiked = false;
         if (existingLike.isPresent()) {
             Long likeActionId = existingLike.get().getPostActionId();
             post.getPostActions().removeIf(action -> likeActionId.equals(action.getPostActionId()));
@@ -448,9 +456,15 @@ public class PostServiceImpl implements PostService {
                     .actionType(PostActionType.LIKE)
                     .build();
             post.getPostActions().add(likeAction);
+            isLiked = true;
         }
+
         postRepository.save(post);
         postCounterService.evict(id);
+
+        if (isLiked) {
+            notifyPostInteraction(currentUser, post);
+        }
 
         return toResponseWithLiked(post, currentUser.getUserId());
     }
@@ -479,6 +493,9 @@ public class PostServiceImpl implements PostService {
 
         postActionRepository.save(commentActionBuilder.build());
         postCounterService.evict(id);
+
+        notifyPostInteraction(currentUser, post);
+
         post = postRepository.findById(id).orElse(post);
         return toResponseWithLiked(post, currentUser.getUserId());
     }
@@ -500,7 +517,6 @@ public class PostServiceImpl implements PostService {
                 .actionType(PostActionType.SHARE)
                 .build();
         postActionRepository.save(shareAction);
-        // shareCount tăng trên post GỐC (post), không phải bài chia sẻ mới tạo bên dưới
         postCounterService.evict(id);
 
         Post sharedPost = Post.builder()
@@ -512,6 +528,9 @@ public class PostServiceImpl implements PostService {
                 .build();
 
         Post savedPost = postRepository.save(sharedPost);
+
+        notifyPostInteraction(currentUser, post);
+
         return toResponseWithLiked(savedPost, currentUser.getUserId());
     }
 
@@ -527,6 +546,191 @@ public class PostServiceImpl implements PostService {
                 .findByPost_PostIdAndActionTypeAndParentActionIsNullOrderByCreatedAtAsc(id, PostActionType.COMMENT, pageable);
 
         return rootComments.map(this::mapToCommentResponse);
+    }
+
+    @Override
+    @Transactional
+    public ReportPostResponse reportPost(Long id, ReportPostRequest request) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+        User currentUser = userService.getCurrentUser();
+
+        Optional<PostAction> existingReport = postActionRepository.findByPost_PostIdAndUser_UserIdAndActionType(
+                id, currentUser.getUserId(), PostActionType.REPORT);
+
+        if (existingReport.isPresent() && !existingReport.get().getIsReportResolved()) {
+            throw new BusinessException("Bài viết này đã được bạn báo cáo trước đó");
+        }
+
+        Integer reportCount = postActionRepository.countByActionTypeAndPost_PostIdAndIsReportResolved(
+                PostActionType.REPORT, id, false);
+
+        if (reportCount + 1 >= 3) {
+            post.setStatus(PostStatus.REPORTING);
+            postRepository.save(post);
+        }
+
+        PostAction reportAction = PostAction.builder()
+                .post(post)
+                .user(currentUser)
+                .actionType(PostActionType.REPORT)
+                .comment(request.getComment())
+                .isReportResolved(false)
+                .build();
+        reportAction = postActionRepository.save(reportAction);
+
+        // noti admin at 10 pending REPORT action
+        if (reportCount + 1 == 10) {
+            List<User> admins = userRepository.findByRoleAndStatus(UserRole.ADMIN, UserStatus.ACTIVE);
+            if (!admins.isEmpty()) {
+                notificationService.sendToMultipleUsers(
+                        admins,
+                        "Cảnh báo bài viết bị báo cáo nhiều",
+                        "Bài viết #" + id + " đã nhận được 10 lượt báo cáo. Vui lòng kiểm tra và xử lý.",
+                        NotificationType.POST,
+                        id
+                );
+            }
+        }
+
+        return toReportPostResponse(reportAction);
+    }
+
+    @Override
+    public List<ReportPostResponse> getAllReportPosts() {
+
+        User user = userService.getCurrentUser();
+
+        if(user.getRole().equals(UserRole.EXPLORER)) {
+            return postActionRepository.findByActionTypeAndUser_UserIdAndIsReportResolved(PostActionType.REPORT, user.getUserId(), false)
+                    .stream()
+                    .map(this::toReportPostResponse)
+                    .toList();
+        } else if (user.getRole().equals(UserRole.ADMIN)) {
+            return postActionRepository.findByActionTypeAndIsReportResolved(PostActionType.REPORT, false)
+                    .stream()
+                    .map(this::toReportPostResponse)
+                    .sorted((r1, r2) -> r2.getPostId().compareTo(r1.getPostId()))
+                    .toList();
+        } else {
+            throw new BusinessException("Người dùng không có quyền truy cập danh sách báo cáo bài viết");
+        }
+    }
+
+    @Override
+    public PostResponse handleReport(Long postId, HandleReportPostRequest request) {
+
+        User admin = userService.getCurrentUser();
+
+        if(!admin.getRole().equals(UserRole.ADMIN)) {
+            throw new BusinessException("Người dùng không có quyền xử lý báo cáo bài viết");
+        }
+
+        List<PostAction> actions = postActionRepository.findAllById(request.getPostActionIds());
+        List<PostAction> savedActions = new ArrayList<>();
+        Post currentPost = postRepository.findById(postId)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+
+        if(currentPost.getStatus().equals(PostStatus.REPORTED)) {
+            throw new BusinessException("Bài viết đã bị báo cáo và xử lý trước đó");
+        }
+
+        for(PostAction action : actions) {
+            if(!action.getPost().equals(currentPost)) {
+                throw new BusinessException("Báo cáo #" + action.getPostActionId() + " không thuộc bài viết này");
+            }
+
+            if(action.getIsReportResolved() != null && action.getIsReportResolved()) {
+                throw new BusinessException("Báo cáo bài viết đã được xử lý trước đó");
+            }
+
+            action.setIsReportResolved(true);
+            savedActions.add(action);
+        }
+
+        String reason;
+
+        if(request.getIsApproveReport()) {
+            reason = "ADMIN approve report: " + request.getReason();
+            currentPost.setStatus(PostStatus.REPORTED);
+        } else {
+            reason = "ADMIN reject report: " + request.getReason();
+            currentPost.setStatus(PostStatus.APPROVED);
+        }
+
+        // create latest action for post
+        PostAction resolvedAction = PostAction.builder()
+                .post(currentPost)
+                .user(admin)
+                .actionType(PostActionType.RESOLVE_REPORT)
+                .comment(reason)
+                .build();
+
+
+        savedActions.add(resolvedAction);
+
+        postActionRepository.saveAll(savedActions);
+        postRepository.save(currentPost);
+
+        notificationService.sendAndSave(
+                currentPost.getUser(),
+                "Bài viết bị xử lý",
+                "Bài viết của bạn đã bị admin xử lý với lý do: " + request.getReason(),
+                NotificationType.POST,
+                postId);
+
+        List<User> reporters = actions.stream().map(PostAction::getUser).distinct().toList();
+        notificationService.sendToMultipleUsers(
+                reporters,
+                "Kết quả báo cáo",
+                "Báo cáo của bạn về bài viết #" + postId + " đã được admin xử lý.",
+                NotificationType.POST,
+                postId);
+
+        return PostResponse.builder()
+                .postId(currentPost.getPostId())
+                .content(currentPost.getContent())
+                .visibility(currentPost.getVisibility())
+                .status(currentPost.getStatus())
+                .createdAt(currentPost.getCreatedAt())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public PostResponse approvePendingPost(Long postId, PostStatus status) {
+        User user = userService.getCurrentUser();
+
+        if(!user.getRole().equals(UserRole.ADMIN)) {
+            throw new BusinessException("Người dùng không có quyền cập nhật trạng thái bài viết");
+        }
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+
+        if(!post.getStatus().equals(PostStatus.PENDING)) {
+            throw new BusinessException("Chỉ có thể cập nhật trạng thái bài viết đang chờ phê duyệt");
+        }
+
+        post.setStatus(status);
+        postRepository.save(post);
+
+        if(status.equals(PostStatus.APPROVED)) {
+            List<User> followers = userFollowRepository.findAllByFollowing(post.getUser()).stream()
+                    .map(UserFollow::getFollower).toList();
+
+            if (!followers.isEmpty()) {
+                notificationService.sendToMultipleUsers(
+                        followers,
+                        "Bài viết mới",
+                        post.getUser().getDisplayName() + " vừa đăng một bài viết mới.",
+                        NotificationType.POST,
+                        post.getPostId()
+                );
+            }
+        }
+
+        return toResponseWithLiked(post, post.getUser().getUserId());
     }
 
     private PostResponse toResponseWithLiked(Post post, Long currentUserId) {
@@ -574,5 +778,28 @@ public class PostServiceImpl implements PostService {
                 .createdAt(action.getCreatedAt())
                 .replies(childReplies)
                 .build();
+    }
+
+    private ReportPostResponse toReportPostResponse(PostAction action) {
+        return ReportPostResponse.builder()
+                .postActionId(action.getPostActionId())
+                .postId(action.getPost().getPostId())
+                .createdUserId(action.getUser().getUserId())
+                .createdDisplayName(action.getUser().getDisplayName())
+                .comment(action.getComment())
+                .createdAt(action.getCreatedAt())
+                .build();
+    }
+
+    private void notifyPostInteraction(User sender, Post post) {
+        long totalInteractions = postActionRepository.countActionsByPostId(post.getPostId()).stream()
+                .filter(row -> {
+                    PostActionType type = (PostActionType) row[0];
+                    return type == PostActionType.LIKE || type == PostActionType.COMMENT || type == PostActionType.SHARE;
+                })
+                .mapToLong(row -> ((Number) row[1]).longValue())
+                .sum();
+
+        notificationService.sendOrUpdateInteractionNotification(sender, post.getUser(), post.getPostId(), totalInteractions);
     }
 }

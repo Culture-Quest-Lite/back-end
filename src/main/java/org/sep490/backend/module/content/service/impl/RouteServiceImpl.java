@@ -35,6 +35,9 @@ import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.repository.TagRepository;
+import org.sep490.backend.module.exploration.entity.RouteParticipant;
+import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -66,6 +69,7 @@ public class RouteServiceImpl implements RouteService {
     HotspotMapper hotspotMapper;
     RatingSummaryService ratingSummaryService;
     CheckInStatusService checkInStatusService;
+    private final RouteParticipantRepository routeParticipantRepository;
 
     @Override
     @Transactional
@@ -432,6 +436,18 @@ public class RouteServiceImpl implements RouteService {
 
     private RouteResponse buildRouteResponse(Route route, List<Story> stories) {
 
+        ProgressStatus progressStatus;
+        String keycloakId = SecurityUtils.getCurrentUserKeyCloakId().orElse(null);
+
+        if(keycloakId == null) {
+            progressStatus = null;
+        } else {
+            User user = userService.getCurrentUser();
+            RouteParticipant rp = routeParticipantRepository.findByRoute_RouteIdAndUser_UserId(route.getRouteId(), user.getUserId())
+                    .orElse(null);
+            progressStatus = rp != null ? rp.getStatus() : null;
+        }
+
         RouteResponse response = routeMapper.toResponse(route);
 
         List<HotspotResponse> hotspotResponses = new ArrayList<>();
@@ -446,6 +462,7 @@ public class RouteServiceImpl implements RouteService {
         ratingSummaryService.applyToHotspots(hotspotResponses);
         checkInStatusService.apply(hotspotResponses);
         response.setHotspots(hotspotResponses);
+        response.setUserProgress(progressStatus);
 
         if (route.getTag() != null) {
             response.setTag(storyMapper.toTagResponse(route.getTag()));
@@ -578,7 +595,7 @@ public class RouteServiceImpl implements RouteService {
 
         storyRepository.save(story);
         // update story and route fields
-        // calculateIndexAndDistance(route, hotspot, stories, storyToAdd);
+        calculateIndexAndDistance(route, hotspot, stories, story);
     }
 
     private void calculateIndexAndDistance(Route route, Hotspot hotspot, List<Story> stories, Story storyToAdd) {

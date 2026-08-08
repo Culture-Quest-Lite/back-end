@@ -18,4 +18,5 @@ public interface RouteParticipantService {
     RouteParticipant getById(Long progressId);
     HashMap<Integer, RouteParticipantResponse> joinRouteFromLink(String token);
     void startGroupQuest(StartGroupQuestRoute request);
+    RouteParticipantResponse getByRouteId(Long routeId);
 }

@@ -9,6 +9,7 @@ public enum MediaTargetType {
     HOTSPOT,
     POST,
     PARTNER_SUBSCRIPTION,
-    REVIEW
+    REVIEW,
+    GROUP
 }
 

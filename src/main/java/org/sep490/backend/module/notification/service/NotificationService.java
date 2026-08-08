@@ -6,6 +6,8 @@ import org.sep490.backend.module.notification.entity.enumeration.NotificationTyp
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
+
 public interface NotificationService {
 
     void sendAndSave(User user, String title, String message,
@@ -18,4 +20,8 @@ public interface NotificationService {
     void markAsRead(Long userId, Long notificationId);
 
     long countUnread(Long userId);
+
+    void sendToMultipleUsers(List<User> users, String title, String message, NotificationType type, Long referenceId);
+
+    void sendOrUpdateInteractionNotification(User sender, User receiver, Long postId, long totalInteractions);
 }

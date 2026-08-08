@@ -14,6 +14,8 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class GroupRequest {
 
+    MultipartFile[] files;
+
     @NotBlank(message = "Tên group không được để trống")
     @Length(max = 255, message = "Tên group không được vượt quá 255 ký tự")
     String groupName;

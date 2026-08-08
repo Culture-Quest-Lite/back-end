@@ -14,6 +14,8 @@ import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
 import org.sep490.backend.module.gamification.dto.request.RewardTransactionRequest;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
 import org.sep490.backend.module.gamification.service.RewardTransactionService;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -31,6 +33,7 @@ public class PointXpEventListener {
     HotspotService hotspotService;
     RewardTransactionService rewardTransactionService;
     RouteService routeService;
+    NotificationService notificationService;
 
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -76,6 +79,14 @@ public class PointXpEventListener {
                 .referenceId(route.getRouteId())
                 .build();
         rewardTransactionService.createRewardTransaction(rewardRequest);
+
+        notificationService.sendAndSave(
+                user,
+                "Hoàn thành Hành trình",
+                "Chúc mừng bạn đã hoàn thành hành trình " + route.getRouteName() + "!",
+                NotificationType.CONTENT,
+                route.getRouteId()
+        );
     }
 
     @Async
@@ -99,5 +110,14 @@ public class PointXpEventListener {
                 .referenceId(route.getRouteId())
                 .build();
         rewardTransactionService.createRewardTransaction(rewardRequest);
+
+        User creator = userService.getUserById(event.createdById());
+        notificationService.sendAndSave(
+                creator,
+                "Hành trình tự tạo được hoàn thành",
+                "Có một Explorer vừa hoàn thành hành trình tự tạo #" + route.getRouteId() + " của bạn!",
+                NotificationType.CONTENT,
+                route.getRouteId()
+        );
     }
 }

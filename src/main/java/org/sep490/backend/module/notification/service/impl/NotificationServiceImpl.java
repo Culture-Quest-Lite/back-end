@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -107,5 +109,61 @@ public class NotificationServiceImpl implements NotificationService {
         }
         circuitBreaker.write("notif.unread.evict",
                 () -> redisTemplate.delete(CacheNames.KEY_NOTIF_UNREAD + userId));
+    }
+
+    @Override
+    @Transactional
+    public void sendToMultipleUsers(
+            List<User> users,
+            String title,
+            String message,
+            NotificationType type,
+            Long referenceId) {
+        // 1. Tạo danh sách các thông báo riêng biệt cho từng user
+        List<Notification> notifications = users.stream()
+                .map(user -> Notification.builder()
+                        .user(user)
+                        .title(title)
+                        .message(message)
+                        .notificationType(type)
+                        .referenceId(referenceId)
+                        .isRead(false)
+                        .createdAt(LocalDateTime.now())
+                        .build())
+                .toList();
+
+        // 2. Lưu toàn bộ xuống DB bằng batch insert
+        notificationRepository.saveAll(notifications);
+
+        // 3. Gửi push notification qua FCM cho từng user (nếu có)
+        for (User user : users) {
+            fcmService.sendPushNotification(user.getFcmToken(), title, message, type, referenceId);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void sendOrUpdateInteractionNotification(User sender, User receiver, Long postId, long totalInteractions) {
+        if (sender.getUserId().equals(receiver.getUserId())) {
+            return;
+        }
+
+        Optional<Notification> existingNoti = notificationRepository
+                .findFirstByUser_UserIdAndNotificationTypeAndReferenceIdAndIsReadFalseOrderByCreatedAtDesc(
+                        receiver.getUserId(), NotificationType.POST, postId);
+
+        String title = "Tương tác mới trên bài viết";
+        String message = totalInteractions <= 1
+                ? sender.getDisplayName() + " đã tương tác với bài viết của bạn."
+                : sender.getDisplayName() + " và " + (totalInteractions - 1) + " người khác đã tương tác với bài viết của bạn.";
+
+        if (existingNoti.isPresent()) {
+            Notification noti = existingNoti.get();
+            noti.setMessage(message);
+            noti.setCreatedAt(LocalDateTime.now());
+            notificationRepository.save(noti);
+        } else {
+            sendAndSave(receiver, title, message, NotificationType.POST, postId);
+        }
     }
 }
