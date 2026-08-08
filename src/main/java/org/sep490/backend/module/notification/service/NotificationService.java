@@ -24,4 +24,7 @@ public interface NotificationService {
     void sendToMultipleUsers(List<User> users, String title, String message, NotificationType type, Long referenceId);
 
     void sendOrUpdateInteractionNotification(User sender, User receiver, Long postId, long totalInteractions);
+
+    void updateUnReadNotification();
+    void deleteReadNotification();
 }

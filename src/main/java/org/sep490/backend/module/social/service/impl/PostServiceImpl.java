@@ -313,40 +313,44 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public Slice<PostResponse> getNewsfeed(int page, int size) {
-        User currentUser = userService.getCurrentUser();
-
-        // Tách làm 2 query thay vì ORDER BY CASE WHEN:
-        // biểu thức trong ORDER BY khiến index không dùng được -> Seq Scan toàn bảng
-        // (7.7 giây ở trang 1000 với 1.22 triệu bài). Hai query dưới đều dùng được
-        // index idx_post_feed_flow (status, visibility, created_at).
-        List<Long> followingIds = postRepository.findFollowingIds(currentUser.getUserId());
+        Long currentUserId = findCurrentUserIdOrNull();
 
         int offset = page * size;
-        int need = offset + size + 1;   // +1 để biết còn trang sau không
+        int need = offset + size + 1;
         Pageable limit = PageRequest.of(0, need);
 
         List<Post> merged = new ArrayList<>(need);
 
-        // Phần 1: bài của người đang theo dõi (ưu tiên hiển thị trước)
-        if (!followingIds.isEmpty()) {
-            merged.addAll(postRepository.findFeedByAuthors(
-                    PostStatus.APPROVED, PostVisibility.PUBLIC, followingIds, null, limit));
-        }
+        if (currentUserId == null) { // guest
+            merged.addAll(postRepository.findByStatusAndVisibility(
+                    PostStatus.APPROVED, PostVisibility.PUBLIC, limit).getContent());
+        } else { // explorer
+            List<Long> followingIds = postRepository.findFollowingIds(currentUserId);
+            List<Long> mutualFriendIds = userFollowRepository.findMutualFollowers(currentUserId)
+                    .stream().map(User::getUserId).toList();
 
-        // Phần 2: bù cho đủ bằng bài của những người còn lại
-        if (merged.size() < need) {
-            Pageable remaining = PageRequest.of(0, need - merged.size());
-            // NOT IN với danh sách rỗng là lỗi cú pháp SQL, nên truyền một id không tồn tại
-            List<Long> excluded = followingIds.isEmpty() ? List.of(-1L) : followingIds;
-            merged.addAll(postRepository.findFeedExcludingAuthors(
-                    PostStatus.APPROVED, PostVisibility.PUBLIC, excluded, null, remaining));
+            List<Long> safeMutualFriendIds = mutualFriendIds.isEmpty() ? List.of(-1L) : mutualFriendIds;
+
+            // view following and friends
+            if (!followingIds.isEmpty()) {
+                merged.addAll(postRepository.findFeedByAuthorsWithFriends(
+                        PostStatus.APPROVED, followingIds, safeMutualFriendIds, null, limit));
+            }
+
+            // view public
+            if (merged.size() < need) {
+                Pageable remaining = PageRequest.of(0, need - merged.size());
+                List<Long> excluded = followingIds.isEmpty() ? List.of(-1L) : followingIds;
+                merged.addAll(postRepository.findFeedExcludingAuthors(
+                        PostStatus.APPROVED, PostVisibility.PUBLIC, excluded, null, remaining));
+            }
         }
 
         boolean hasNext = merged.size() > offset + size;
         List<PostResponse> content = merged.stream()
                 .skip(offset)
                 .limit(size)
-                .map(post -> toResponseWithLiked(post, currentUser.getUserId()))
+                .map(post -> toResponseWithLiked(post, currentUserId))
                 .toList();
 
         return new SliceImpl<>(content, PageRequest.of(page, size), hasNext);
@@ -428,10 +432,33 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable) {
-        User currentUser = userService.getCurrentUser();
-        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(userId, PostStatus.APPROVED, pageable);
-        return posts.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
+    public Slice<PostResponse> getPostsByUserId(Long targetUserId, Pageable pageable) {
+        Long currentUserId = findCurrentUserIdOrNull();
+        List<PostVisibility> allowedVisibilities;
+
+        if (currentUserId == null) { // guest view
+            allowedVisibilities = List.of(PostVisibility.PUBLIC);
+        } else if (currentUserId.equals(targetUserId)) { // owner view
+            allowedVisibilities = List.of(PostVisibility.PUBLIC, PostVisibility.FRIENDS, PostVisibility.PRIVATE);
+        } else {
+            User currentUser = userService.getUserById(currentUserId);
+            User targetUser = userRepository.findById(targetUserId)
+                    .orElseThrow(() -> new BusinessException("Người dùng không tồn tại"));
+
+            boolean isMutual = userFollowRepository.existsByFollowerAndFollowing(currentUser, targetUser) &&
+                    userFollowRepository.existsByFollowerAndFollowing(targetUser, currentUser);
+
+            if (isMutual) { // friend view
+                allowedVisibilities = List.of(PostVisibility.PUBLIC, PostVisibility.FRIENDS);
+            } else { // non-friend view
+                allowedVisibilities = List.of(PostVisibility.PUBLIC);
+            }
+        }
+
+        Slice<Post> posts = postRepository.findByUser_UserIdAndStatusAndVisibilityIn(
+                targetUserId, PostStatus.APPROVED, allowedVisibilities, pageable);
+
+        return posts.map(post -> toResponseWithLiked(post, currentUserId));
     }
 
     @Override

@@ -6,6 +6,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
@@ -13,4 +15,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     long countByUser_UserIdAndIsReadFalse(Long userId);
     Optional<Notification> findFirstByUser_UserIdAndNotificationTypeAndReferenceIdAndIsReadFalseOrderByCreatedAtDesc(
             Long userId, NotificationType type, Long referenceId);
+
+    List<Notification> findByIsReadAndCreatedAtBefore(Boolean isRead, LocalDateTime thresholdDate);
+
+    List<Notification> findByIsReadAndUpdatedAtBefore(Boolean isRead, LocalDateTime thresholdDate);
 }
