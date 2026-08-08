@@ -51,6 +51,7 @@ public class SecurityConfig {
             "/api/auth/refresh-token",
             "/api/auth/forgot-password",
             "/api/auth/reset-password",
+            "/api/auth/reset-password/open",
             "/api/auth/verify-otp",
             "/api/auth/resend-otp",
             "/api/auth/login-by-google",

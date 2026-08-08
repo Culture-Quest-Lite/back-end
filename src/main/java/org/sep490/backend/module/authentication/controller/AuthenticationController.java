@@ -8,7 +8,9 @@ import org.sep490.backend.module.authentication.dto.response.LoginResponse;
 import org.sep490.backend.module.authentication.dto.response.MobileLoginResponse;
 import org.sep490.backend.module.authentication.service.AuthService;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -132,6 +134,18 @@ public class AuthenticationController {
                         @Valid @RequestBody ForgotPasswordRequest request) {
                 authService.forgotPassword(request);
                 return ResponseEntity.ok("Link đặt lại mật khẩu đã được gửi tới email của bạn");
+        }
+
+        /**
+         * Đích của link đặt lại mật khẩu gửi cho app mobile. Máy đã cài app và đã verify App Link sẽ mở
+         * thẳng app mà không chạy vào đây; các trường hợp còn lại nhận trang HTML tự chuyển sang deeplink,
+         * kèm nút mở app và link đổi mật khẩu trên web.
+         */
+        @GetMapping(value = "/reset-password/open", produces = MediaType.TEXT_HTML_VALUE)
+        public ResponseEntity<String> openResetPasswordInApp(@RequestParam("token") String token) {
+                return ResponseEntity.ok()
+                                .cacheControl(CacheControl.noStore())
+                                .body(authService.buildResetPasswordRedirectPage(token));
         }
 
         @PostMapping("/reset-password")
