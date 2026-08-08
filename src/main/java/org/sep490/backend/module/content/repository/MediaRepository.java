@@ -26,5 +26,8 @@ public interface MediaRepository extends JpaRepository<Media, Long> {
     @Query("SELECT COALESCE(MAX(m.displayOrder), 0) FROM Media m WHERE m.review.reviewId = :reviewId")
     int findMaxDisplayOrderByReviewId(@Param("reviewId") Long reviewId);
 
+    @Query("SELECT COALESCE(MAX(m.displayOrder), 0) FROM Media m WHERE m.group.groupId = :groupId")
+    int findMaxDisplayOrderByGroupId(@Param("groupId") Long groupId);
+
     List<Media> findByReview_ReviewIdOrderByDisplayOrderAsc(Long reviewId);
 }
