@@ -11,6 +11,7 @@ import org.sep490.backend.module.groupquest.dto.response.GroupResponse;
 import org.sep490.backend.module.groupquest.entity.enumuration.GroupParticipantAction;
 import org.sep490.backend.module.groupquest.service.inter.GroupService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,8 +25,8 @@ public class GroupController {
 
     GroupService groupService;
 
-    @PostMapping
-    public ResponseEntity<GroupResponse> createGroup(@RequestBody @Valid GroupRequest groupRequest) {
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<GroupResponse> createGroup(@ModelAttribute @Valid GroupRequest groupRequest) {
         GroupResponse groupResponse = groupService.createGroup(groupRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(groupResponse);
     }
@@ -79,8 +80,8 @@ public class GroupController {
         return ResponseEntity.ok(groups);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<GroupResponse> updateGroup(@PathVariable("id") Long groupId, @RequestBody @Valid GroupUpdateRequest groupRequest) {
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<GroupResponse> updateGroup(@PathVariable("id") Long groupId, @ModelAttribute @Valid GroupUpdateRequest groupRequest) {
         GroupResponse groupResponse = groupService.updateGroup(groupId, groupRequest);
         return ResponseEntity.ok(groupResponse);
     }

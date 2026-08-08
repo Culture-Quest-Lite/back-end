@@ -21,6 +21,8 @@ import org.sep490.backend.module.content.repository.ReviewRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.S3Service;
+import org.sep490.backend.module.groupquest.entity.Group;
+import org.sep490.backend.module.groupquest.repository.GroupRepository;
 import org.sep490.backend.module.social.entity.Post;
 import org.sep490.backend.module.social.repository.PostRepository;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,7 @@ public class MediaServiceImpl implements MediaService {
     S3Service s3Service;
     MediaMapper mediaMapper;
     TransactionCompensationService txCompensation;
+    GroupRepository groupRepository;
 
     @Override
     @Transactional
@@ -76,6 +79,8 @@ public class MediaServiceImpl implements MediaService {
                 return mediaRepository.findMaxDisplayOrderByPartnerInfoId(entityId);
             case REVIEW:
                 return mediaRepository.findMaxDisplayOrderByReviewId(entityId);
+            case GROUP:
+                return mediaRepository.findMaxDisplayOrderByGroupId(entityId);
             default:
                 return 0;
         }
@@ -129,6 +134,11 @@ public class MediaServiceImpl implements MediaService {
                         .orElseThrow(() -> new BusinessException("Đánh giá không tồn tại với ID: " + entityId));
                 media.setReview(review);
                 return "reviews";
+            case GROUP:
+                Group group = groupRepository.findById(entityId)
+                        .orElseThrow(() -> new BusinessException("Nhóm không tồn tại với ID: " + entityId));
+                media.setGroup(group);
+                return "groups";
             default:
                 throw new BusinessException("Không hỗ trợ loại thực thể: " + entityType);
         }

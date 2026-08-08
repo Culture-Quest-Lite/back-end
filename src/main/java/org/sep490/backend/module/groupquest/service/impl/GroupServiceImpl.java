@@ -8,6 +8,9 @@ import org.sep490.backend.common.exception.GroupAuthorizeException;
 import org.sep490.backend.common.utils.GroupUtils;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.content.dto.response.MediaResponse;
+import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
+import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.groupquest.dto.request.GroupRequest;
 import org.sep490.backend.module.groupquest.dto.request.GroupUpdateRequest;
 import org.sep490.backend.module.groupquest.dto.response.GroupParticipantResponse;
@@ -32,6 +35,7 @@ import org.sep490.backend.module.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +55,7 @@ public class GroupServiceImpl implements GroupService {
     GroupParticipantRepository groupParticipantRepository;
     FcmService fcmService;
     NotificationService notificationService;
+    MediaService mediaService;
 
     @Override
     @Transactional
@@ -81,7 +86,19 @@ public class GroupServiceImpl implements GroupService {
         groupParticipantService.addUsersToGroup(members, group);
 
         Long leaderId = getLeaderFromGroup(group.getGroupId());
-        return groupMapper.toResponse(group, leaderId);
+        GroupResponse response = groupMapper.toResponse(group, leaderId);
+
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.GROUP, group.getGroupId());
+                response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+
+        return response;
     }
 
 
@@ -109,7 +126,19 @@ public class GroupServiceImpl implements GroupService {
         groupRepository.save(group);
 
         Long leaderId = getLeaderFromGroup(groupId);
-        return groupMapper.toResponse(group, leaderId);
+        GroupResponse response = groupMapper.toResponse(group, leaderId);
+
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.GROUP, group.getGroupId());
+                response.setMedias(mediaResponses);
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+
+        return response;
     }
 
 
