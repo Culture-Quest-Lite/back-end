@@ -38,6 +38,9 @@ public class Group {
     @Column(name = "total_members")
     Integer totalMembers;
 
+    @Column(name = "image_url", length = 500)
+    String imageUrl;
+
     @Column(name = "share_token", length = 10)
     String shareToken;
 

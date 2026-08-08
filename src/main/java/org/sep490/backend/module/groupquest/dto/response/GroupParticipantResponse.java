@@ -18,6 +18,7 @@ public class GroupParticipantResponse {
     GroupRole role;
     GroupStatus status;
     GroupParticipantAction action;
+    String imageUrl;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 }

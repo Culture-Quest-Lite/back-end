@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.validator.constraints.Length;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -19,4 +20,5 @@ public class GroupRequest {
 
     @NotNull(message = "Bạn cần ít nhất 1 thành viên để tạo nhóm")
     List<Long> userIds;
+    MultipartFile imageFile;
 }

@@ -8,6 +8,7 @@ import org.sep490.backend.common.exception.GroupAuthorizeException;
 import org.sep490.backend.common.utils.GroupUtils;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.groupquest.dto.request.GroupRequest;
 import org.sep490.backend.module.groupquest.dto.request.GroupUpdateRequest;
 import org.sep490.backend.module.groupquest.dto.response.GroupParticipantResponse;
@@ -41,6 +42,8 @@ import java.util.stream.Collectors;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class GroupServiceImpl implements GroupService {
 
+    static final String IMAGE_FOLDER = "groups";
+
     GroupRepository groupRepository;
     UserFollowRepository userFollowRepository;
     UserService userService;
@@ -49,6 +52,7 @@ public class GroupServiceImpl implements GroupService {
     GroupParticipantMapper groupParticipantMapper;
     GroupParticipantRepository groupParticipantRepository;
     FcmService fcmService;
+    ImageService imageService;
 
     @Override
     @Transactional
@@ -64,6 +68,7 @@ public class GroupServiceImpl implements GroupService {
                 .shareToken(null)
                 .expireAt(null)
                 .status(GroupStatus.ACTIVE)
+                .imageUrl(imageService.resolveImageUrl(null, request.getImageFile(), IMAGE_FOLDER))
                 .build();
 
         group = groupRepository.save(group);
@@ -99,6 +104,7 @@ public class GroupServiceImpl implements GroupService {
         }
 
         group.setGroupName(request.getGroupName());
+        group.setImageUrl(imageService.resolveImageUrl(group.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
 
         if(request.getRequiredApproval() != null) {
             group.setRequiredApproval(request.getRequiredApproval());
