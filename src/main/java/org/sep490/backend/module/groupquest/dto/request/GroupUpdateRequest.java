@@ -17,4 +17,5 @@ public class GroupUpdateRequest {
     @Length(max = 255, message = "Tên group không được vượt quá 255 ký tự")
     String groupName;
     Boolean requiredApproval;
+    MultipartFile imageFile;
 }

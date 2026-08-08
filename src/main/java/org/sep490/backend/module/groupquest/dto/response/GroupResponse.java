@@ -23,5 +23,5 @@ public class GroupResponse {
     Boolean requiredApproval;
     String groupName;
     Long leaderId;
-    List<MediaResponse> medias;
+    String imageUrl;
 }
