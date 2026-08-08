@@ -71,4 +71,22 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT p.user.userId FROM Post p WHERE p.postId = :id")
     Optional<Long> findOwnerId(@Param("id") Long id);
+
+    // THÊM MỚI 1: Query dành cho Newsfeed (Lấy bài Public hoặc Friends nếu là bạn bè)
+    @Query("SELECT p FROM Post p WHERE p.status = :status " +
+            "AND p.user.userId IN :authorIds " +
+            "AND (p.visibility = 'PUBLIC' OR (p.visibility = 'FRIENDS' AND p.user.userId IN :mutualFriendIds)) " +
+            "AND (CAST(:cursor AS timestamp) IS NULL OR p.createdAt < :cursor) " +
+            "ORDER BY p.createdAt DESC")
+    List<Post> findFeedByAuthorsWithFriends(@Param("status") PostStatus status,
+                                            @Param("authorIds") List<Long> authorIds,
+                                            @Param("mutualFriendIds") List<Long> mutualFriendIds,
+                                            @Param("cursor") LocalDateTime cursor,
+                                            Pageable pageable);
+
+    // THÊM MỚI 2: Query dành cho xem tường nhà người khác theo List Visibility cho phép
+    Slice<Post> findByUser_UserIdAndStatusAndVisibilityIn(Long userId,
+                                                          PostStatus status,
+                                                          List<PostVisibility> visibilities,
+                                                          Pageable pageable);
 }

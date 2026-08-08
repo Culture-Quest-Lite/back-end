@@ -1,5 +1,6 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.service.inter.GeoQueryService;
 
 import org.sep490.backend.module.content.service.inter.CheckInStatusService;
@@ -17,6 +18,7 @@ import org.locationtech.jts.io.WKTReader;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.exploration.service.impl.CheckInPolicy;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.springframework.util.StringUtils;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.common.filter.specification.GenericSpecification;
@@ -44,6 +46,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -152,7 +155,32 @@ public class HotspotServiceImpl implements HotspotService {
     @Override
     @Transactional
     public void delete(Long id) {
+
+        User curator = userService.getCurrentUser();
+
+        if(!curator.getRole().equals(UserRole.CURATOR)) {
+            throw new BusinessException("Bạn không có quyền xóa Hotspot");
+        }
+
         Hotspot hotspot = getById(id);
+
+        if(!hotspot.getCreatedBy().equals(curator)) {
+            throw new BusinessException("Bạn không có quyền xóa Hotspot này");
+        }
+
+        List<Story> stories = storyRepository.findByHotspot_HotspotIdAndStatus(hotspot.getHotspotId(), ContentStatus.PUBLISHED);
+        List<Long> publishedIds = new ArrayList<>();
+
+        for(Story story : stories) {
+            if(story.getStatus().equals(ContentStatus.PUBLISHED)) {
+                publishedIds.add(story.getStoryId());
+            }
+        }
+
+        if(!publishedIds.isEmpty()) {
+            throw new BusinessException("Không thể xóa Hotspot này vì có các Story đã được xuất bản: " + publishedIds);
+        }
+
         hotspot.setStatus(ContentStatus.DELETED);
         hotspotRepository.save(hotspot);
         geoQueryService.evictNearby();
