@@ -1,4 +1,4 @@
-package org.sep490.backend.module.gamification.scheduler;
+package org.sep490.backend.module.notification.scheduler;
 
 import lombok.RequiredArgsConstructor;
 import org.sep490.backend.module.authentication.entity.User;

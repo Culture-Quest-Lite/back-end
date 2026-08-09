@@ -166,4 +166,23 @@ public class NotificationServiceImpl implements NotificationService {
             sendAndSave(receiver, title, message, NotificationType.POST, postId);
         }
     }
+
+    @Override
+    @Transactional
+    public void updateUnReadNotification() {
+        LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+        List<Notification> notifications = notificationRepository.findByIsReadAndCreatedAtBefore(false, thirtyDaysAgo);
+        for (Notification notification : notifications) {
+            notification.setIsRead(true);
+        }
+        notificationRepository.saveAll(notifications);
+    }
+
+    @Override
+    @Transactional
+    public void deleteReadNotification() {
+        LocalDateTime ninetyDaysAgo = LocalDateTime.now().minusDays(90);
+        List<Notification> notifications = notificationRepository.findByIsReadAndUpdatedAtBefore(true, ninetyDaysAgo);
+        notificationRepository.deleteAll(notifications);
+    }
 }

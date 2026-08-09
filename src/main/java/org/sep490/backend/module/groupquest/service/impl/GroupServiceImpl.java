@@ -140,13 +140,23 @@ public class GroupServiceImpl implements GroupService {
 
         // implement update GP.action to dismiss
         List<GroupParticipant> gps = groupParticipantService.getGroupParticipants(groupId);
+        List<User> members = new ArrayList<>();
 
         for(GroupParticipant gp : gps) {
             if(gp.getAction().equals(GroupParticipantAction.JOIN) || gp.getAction().equals(GroupParticipantAction.PENDING)) {
                 gp.setAction(GroupParticipantAction.DISMISSED);
                 gp.setStatus(GroupStatus.DELETED);
+                members.add(gp.getUser());
             }
         }
+
+        notificationService.sendToMultipleUsers(
+                members,
+                "Nhóm " + group.getGroupName() + " đã bị xóa bởi trưởng nhóm",
+                "Nhóm " + group.getGroupName() + " đã bị xóa bởi trưởng nhóm. Bạn không còn là thành viên của nhóm này nữa.",
+                NotificationType.GROUP,
+                groupId
+        );
 
         groupParticipantRepository.saveAll(gps);
 
@@ -470,8 +480,8 @@ public class GroupServiceImpl implements GroupService {
         StringBuilder stringBuilder = new StringBuilder();
         invalidUsername.forEach(username -> stringBuilder.append(username).append(", "));
 
-        fcmService.sendPushNotification(
-                leader.getFcmToken(),
+        notificationService.sendAndSave(
+                leader,
                 "Không thể add " + invalidIds.size() + " thành viên vào nhóm " + groupName,
                 "Những người dùng sau không theo dõi bạn hoặc bạn không theo dõi họ: " + stringBuilder.toString() + "vì vậy không thể add vào nhóm",
                 NotificationType.GROUP,
