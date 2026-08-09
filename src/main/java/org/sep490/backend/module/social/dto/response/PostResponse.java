@@ -35,6 +35,7 @@ public class PostResponse {
     List<MediaResponse> medias;
     LocalDateTime createdAt;
     Integer pointRemaining;
+    Integer pointEarned;
     Long likeCount;
     Long commentCount;
     Long shareCount;
