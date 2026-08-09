@@ -22,6 +22,7 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.social.repository.PostRepository;
 import org.sep490.backend.module.user.dto.request.UpdateProfileRequest;
 import org.sep490.backend.module.user.dto.response.FollowStatusResponse;
@@ -29,6 +30,7 @@ import org.sep490.backend.module.user.dto.response.UserProfileResponse;
 import org.sep490.backend.module.user.entity.UserFollow;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.repository.UserFollowRepository;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -39,6 +41,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,6 +59,7 @@ class UserServiceImplTest {
     @Mock private UserIdCacheService userIdCacheService;
     @Mock private RedisTemplate<String, Object> redisTemplate;
     @Mock private RedisCircuitBreaker circuitBreaker;
+    @Mock private ImageService imageService;
     @InjectMocks private UserServiceImpl userService;
 
     @AfterEach
@@ -79,8 +83,8 @@ class UserServiceImplTest {
         private UpdateProfileRequest updateRequest(String displayName) {
             UpdateProfileRequest request = new UpdateProfileRequest();
             request.setDisplayName(displayName);
-            request.setAvatarUrl("http://img/avatar.png");
-            request.setBackgroundUrl("http://img/bg.png");
+            request.setAvatarFile(new MockMultipartFile("avatarFile", "avatar.png", "image/png", new byte[1024]));
+            request.setBackgroundFile(new MockMultipartFile("backgroundFile", "bg.png", "image/png", new byte[1024]));
             request.setAutoPlayAudio(false);
             return request;
         }
@@ -90,6 +94,8 @@ class UserServiceImplTest {
             when(userFollowRepository.countByFollowing(any(User.class))).thenReturn(0L);
             when(userFollowRepository.countByFollower(any(User.class))).thenReturn(0L);
             when(postRepository.countByUser(any(User.class))).thenReturn(0L);
+            when(imageService.resolveImageUrl(any(), any(), eq("avatars"))).thenReturn("http://img/avatar.png");
+            when(imageService.resolveImageUrl(any(), any(), eq("backgrounds"))).thenReturn("http://img/bg.png");
         }
 
         // UTCID01 - Abnormal: không tìm thấy người dùng
