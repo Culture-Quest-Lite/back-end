@@ -23,6 +23,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -69,10 +70,10 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/me")
+    @PutMapping(value = "/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<UserProfileResponse> updateMyProfile(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody @Valid UpdateProfileRequest request
+            @Valid @ModelAttribute UpdateProfileRequest request
             ) {
         String keycloakUserId = jwt.getSubject();
         UserProfileResponse response = userService.updateMyProfile(keycloakUserId, request);
