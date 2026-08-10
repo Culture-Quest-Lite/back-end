@@ -30,7 +30,7 @@ public class VoucherUsage {
     Voucher voucher;
 
     @Column(name = "voucher_code", nullable = false)
-    String voucherCode;
+    String voucherCode; // unique for user-voucher
 
     @Column(name = "points_required")
     Long pointsRequired;
