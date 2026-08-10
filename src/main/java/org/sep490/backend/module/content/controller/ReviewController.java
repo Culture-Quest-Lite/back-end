@@ -5,8 +5,11 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.dto.filter.ReviewFilterRequest;
+import org.sep490.backend.module.content.dto.request.HandleReportReviewRequest;
+import org.sep490.backend.module.content.dto.request.ReportReviewRequest;
 import org.sep490.backend.module.content.dto.request.ReviewRequest;
 import org.sep490.backend.module.content.dto.request.ReviewUpdateRequest;
+import org.sep490.backend.module.content.dto.response.ReportReviewResponse;
 import org.sep490.backend.module.content.dto.response.ReviewResponse;
 import org.sep490.backend.module.content.dto.response.ReviewSummaryResponse;
 import org.sep490.backend.module.content.entity.enumeration.ReviewStatus;
@@ -18,6 +21,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/reviews")
@@ -84,5 +89,29 @@ public class ReviewController {
     public ResponseEntity<String> delete(@PathVariable Long id) {
         reviewService.deleteReview(id);
         return ResponseEntity.ok("Deleted");
+    }
+
+    @PostMapping("/{id}/report")
+    public ResponseEntity<ReportReviewResponse> reportReview(
+            @PathVariable Long id,
+            @Valid @RequestBody ReportReviewRequest request
+    ) {
+        ReportReviewResponse response = reviewService.reportReview(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/report")
+    public ResponseEntity<List<ReportReviewResponse>> getReportedReviews() {
+        List<ReportReviewResponse> response = reviewService.getAllReportReviews();
+        return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}/report")
+    public ResponseEntity<ReviewResponse> handleReport(
+            @PathVariable Long id,
+            @Valid @RequestBody HandleReportReviewRequest status
+    ) {
+        ReviewResponse response = reviewService.handleReport(id, status);
+        return ResponseEntity.ok(response);
     }
 }
