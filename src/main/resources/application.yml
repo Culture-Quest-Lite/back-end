@@ -94,7 +94,7 @@ app:
   redis:
     auth-database: 1
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
   permission:
     seed-enabled: ${PERMISSION_SEED_ENABLED:true}
   mobile:
@@ -122,3 +122,8 @@ management:
   health:
     redis:
       enabled: false
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.web.socket: DEBUG
