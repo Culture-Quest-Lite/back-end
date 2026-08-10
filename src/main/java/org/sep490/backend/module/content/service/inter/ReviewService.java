@@ -1,14 +1,19 @@
 package org.sep490.backend.module.content.service.inter;
 
 import org.sep490.backend.module.content.dto.filter.ReviewFilterRequest;
+import org.sep490.backend.module.content.dto.request.HandleReportReviewRequest;
+import org.sep490.backend.module.content.dto.request.ReportReviewRequest;
 import org.sep490.backend.module.content.dto.request.ReviewRequest;
 import org.sep490.backend.module.content.dto.request.ReviewUpdateRequest;
+import org.sep490.backend.module.content.dto.response.ReportReviewResponse;
 import org.sep490.backend.module.content.dto.response.ReviewResponse;
 import org.sep490.backend.module.content.dto.response.ReviewSummaryResponse;
 import org.sep490.backend.module.content.entity.Review;
 import org.sep490.backend.module.content.entity.enumeration.ReviewStatus;
 import org.sep490.backend.module.content.entity.enumeration.ReviewTargetType;
 import org.springframework.data.domain.Page;
+
+import java.util.List;
 
 public interface ReviewService {
     ReviewResponse createReview(ReviewRequest reviewRequest);
@@ -30,4 +35,10 @@ public interface ReviewService {
     void deleteReview(Long id);
 
     Review getReviewById(Long id);
+
+    ReportReviewResponse reportReview(Long reviewId, ReportReviewRequest request);
+
+    List<ReportReviewResponse> getAllReportReviews();
+
+    ReviewResponse handleReport(Long reviewId, HandleReportReviewRequest request);
 }

@@ -1,5 +1,10 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
+import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.content.dto.request.HandleReportReviewRequest;
+import org.sep490.backend.module.content.dto.request.ReportReviewRequest;
+import org.sep490.backend.module.content.dto.response.ReportReviewResponse;
 import org.sep490.backend.module.content.service.inter.RatingSummaryService;
 
 import lombok.AccessLevel;
@@ -40,6 +45,8 @@ import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.ReviewService;
 import org.sep490.backend.module.content.service.inter.S3Service;
 import org.sep490.backend.module.content.specification.ReviewSpecification;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
@@ -52,11 +59,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -77,6 +80,8 @@ public class ReviewServiceImpl implements ReviewService {
     RouteRepository routeRepository;
     StoryRepository storyRepository;
     RatingSummaryService ratingSummaryService;
+    UserRepository userRepository;
+    NotificationService notificationService;
 
     @Override
     @Transactional
@@ -253,6 +258,169 @@ public class ReviewServiceImpl implements ReviewService {
         return reviewRepository.findByReviewIdAndStatusNot(id, ReviewStatus.DELETED).orElseThrow(
                 () -> new BusinessException("Không tìm thấy đánh giá với id: " + id)
         );
+    }
+
+    @Override
+    @Transactional
+    public ReportReviewResponse reportReview(Long reviewId, ReportReviewRequest request) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new BusinessException("Đánh giá không tồn tại"));
+
+        User currentUser = userService.getCurrentUser();
+
+        // 1. Chống spam: Kiểm tra xem đã báo cáo chưa
+        Optional<ReviewAction> existingReport = reviewActionRepository
+                .findByReview_ReviewIdAndUser_UserIdAndActionType(reviewId, currentUser.getUserId(), ReviewActionType.REPORT);
+
+        if (existingReport.isPresent() && !existingReport.get().getIsReportResolved()) {
+            throw new BusinessException("Đánh giá này đã được bạn báo cáo trước đó");
+        }
+
+        // 2. Đếm số lượng báo cáo hiện tại
+        Integer reportCount = reviewActionRepository.countByActionTypeAndReview_ReviewIdAndIsReportResolved(
+                ReviewActionType.REPORT, reviewId, false);
+
+        // 3. Đổi trạng thái nếu vượt ngưỡng 3 báo cáo
+        if (reportCount + 1 >= 3) {
+            review.setStatus(ReviewStatus.REPORTING);
+            reviewRepository.save(review);
+        }
+
+        // 4. Lưu Action báo cáo
+        ReviewAction reportAction = ReviewAction.builder()
+                .review(review)
+                .user(currentUser)
+                .actionType(ReviewActionType.REPORT)
+                .comment(request.getComment())
+                .isReportResolved(false)
+                .build();
+        reportAction = reviewActionRepository.save(reportAction);
+
+        // 5. Cảnh báo Admin nếu đạt 10 báo cáo
+        if (reportCount + 1 == 10) {
+            List<User> admins = userRepository.findByRoleAndStatus(UserRole.ADMIN, UserStatus.ACTIVE);
+            if (!admins.isEmpty()) {
+                notificationService.sendToMultipleUsers(
+                        admins,
+                        "Cảnh báo: Đánh giá bị báo cáo nhiều lần",
+                        "Đánh giá #" + reviewId + " đã nhận được 10 lượt báo cáo. Vui lòng kiểm tra và xử lý.",
+                        NotificationType.CONTENT, // Có thể đổi thành NotificationType.REVIEW nếu bạn có định nghĩa
+                        reviewId
+                );
+            }
+        }
+
+        return toReportReviewResponse(reportAction);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReportReviewResponse> getAllReportReviews() {
+        User user = userService.getCurrentUser();
+
+        if (user.getRole().equals(UserRole.EXPLORER)) {
+            // User thường: Chỉ xem các báo cáo do chính mình tạo chưa được giải quyết
+            return reviewActionRepository.findByActionTypeAndUser_UserIdAndIsReportResolved(
+                            ReviewActionType.REPORT, user.getUserId(), false)
+                    .stream()
+                    .map(this::toReportReviewResponse)
+                    .toList();
+        } else if (user.getRole().equals(UserRole.ADMIN)) {
+            // Admin: Xem toàn bộ báo cáo chưa giải quyết của hệ thống
+            return reviewActionRepository.findByActionTypeAndIsReportResolved(ReviewActionType.REPORT, false)
+                    .stream()
+                    .map(this::toReportReviewResponse)
+                    .sorted((r1, r2) -> r2.getReviewId().compareTo(r1.getReviewId()))
+                    .toList();
+        } else {
+            throw new BusinessException("Người dùng không có quyền truy cập danh sách báo cáo");
+        }
+    }
+
+    @Override
+    @Transactional
+    public ReviewResponse handleReport(Long reviewId, HandleReportReviewRequest request) {
+        User admin = userService.getCurrentUser();
+        if (!admin.getRole().equals(UserRole.ADMIN)) {
+            throw new BusinessException("Chỉ Admin mới có quyền xử lý báo cáo");
+        }
+
+        Review currentReview = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new BusinessException("Đánh giá không tồn tại"));
+
+        if (currentReview.getStatus().equals(ReviewStatus.REPORTED)) {
+            throw new BusinessException("Đánh giá này đã được xử lý trước đó");
+        }
+
+        List<ReviewAction> actions = reviewActionRepository.findAllById(request.getReviewActionIds());
+        List<ReviewAction> savedActions = new ArrayList<>();
+
+        for (ReviewAction action : actions) {
+            if (!action.getReview().getReviewId().equals(currentReview.getReviewId())) {
+                throw new BusinessException("Báo cáo #" + action.getReviewActionId() + " không thuộc về đánh giá này");
+            }
+            if (action.getIsReportResolved() != null && action.getIsReportResolved()) {
+                throw new BusinessException("Báo cáo #" + action.getReviewActionId() + " đã được xử lý");
+            }
+            action.setIsReportResolved(true);
+            savedActions.add(action);
+        }
+
+        String reason;
+        if (request.getIsApproveReport()) {
+            reason = "ADMIN approve report: " + request.getReason();
+            currentReview.setStatus(ReviewStatus.REPORTED);
+        } else {
+            reason = "ADMIN reject report: " + request.getReason();
+            currentReview.setStatus(ReviewStatus.ACTIVE);
+        }
+
+        ReviewAction resolvedAction = ReviewAction.builder()
+                .review(currentReview)
+                .user(admin)
+                .actionType(ReviewActionType.RESOLVE_REPORT)
+                .comment(reason)
+                .build();
+        savedActions.add(resolvedAction);
+
+        reviewActionRepository.saveAll(savedActions);
+        reviewRepository.save(currentReview);
+
+        // 3. Thông báo cho người viết Review
+        notificationService.sendAndSave(
+                currentReview.getUser(),
+                "Đánh giá của bạn đã bị xử lý",
+                "Đánh giá của bạn đã được quản trị viên xem xét do: " + request.getReason(),
+                NotificationType.CONTENT,
+                reviewId
+        );
+
+        // 4. Thông báo cho những người đã report
+        List<User> reporters = actions.stream().map(ReviewAction::getUser).distinct().toList();
+        if (!reporters.isEmpty()) {
+            notificationService.sendToMultipleUsers(
+                    reporters,
+                    "Kết quả báo cáo đánh giá",
+                    "Cảm ơn bạn. Đánh giá #" + reviewId + " mà bạn báo cáo đã được hệ thống xử lý.",
+                    NotificationType.CONTENT,
+                    reviewId
+            );
+        }
+
+        // Trả về DTO hiển thị Review (bạn cần có reviewMapper.toResponse)
+        return reviewMapper.toResponse(currentReview);
+    }
+
+    // Hàm tiện ích map Entity sang Response DTO
+    private ReportReviewResponse toReportReviewResponse(ReviewAction action) {
+        return ReportReviewResponse.builder()
+                .reviewActionId(action.getReviewActionId())
+                .reviewId(action.getReview().getReviewId())
+                .createdUserId(action.getUser().getUserId())
+                .createdDisplayName(action.getUser().getDisplayName())
+                .comment(action.getComment())
+                .createdAt(action.getCreatedAt())
+                .build();
     }
 
     private Page<ReviewResponse> search(ReviewFilterRequest filter) {

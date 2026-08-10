@@ -12,6 +12,7 @@ public class VoucherUsageResponse {
     Long voucherUsageId;
     Long voucherId;
     String voucherCode;
+    String voucherUsageCode;
     String voucherName;
     String description;
     Long pointsRequired;

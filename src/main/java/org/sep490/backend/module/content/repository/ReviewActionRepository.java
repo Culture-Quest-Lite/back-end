@@ -32,4 +32,13 @@ public interface ReviewActionRepository extends JpaRepository<ReviewAction, Long
     Set<Long> findLikedReviewIds(@Param("userId") Long userId,
                                  @Param("reviewIds") List<Long> reviewIds,
                                  @Param("actionType") ReviewActionType actionType);
+
+    Integer countByActionTypeAndReview_ReviewIdAndIsReportResolved(
+            ReviewActionType actionType, Long reviewId, Boolean isReportResolved);
+
+    List<ReviewAction> findByActionTypeAndIsReportResolved(
+            ReviewActionType actionType, Boolean isReportResolved);
+
+    List<ReviewAction> findByActionTypeAndUser_UserIdAndIsReportResolved(
+            ReviewActionType actionType, Long userId, Boolean isReportResolved);
 }
