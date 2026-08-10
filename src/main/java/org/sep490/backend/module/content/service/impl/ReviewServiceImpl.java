@@ -157,6 +157,11 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional(readOnly = true)
     public Page<ReviewResponse> getMyReviews(ReviewFilterRequest filter) {
+
+        if(SecurityUtils.getCurrentUserKeyCloakId().isEmpty()) {
+            throw new AccessDeniedException("Bạn cần đăng nhập để xem đánh giá của mình");
+        }
+
         filter.setUserId(userService.getCurrentUser().getUserId());
         return search(filter);
     }
