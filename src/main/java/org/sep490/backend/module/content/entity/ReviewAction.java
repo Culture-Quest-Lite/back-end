@@ -39,6 +39,12 @@ public class ReviewAction {
     @Column(name = "action_type", nullable = false)
     ReviewActionType actionType;
 
+    @Column(name = "comment", columnDefinition = "TEXT")
+    String comment;
+
+    @Column(name = "is_report_resolved")
+    Boolean isReportResolved;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt;

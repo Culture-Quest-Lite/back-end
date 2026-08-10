@@ -4,4 +4,6 @@ public enum ReviewStatus {
     ACTIVE,
     HIDDEN,
     DELETED,
+    REPORTING,
+    REPORTED
 }
