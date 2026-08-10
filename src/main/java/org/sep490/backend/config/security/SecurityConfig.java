@@ -66,6 +66,8 @@ public class SecurityConfig {
             "/api/tags/**",
             "/api/posts/**",
             "/api/users/leaderboard",
+            "/api/vouchers/**",
+            "/api/v1/reviews/**"
     };
 
     @Bean
