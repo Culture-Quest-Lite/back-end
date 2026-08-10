@@ -88,6 +88,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, PUBLIC_GET_ENDPOINTS).permitAll()
                         .requestMatchers("/api/payment/payos/webhook").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
                         // Ngoại lệ PHẢI đứng trước rule /api/admin/** bên dưới
                         .requestMatchers(HttpMethod.GET, "/api/admin/subscription-plans").authenticated()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
