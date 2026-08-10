@@ -9,7 +9,7 @@ import org.sep490.backend.module.partner.entity.VoucherUsage;
 public interface VoucherUsageMapper {
 
     @Mapping(target = "voucherId", source = "voucherUsage.voucher.voucherId")
-    @Mapping(target = "voucherCode", source = "voucherUsage.voucher.voucherCode")
+    @Mapping(target = "voucherCode", source = "voucherUsage.voucherCode")
     @Mapping(target = "voucherName", source = "voucherUsage.voucher.voucherName")
     @Mapping(target = "description", source = "voucherUsage.voucher.description")
     @Mapping(target = "pointsRequired", source = "voucherUsage.voucher.pointsRequired")
