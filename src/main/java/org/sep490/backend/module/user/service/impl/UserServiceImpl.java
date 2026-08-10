@@ -14,6 +14,7 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
 import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.social.repository.PostRepository;
@@ -65,6 +66,10 @@ public class UserServiceImpl implements UserService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final RedisCircuitBreaker circuitBreaker;
     private final NotificationService notificationService;
+    private final ImageService imageService;
+
+    private static final String AVATAR_FOLDER = "avatars";
+    private static final String BACKGROUND_FOLDER = "backgrounds";
 
     @Override
     @Transactional(readOnly = true)
@@ -102,11 +107,13 @@ public class UserServiceImpl implements UserService {
         if (request.getDisplayName() != null) {
             user.setDisplayName(request.getDisplayName().trim());
         }
-        if (request.getAvatarUrl() != null) {
-            user.setAvatarUrl(request.getAvatarUrl().trim());
+        if (request.getAvatarFile() != null && !request.getAvatarFile().isEmpty()) {
+            user.setAvatarUrl(imageService.resolveImageUrl(
+                    user.getAvatarUrl(), request.getAvatarFile(), AVATAR_FOLDER));
         }
-        if (request.getBackgroundUrl() != null) {
-            user.setBackgroundUrl(request.getBackgroundUrl().trim());
+        if (request.getBackgroundFile() != null && !request.getBackgroundFile().isEmpty()) {
+            user.setBackgroundUrl(imageService.resolveImageUrl(
+                    user.getBackgroundUrl(), request.getBackgroundFile(), BACKGROUND_FOLDER));
         }
         if (request.getAutoPlayAudio() != null) {
             user.setAutoPlayAudio(request.getAutoPlayAudio());

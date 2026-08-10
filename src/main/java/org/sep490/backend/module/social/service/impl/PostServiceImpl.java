@@ -110,6 +110,7 @@ public class PostServiceImpl implements PostService {
         post = postRepository.saveAndFlush(post);
 
         PostResponse response = toResponseWithLiked(post, user.getUserId());
+        response.setPointEarned((int) createPostPoints);
         if (request.getFiles() != null && request.getFiles().length > 0) {
             try {
                 List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
