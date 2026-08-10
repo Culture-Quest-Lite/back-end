@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@PreAuthorize("hasRole('PARTNER')")
 @RequestMapping("/api/partner")
 @RequiredArgsConstructor
 public class PartnerSubscriptionController {
@@ -31,21 +30,25 @@ public class PartnerSubscriptionController {
     }
 
     @GetMapping("/subscriptions/my")
+    @PreAuthorize("hasRole('PARTNER')")
     public ResponseEntity<List<PartnerSubscriptionResponse>> getMySubscriptions() {
         return ResponseEntity.ok(subscriptionService.getMySubscriptions());
     }
 
     @GetMapping("/subscriptions/{id}")
+    @PreAuthorize("hasRole('PARTNER')")
     public ResponseEntity<SubscriptionPlanResponse> getSubscriptionPlanDetail(@PathVariable Long id) {
         return ResponseEntity.ok(subscriptionPlanService.getSubscriptionPlanDetail(id));
     }
 
     @GetMapping("/{id}/subscriptions")
+    @PreAuthorize("hasRole('PARTNER')")
     public ResponseEntity<List<PartnerSubscriptionResponse>> getSubscriptionsByPartnerId(@PathVariable Long id) {
         return ResponseEntity.ok(subscriptionService.getSubscriptionsByPartnerId(id));
     }
 
     @PostMapping("/subscriptions/{id}/initiate-payment")
+    @PreAuthorize("hasRole('PARTNER')")
     public ResponseEntity<PaymentInitResponse> initiatePayment(
             @PathVariable Long id,
             @RequestParam(required = false) String redirectUrl,

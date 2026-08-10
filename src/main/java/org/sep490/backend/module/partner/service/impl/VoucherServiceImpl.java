@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.utils.VoucherUsageUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.gamification.entity.RewardTransaction;
@@ -198,10 +199,12 @@ public class VoucherServiceImpl implements VoucherService {
             throw new BusinessException("Rất tiếc, voucher vừa mới hết số lượng!");
         }
 
+        String voucherUsageToken = VoucherUsageUtils.generateToken(voucherId, currentUser.getUserId());
+
         VoucherUsage voucherUsage = VoucherUsage.builder()
                 .user(currentUser)
                 .voucher(voucher)
-                .voucherCode(voucher.getVoucherCode())
+                .voucherCode(voucherUsageToken)
                 .pointsRequired(voucher.getPointsRequired())
                 .isUsed(false)
                 .redeemedAt(LocalDateTime.now())
