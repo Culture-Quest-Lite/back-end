@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.authorization.service.EntitlementService;
 import org.sep490.backend.module.content.dto.request.FinalizeCustomRouteRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
@@ -38,6 +39,7 @@ public class CustomRouteServiceImpl implements CustomRouteService {
 
     UserService userService;
     RouteService routeService;
+    EntitlementService entitlementService;
     RouteRepository routeRepository;
     TagRepository tagRepository;
     StoryRepository storyRepository;
@@ -50,6 +52,10 @@ public class CustomRouteServiceImpl implements CustomRouteService {
     public RouteResponse recordJourney() {
 
         User creator = userService.getCurrentUser();
+
+        if (!entitlementService.isPremium()) {
+            throw new BusinessException("Tính năng ghi hành trình cá nhân chỉ dành cho Premium Explorer");
+        }
 
         if (routeRepository.findByCreatedByAndTypeAndStatus(creator, RouteType.CUSTOM, RouteStatus.RECORDING).orElse(null) != null) {
             throw new BusinessException("Người dùng đã có hành trình đang ghi lại. " +

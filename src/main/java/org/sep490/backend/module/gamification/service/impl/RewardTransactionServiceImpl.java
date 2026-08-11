@@ -3,6 +3,7 @@ package org.sep490.backend.module.gamification.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.gamification.dto.request.RewardTransactionRequest;
@@ -65,8 +66,31 @@ public class RewardTransactionServiceImpl implements RewardTransactionService {
         long pointsChange = request.getPointsAmount() != null ? request.getPointsAmount() : 0L;
         long xpChange = request.getXpAmount() != null ? request.getXpAmount() : 0L;
 
+        RewardTransaction lastTx = rewardTransactionRepository
+                .findFirstByUser_UserIdOrderByCreatedAtDesc(user.getUserId())
+                .orElse(null);
+
+        long previousPoints = lastTx != null ? lastTx.getPointsBalance() : 0L;
+        long previousXp = lastTx != null ? lastTx.getXpBalance() : 0L;
+
         long newPoints = user.getTotalPoints() + pointsChange;
         long newXp = user.getTotalXp() + xpChange;
+
+        if (request.getPointsBalance() != null && !request.getPointsBalance().equals(newPoints)) {
+            throw new BusinessException("Tổng số điểm thưởng hiện tại không khớp với giao dịch trước đó");
+        }
+
+        if (request.getXpBalance() != null && !request.getXpBalance().equals(newXp)) {
+            throw new BusinessException("Tổng số kinh nghiệm hiện tại không khớp với giao dịch trước đó");
+        }
+
+        if (user.getTotalPoints() != previousPoints) {
+            throw new BusinessException("Tổng số điểm thưởng mới không khớp");
+        }
+
+        if (user.getTotalXp() != previousXp) {
+            throw new BusinessException("Tổng số điểm kinh nghiệm không khớp");
+        }
 
         // Update points and XP
         user.setTotalPoints((int) newPoints);

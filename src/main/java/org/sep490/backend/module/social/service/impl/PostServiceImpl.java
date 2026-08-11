@@ -127,28 +127,14 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public Slice<PostResponse> getPosts(PostStatus status, int page, int size) {
-        // Endpoint này là public (xem PUBLIC_ENDPOINTS trong SecurityConfig) nên
-        // KHÔNG được gọi getCurrentUser() — hàm đó ném RuntimeException khi chưa đăng nhập,
-        // khiến toàn bộ API trả 500 cho khách vãng lai.
         Long currentUserId = findCurrentUserIdOrNull();
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-
-        // Có status cụ thể thì dùng query lọc thêm visibility để khớp index
-        // idx_post_feed_flow (status, visibility, created_at) -> Index Scan thay vì Seq Scan.
         Slice<Post> postSlice = status != null
                 ? postRepository.findByStatusAndVisibility(status, PostVisibility.PUBLIC, pageable)
                 : postRepository.findByStatusOptional(null, pageable);
         return postSlice.map(post -> toResponseWithLiked(post, currentUserId));
     }
 
-    /**
-     * Trả null khi chưa đăng nhập thay vì ném lỗi — dùng cho các endpoint public.
-     *
-     * KHÔNG bọc getCurrentUser() trong try/catch: hàm đó có @Transactional, nên khi nó
-     * ném lỗi bên trong transaction cha thì transaction đã bị đánh dấu rollback-only.
-     * Bắt được exception cũng vô ích — lúc commit vẫn nổ UnexpectedRollbackException.
-     * Phải kiểm tra token TRƯỚC, chỉ gọi khi chắc chắn có người dùng.
-     */
     private Long findCurrentUserIdOrNull() {
         if (SecurityUtils.getCurrentUserKeyCloakId().isEmpty()) {
             return null;
@@ -161,8 +147,6 @@ public class PostServiceImpl implements PostService {
     public PostResponse getPostById(Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
-
-        // Public endpoint — xem ghi chú ở getPosts()
         return toResponseWithLiked(post, findCurrentUserIdOrNull());
     }
 
@@ -345,20 +329,18 @@ public class PostServiceImpl implements PostService {
         if (currentUserId == null) { // guest
             merged.addAll(postRepository.findByStatusAndVisibility(
                     PostStatus.APPROVED, PostVisibility.PUBLIC, limit).getContent());
-        } else { // explorer
+        } else {
             List<Long> followingIds = postRepository.findFollowingIds(currentUserId);
             List<Long> mutualFriendIds = userFollowRepository.findMutualFollowers(currentUserId)
                     .stream().map(User::getUserId).toList();
 
             List<Long> safeMutualFriendIds = mutualFriendIds.isEmpty() ? List.of(-1L) : mutualFriendIds;
 
-            // view following and friends
             if (!followingIds.isEmpty()) {
                 merged.addAll(postRepository.findFeedByAuthorsWithFriends(
                         PostStatus.APPROVED, followingIds, safeMutualFriendIds, null, limit));
             }
 
-            // view public
             if (merged.size() < need) {
                 Pageable remaining = PageRequest.of(0, need - merged.size());
                 List<Long> excluded = followingIds.isEmpty() ? List.of(-1L) : followingIds;
@@ -429,6 +411,10 @@ public class PostServiceImpl implements PostService {
     public PostResponse banPostByAdmin(Long id, DeletePostRequest request) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại hoặc đã bị xóa"));
+
+        if (post.getStatus() == PostStatus.DELETED) {
+            throw new BusinessException("Bài viết không tồn tại hoặc đã bị xóa");
+        }
 
         PostStatus oldStatus = post.getStatus();
         post.setStatus(PostStatus.DELETED);
