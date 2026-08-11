@@ -42,6 +42,9 @@ public class Notification {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
+
     @Column(name = "notification_type")
     @Enumerated(EnumType.STRING)
     private NotificationType notificationType;

@@ -83,6 +83,7 @@ public class NotificationServiceImpl implements NotificationService {
         }
 
         notification.setIsRead(true);
+        notification.setReadAt(LocalDateTime.now());
         notificationRepository.save(notification);
         evictUnreadCount(userId);
     }
@@ -182,7 +183,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Transactional
     public void deleteReadNotification() {
         LocalDateTime ninetyDaysAgo = LocalDateTime.now().minusDays(90);
-        List<Notification> notifications = notificationRepository.findByIsReadAndUpdatedAtBefore(true, ninetyDaysAgo);
+        List<Notification> notifications = notificationRepository.findByIsReadAndReadAtBefore(true, ninetyDaysAgo);
         notificationRepository.deleteAll(notifications);
     }
 }

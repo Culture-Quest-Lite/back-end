@@ -146,6 +146,11 @@ public class GroupServiceImpl implements GroupService {
             if(gp.getAction().equals(GroupParticipantAction.JOIN) || gp.getAction().equals(GroupParticipantAction.PENDING)) {
                 gp.setAction(GroupParticipantAction.DISMISSED);
                 gp.setStatus(GroupStatus.DELETED);
+
+                if(gp.getAction().equals(GroupParticipantAction.JOIN)) {
+                    gp.setLeftAt(LocalDateTime.now());
+                }
+
                 members.add(gp.getUser());
             }
         }
