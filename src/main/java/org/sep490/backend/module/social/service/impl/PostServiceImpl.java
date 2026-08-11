@@ -188,6 +188,7 @@ public class PostServiceImpl implements PostService {
                     post.setStatus(PostStatus.PENDING);
                 }
             } else if (post.getStatus().equals(PostStatus.REJECTED) || post.getStatus().equals(PostStatus.REPORTED)) {
+                post.setReason(null);
                 if (request.getVisibility().equals(PostVisibility.PUBLIC)) {
                     post.setStatus(PostStatus.PENDING);
                 } else {
