@@ -25,6 +25,7 @@ import org.sep490.backend.module.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -47,6 +48,7 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
         GroupParticipant groupParticipant = new GroupParticipant();
 
         GroupParticipantAction action;
+        LocalDateTime joinedAt;
 
         if(repository.existsByGroup_GroupIdAndUser_UserId_AndAction(group.getGroupId(), user.getUserId(), GroupParticipantAction.JOIN)) {
             throw new BusinessException("Người dùng đã là thành viên của nhóm");
@@ -58,8 +60,10 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
 
         if(group.getRequiredApproval() && type.equals(JoinGroupType.LINK)) {
             action = GroupParticipantAction.PENDING;
+            joinedAt = null;
         } else {
             action = GroupParticipantAction.JOIN;
+            joinedAt = LocalDateTime.now();
         }
 
         if(!repository.existsByGroup_GroupIdAndUser_UserId(group.getGroupId(), user.getUserId())) { // join lần đầu
@@ -68,12 +72,16 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
             groupParticipant.setRole(GroupRole.MEMBER);
             groupParticipant.setAction(action);
             groupParticipant.setStatus(GroupStatus.ACTIVE);
+            groupParticipant.setJoinedAt(joinedAt);
+            groupParticipant.setLeftAt(null);
         } else {
             groupParticipant = getGroupParticipant(group.getGroupId(), user.getUserId());
             if(groupParticipant.getAction() != GroupParticipantAction.JOIN) {
                 groupParticipant.setAction(action);
                 groupParticipant.setRole(GroupRole.MEMBER);
                 groupParticipant.setStatus(GroupStatus.ACTIVE);
+                groupParticipant.setJoinedAt(joinedAt);
+                groupParticipant.setLeftAt(null);
             }
         }
 
@@ -109,6 +117,7 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
                     .role(GroupRole.MEMBER)
                     .action(GroupParticipantAction.JOIN)
                     .status(GroupStatus.ACTIVE)
+                    .joinedAt(LocalDateTime.now())
                     .build();
             gps.add(groupParticipant);
         }
@@ -125,6 +134,7 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
                 .role(GroupRole.LEADER)
                 .action(GroupParticipantAction.JOIN)
                 .status(GroupStatus.ACTIVE)
+                .joinedAt(LocalDateTime.now())
                 .build();
 
         return repository.save(groupParticipant);
@@ -141,6 +151,13 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
         GroupParticipant groupParticipant = getGroupParticipant(group.getGroupId(), user.getUserId());
 
         groupParticipant.setAction(action);
+
+        if(action == GroupParticipantAction.JOIN) {
+            groupParticipant.setJoinedAt(LocalDateTime.now());
+            groupParticipant.setLeftAt(null);
+        } else if (action == GroupParticipantAction.LEAVE || action == GroupParticipantAction.KICKED) {
+            groupParticipant.setLeftAt(LocalDateTime.now());
+        }
 
         return repository.save(groupParticipant);
     }
@@ -214,6 +231,12 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
         }
 
         participant.setAction(action);
+        if(action == GroupParticipantAction.JOIN) {
+            participant.setJoinedAt(LocalDateTime.now());
+            participant.setLeftAt(null);
+        } else if (action == GroupParticipantAction.LEAVE || action == GroupParticipantAction.KICKED) {
+            participant.setLeftAt(LocalDateTime.now());
+        }
         participant = repository.save(participant);
 
         group.setTotalMembers(countMember(group.getGroupId()));

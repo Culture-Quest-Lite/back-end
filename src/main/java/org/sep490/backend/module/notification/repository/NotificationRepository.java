@@ -18,5 +18,5 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     List<Notification> findByIsReadAndCreatedAtBefore(Boolean isRead, LocalDateTime thresholdDate);
 
-    List<Notification> findByIsReadAndUpdatedAtBefore(Boolean isRead, LocalDateTime thresholdDate);
+    List<Notification> findByIsReadAndReadAtBefore(Boolean isRead, LocalDateTime readAtBefore);
 }
