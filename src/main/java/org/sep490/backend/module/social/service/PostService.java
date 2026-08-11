@@ -33,4 +33,5 @@ public interface PostService {
     List<ReportPostResponse> getAllReportPosts();
     PostResponse handleReport(Long postId, HandleReportPostRequest request);
     PostResponse approvePendingPost(Long postId, PostStatus status);
+    PostResponse restorePost(Long postId);
 }

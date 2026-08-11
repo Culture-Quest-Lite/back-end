@@ -11,10 +11,7 @@ import org.sep490.backend.module.content.entity.enumeration.ReviewActionType;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "review_actions", uniqueConstraints = {
-        //Mỗi người chỉ được thích một đánh giá đúng một lần
-        @UniqueConstraint(name = "uk_review_action_user", columnNames = {"review_id", "user_id", "action_type"})
-})
+@Table(name = "review_actions")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

@@ -166,4 +166,11 @@ public class PostController {
     ) {
         return ResponseEntity.ok(postService.approvePendingPost(postId, status));
     }
+
+    @PutMapping("/{id}/restore")
+    public ResponseEntity<PostResponse> restorePost(
+            @PathVariable("id") Long postId
+    ) {
+        return ResponseEntity.ok(postService.restorePost(postId));
+    }
 }
