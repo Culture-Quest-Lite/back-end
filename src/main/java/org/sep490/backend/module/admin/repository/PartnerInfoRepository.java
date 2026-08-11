@@ -2,6 +2,7 @@ package org.sep490.backend.module.admin.repository;
 
 import org.sep490.backend.module.admin.entity.PartnerInfo;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface PartnerInfoRepository extends JpaRepository<PartnerInfo, Long> {
+public interface PartnerInfoRepository extends JpaRepository<PartnerInfo, Long>, JpaSpecificationExecutor<PartnerInfo> {
     Optional<PartnerInfo> findByUser_UserId(Long userId);
     boolean existsByShopEmail(String shopEmail);
 

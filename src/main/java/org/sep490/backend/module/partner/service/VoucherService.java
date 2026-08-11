@@ -1,5 +1,7 @@
 package org.sep490.backend.module.partner.service;
 
+import org.geolatte.geom.V;
+import org.sep490.backend.module.partner.dto.filter.AdvanceVoucherFilter;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
 import org.sep490.backend.module.partner.dto.request.VoucherRequest;
 import org.sep490.backend.module.partner.dto.response.VoucherUsageResponse;
@@ -16,4 +18,5 @@ public interface VoucherService {
     VoucherUsageResponse redeemVoucher(Long voucherId);
     Page<VoucherUsageResponse> getMyRedeemedVouchers(VoucherFilter filter);
     VoucherUsageResponse useVoucher(String voucherCode);
+    Page<VoucherResponse> getByFilter(AdvanceVoucherFilter filter);
 }

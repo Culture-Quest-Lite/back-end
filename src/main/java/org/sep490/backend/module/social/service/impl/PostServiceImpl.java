@@ -294,8 +294,18 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException("Bạn không có quyền xóa bài viết này!");
         }
 
-        post.setStatus(PostStatus.DELETED);
-        postRepository.save(post);
+        PostStatus status = post.getStatus();
+
+        switch (status) {
+            case APPROVED:
+                post.setStatus(PostStatus.DELETED);
+                postRepository.save(post);
+                break;
+            case REPORTING:
+                throw new BusinessException("Không thể xóa bài viết đang trong quá trình xử lý báo cáo vi phạm");
+            default:
+                postRepository.delete(post);
+        }
     }
 
     @Override
@@ -788,7 +798,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException("Bạn không có quyền khôi phục bài viết này");
         }
 
-        post.setStatus(PostStatus.PENDING);
+        post.setStatus(PostStatus.APPROVED);
         post = postRepository.save(post);
 
         return postMapper.toResponse(post);
