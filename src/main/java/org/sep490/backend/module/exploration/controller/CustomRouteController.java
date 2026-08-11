@@ -10,6 +10,7 @@ import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.exploration.service.inter.CustomRouteService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +24,7 @@ public class CustomRouteController {
     CustomRouteService customRouteService;
 
     @PostMapping("/record")
+    @PreAuthorize("@entitlement.isPremium()")
     public ResponseEntity<RouteResponse> recordJourney() {
         return ResponseEntity.ok(customRouteService.recordJourney());
     }
