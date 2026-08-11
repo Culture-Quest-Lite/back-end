@@ -23,6 +23,7 @@ public class PartnerSubscriptionController {
     private final SubscriptionPlanService subscriptionPlanService;
 
     @PostMapping(value = "/subscriptions/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('EXPLORER', 'PARTNER')")
     public ResponseEntity<PartnerSubscriptionResponse> registerSubscription(
             @ModelAttribute PartnerSubscriptionRequest request) {
         PartnerSubscriptionResponse response = subscriptionService.registerSubscription(request);
