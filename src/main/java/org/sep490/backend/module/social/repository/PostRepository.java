@@ -89,4 +89,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
                                                           PostStatus status,
                                                           List<PostVisibility> visibilities,
                                                           Pageable pageable);
+
+    List<Post> findByStatusAndUpdatedAtBefore(PostStatus status, LocalDateTime updatedAt);
 }

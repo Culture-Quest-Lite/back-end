@@ -179,12 +179,21 @@ public class PostServiceImpl implements PostService {
 
         post.setContent(request.getContent());
         if (request.getVisibility() != null) {
-            if(request.getVisibility().equals(PostVisibility.PUBLIC) && !post.getVisibility().equals(PostVisibility.PUBLIC)) {
-                post.setStatus(PostStatus.PENDING);
-            } else {
-                post.setStatus(PostStatus.APPROVED);
+            if (post.getStatus().equals(PostStatus.PENDING)) {
+                if(!request.getVisibility().equals(PostVisibility.PUBLIC)) {
+                    post.setStatus(PostStatus.APPROVED);
+                }
+            } else if (post.getStatus().equals(PostStatus.APPROVED)) {
+                if (request.getVisibility().equals(PostVisibility.PUBLIC) && !post.getVisibility().equals(PostVisibility.PUBLIC)) {
+                    post.setStatus(PostStatus.PENDING);
+                }
+            } else if (post.getStatus().equals(PostStatus.REJECTED) || post.getStatus().equals(PostStatus.REPORTED)) {
+                if (request.getVisibility().equals(PostVisibility.PUBLIC)) {
+                    post.setStatus(PostStatus.PENDING);
+                } else {
+                    post.setStatus(PostStatus.APPROVED);
+                }
             }
-            post.setVisibility(request.getVisibility());
         }
 
         if (request.getHotspotIds() != null) {
@@ -802,6 +811,16 @@ public class PostServiceImpl implements PostService {
         post = postRepository.save(post);
 
         return postMapper.toResponse(post);
+    }
+
+    @Override
+    @Transactional
+    public void deleteDeletedPosts() {
+        LocalDateTime deletedTime = LocalDateTime.now().minusDays(30);
+        List<Post> deletedPosts = postRepository.findByStatusAndUpdatedAtBefore(PostStatus.DELETED, deletedTime);
+        for (Post post : deletedPosts) {
+            postRepository.delete(post);
+        }
     }
 
     private PostResponse toResponseWithLiked(Post post, Long currentUserId) {
