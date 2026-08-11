@@ -41,4 +41,6 @@ public interface ReviewActionRepository extends JpaRepository<ReviewAction, Long
 
     List<ReviewAction> findByActionTypeAndUser_UserIdAndIsReportResolved(
             ReviewActionType actionType, Long userId, Boolean isReportResolved);
+
+    Optional<ReviewAction> findByReview_ReviewIdAndUser_UserIdAndActionTypeAndIsReportResolved(Long reviewId, Long userId, ReviewActionType actionType,Boolean isReportResolved);
 }

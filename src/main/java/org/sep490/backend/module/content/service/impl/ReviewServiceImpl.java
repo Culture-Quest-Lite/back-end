@@ -1,5 +1,6 @@
 package org.sep490.backend.module.content.service.impl;
 
+import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.content.dto.request.HandleReportReviewRequest;
@@ -49,6 +50,7 @@ import org.sep490.backend.module.notification.entity.enumeration.NotificationTyp
 import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.user.service.UserService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -62,6 +64,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -226,18 +229,24 @@ public class ReviewServiceImpl implements ReviewService {
         User currentUser = userService.getCurrentUser();
         Review review = getReviewById(id);
 
-        reviewActionRepository.findByReview_ReviewIdAndUser_UserIdAndActionType(
-                        id, currentUser.getUserId(), ReviewActionType.LIKE)
-                .ifPresentOrElse(existingLike -> {
-                    Long likeActionId = existingLike.getReviewActionId();
-                    review.getReviewActions().removeIf(action -> likeActionId.equals(action.getReviewActionId()));
-                }, () -> review.getReviewActions().add(ReviewAction.builder()
+        Optional<ReviewAction> existingLike = reviewActionRepository.findByReview_ReviewIdAndUser_UserIdAndActionType(
+                id, currentUser.getUserId(), ReviewActionType.LIKE);
+
+        if (existingLike.isPresent()) {
+            reviewActionRepository.delete(existingLike.get());
+        } else {
+            try {
+                ReviewAction newLike = ReviewAction.builder()
                         .review(review)
                         .user(currentUser)
                         .actionType(ReviewActionType.LIKE)
-                        .build()));
+                        .build();
+                reviewActionRepository.saveAndFlush(newLike);
+            } catch (DataIntegrityViolationException e) {
+                log.warn("Race condition: User {} đã like Review {} rồi", currentUser.getUserId(), id);
+            }
+        }
 
-        reviewRepository.save(review);
         return toResponse(review, currentUser.getUserId());
     }
 
@@ -270,7 +279,7 @@ public class ReviewServiceImpl implements ReviewService {
 
         // 1. Chống spam: Kiểm tra xem đã báo cáo chưa
         Optional<ReviewAction> existingReport = reviewActionRepository
-                .findByReview_ReviewIdAndUser_UserIdAndActionType(reviewId, currentUser.getUserId(), ReviewActionType.REPORT);
+                .findByReview_ReviewIdAndUser_UserIdAndActionTypeAndIsReportResolved(reviewId, currentUser.getUserId(), ReviewActionType.REPORT, false);
 
         if (existingReport.isPresent() && !existingReport.get().getIsReportResolved()) {
             throw new BusinessException("Đánh giá này đã được bạn báo cáo trước đó");

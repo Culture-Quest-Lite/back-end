@@ -1,5 +1,6 @@
 package org.sep490.backend.module.social.service.impl;
 
+import jakarta.ws.rs.POST;
 import org.apache.tomcat.util.buf.ByteChunk;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
 import org.sep490.backend.module.authentication.repository.UserRepository;
@@ -769,6 +770,28 @@ public class PostServiceImpl implements PostService {
         }
 
         return toResponseWithLiked(post, post.getUser().getUserId());
+    }
+
+    @Override
+    @Transactional
+    public PostResponse restorePost(Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+
+        if(!post.getStatus().equals(PostStatus.DELETED)) {
+            throw new BusinessException("Chỉ có thể khôi phục bài viết đã bị xóa");
+        }
+
+        User user = userService.getCurrentUser();
+
+        if(!post.getUser().equals(user)) {
+            throw new BusinessException("Bạn không có quyền khôi phục bài viết này");
+        }
+
+        post.setStatus(PostStatus.PENDING);
+        post = postRepository.save(post);
+
+        return postMapper.toResponse(post);
     }
 
     private PostResponse toResponseWithLiked(Post post, Long currentUserId) {
