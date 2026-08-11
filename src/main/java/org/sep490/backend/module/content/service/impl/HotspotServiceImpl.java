@@ -1,6 +1,8 @@
 package org.sep490.backend.module.content.service.impl;
 
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.content.entity.Route;
+import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.service.inter.GeoQueryService;
 
 import org.sep490.backend.module.content.service.inter.CheckInStatusService;
@@ -66,6 +68,7 @@ public class HotspotServiceImpl implements HotspotService {
     RatingSummaryService ratingSummaryService;
     CheckInStatusService checkInStatusService;
     GeoQueryService geoQueryService;
+    RouteRepository routeRepository;
 
     @Override
     @Transactional
@@ -300,6 +303,20 @@ public class HotspotServiceImpl implements HotspotService {
                 .toList();
         applyRatingSummary(responses);
         return responses;
+    }
+
+    @Override
+    public List<Hotspot> getHotspotByRouteId(Long routeId) {
+
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new BusinessException("Không tìm thấy Route với ID: " + routeId));
+
+        List<Hotspot> hotspots = new ArrayList<>();
+        List<Story> stories = storyRepository.findByRoute_RouteIdAndStatus(route.getRouteId(), ContentStatus.PUBLISHED);
+        for (Story story : stories) {
+            hotspots.add(story.getHotspot());
+        }
+        return hotspots;
     }
 
     private HotspotResponse buildHotspotResponse(Hotspot hotspot) {

@@ -20,5 +20,6 @@ public interface HotspotService {
     Page<HotspotResponse> filterHotspots(SearchRequest request);
     List<HotspotResponse> getNearbyHotspots(Double latitude,
                                             Double longitude, Double distanceInMeters);
+    List<Hotspot> getHotspotByRouteId(Long routeId);
     List<HotspotResponse> getHotspotsByRouteId(Long routeId);
 }

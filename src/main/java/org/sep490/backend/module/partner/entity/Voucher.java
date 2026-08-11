@@ -3,6 +3,7 @@ package org.sep490.backend.module.partner.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.locationtech.jts.geom.Point;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.partner.entity.enumeration.DiscountType;
 import org.sep490.backend.module.partner.entity.enumeration.VoucherStatus;
@@ -61,6 +62,9 @@ public class Voucher {
     @Column(name = "voucher_status")
     @Enumerated(EnumType.STRING)
     VoucherStatus status;
+
+    @Column(columnDefinition = "geometry(Point, 4326)")
+    Point location;
 
     @Column(name = "start_date", nullable = false)
     LocalDateTime startDate;
