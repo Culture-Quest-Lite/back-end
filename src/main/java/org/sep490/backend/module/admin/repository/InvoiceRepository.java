@@ -4,6 +4,7 @@ import org.sep490.backend.module.admin.dto.projection.RevenueSummaryProjection;
 import org.sep490.backend.module.admin.entity.Invoice;
 import org.sep490.backend.module.admin.entity.enumeration.InvoicePaymentStatus;
 import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
+import org.sep490.backend.module.admin.entity.enumeration.PlanType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -50,4 +51,17 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
                                               @Param("monthStart") LocalDateTime monthStart,
                                               @Param("prevMonthStart") LocalDateTime prevMonthStart,
                                               @Param("now") LocalDateTime now);
+
+    @Query("SELECT i FROM Invoice i WHERE i.status = :status AND i.endDate < :now AND i.subscriptionPlan.planType = :planType")
+    List<Invoice> findExpiredInvoicesByPlanType(
+            @Param("status") InvoiceStatus status,
+            @Param("now") LocalDateTime now,
+            @Param("planType") PlanType planType);
+
+    @Query("SELECT COUNT(i) > 0 FROM Invoice i WHERE i.user.userId = :userId AND i.status = :status AND i.endDate > :now AND i.subscriptionPlan.planType = :planType")
+    boolean existsActiveInvoiceForUserAndPlanType(
+            @Param("userId") Long userId,
+            @Param("status") InvoiceStatus status,
+            @Param("now") LocalDateTime now,
+            @Param("planType") PlanType planType);
 }

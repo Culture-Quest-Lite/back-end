@@ -88,4 +88,14 @@ public class Invoice {
     @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt;
 
+    @Column(name = "will_cancel_at_end")
+    @Builder.Default
+    private Boolean willCancelAtEnd = false; // false ~ renew
+
+    @Column(name = "canceled_at")
+    private LocalDateTime canceledAt;
+
+    @Column(name = "cancel_reason", columnDefinition = "TEXT")
+    private String cancelReason;
+
 }

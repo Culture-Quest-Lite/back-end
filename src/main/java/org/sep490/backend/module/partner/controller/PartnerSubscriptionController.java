@@ -1,6 +1,7 @@
 package org.sep490.backend.module.partner.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.sep490.backend.module.admin.dto.request.CancelSubscriptionRequest;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
 import org.sep490.backend.module.admin.dto.response.PaymentInitResponse;
@@ -55,5 +56,15 @@ public class PartnerSubscriptionController {
             @RequestParam(required = false) String redirectUrl,
             @RequestParam(defaultValue = "PAYOS") String gateway) {
         return ResponseEntity.ok(subscriptionService.initiatePayment(id, redirectUrl, gateway));
+    }
+
+    @PostMapping("/subscriptions/{id}/cancel")
+    @PreAuthorize("hasRole('PARTNER')")
+    public ResponseEntity<PartnerSubscriptionResponse> cancelPartnerSubscription(
+            @PathVariable Long id,
+            @RequestBody CancelSubscriptionRequest request) {
+
+        PartnerSubscriptionResponse response = subscriptionService.cancelSubscription(id, request.getReason());
+        return ResponseEntity.ok(response);
     }
 }

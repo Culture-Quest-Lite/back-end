@@ -33,6 +33,7 @@ import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.S3Service;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
 import org.sep490.backend.module.notification.service.FcmService;
 import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
@@ -338,6 +339,43 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
             log.warn("[PayOS Webhook] Thanh toán thất bại. orderCode={}, code={}", orderCode, data.getCode());
             invoiceActivationService.markInvoiceFailed(invoice);
         }
+    }
+
+    @Override
+    @Transactional
+    public PartnerSubscriptionResponse cancelSubscription(Long id, String reason) {
+        User user = userService.getCurrentUser();
+
+        Invoice invoice = invoiceRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Gói đăng ký Partner không tồn tại"));
+
+        if (!invoice.getUser().getUserId().equals(user.getUserId())) {
+            throw new BusinessException("Bạn không có quyền thao tác trên gói đăng ký này");
+        }
+
+        if (invoice.getStatus() != InvoiceStatus.ACTIVE) {
+            throw new BusinessException("Chỉ có thể hủy gia hạn gói đang ở trạng thái ACTIVE");
+        }
+
+        if (Boolean.TRUE.equals(invoice.getWillCancelAtEnd())) {
+            throw new BusinessException("Gói này đã được yêu cầu hủy gia hạn từ trước.");
+        }
+
+        invoice.setWillCancelAtEnd(true);
+        invoice.setCanceledAt(LocalDateTime.now());
+        invoice.setCancelReason(reason);
+        invoiceRepository.save(invoice);
+
+        notificationService.sendAndSave(
+                user,
+                "Hủy gia hạn gói Partner thành công",
+                "Bạn đã hủy gia hạn thành công. Cửa hàng và các quyền lợi Partner của bạn vẫn tiếp tục hoạt động bình thường cho đến hết ngày "
+                        + invoice.getEndDate().toLocalDate().toString() + ".",
+                NotificationType.SUBSCRIPTION,
+                invoice.getInvoiceId()
+        );
+
+        return subscriptionMapper.toResponse(invoice);
     }
 
 

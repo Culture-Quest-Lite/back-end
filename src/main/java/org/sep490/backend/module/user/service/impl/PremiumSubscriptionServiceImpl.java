@@ -10,6 +10,8 @@ import org.sep490.backend.module.admin.entity.enumeration.*;
 import org.sep490.backend.module.admin.repository.InvoiceRepository;
 import org.sep490.backend.module.admin.repository.SubscriptionPlanRepository;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.dto.request.PremiumSubscribeRequest;
 import org.sep490.backend.module.user.dto.response.PremiumSubscriptionResponse;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
@@ -18,6 +20,7 @@ import org.sep490.backend.module.user.service.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -28,6 +31,7 @@ public class PremiumSubscriptionServiceImpl implements PremiumSubscriptionServic
     private final InvoiceRepository invoiceRepository;
     private final UserService userService;
     private final PayOsInvoicePaymentService payOsInvoicePaymentService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -95,6 +99,41 @@ public class PremiumSubscriptionServiceImpl implements PremiumSubscriptionServic
                 .startDate(inv.getStartDate())
                 .endDate(inv.getEndDate())
                 .paidAmount(inv.getPaidAmount())
+                .willCancelAtEnd(inv.getWillCancelAtEnd())
+                .canceledAt(inv.getCanceledAt())
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public PremiumSubscriptionResponse cancelSubscription(Long invoiceId, String reason) {
+        User user = userService.getCurrentUser();
+
+        Invoice invoice = invoiceRepository.findPremiumInvoiceForUser(invoiceId, user.getUserId())
+                .orElseThrow(() -> new BusinessException("Hóa đơn không tồn tại"));
+
+        if (invoice.getStatus() != InvoiceStatus.ACTIVE) {
+            throw new BusinessException("Chỉ có thể hủy gói đang ở trạng thái ACTIVE");
+        }
+
+        if (Boolean.TRUE.equals(invoice.getWillCancelAtEnd())) {
+            throw new BusinessException("Gói này đã được yêu cầu hủy từ trước.");
+        }
+
+        invoice.setWillCancelAtEnd(true);
+        invoice.setCanceledAt(LocalDateTime.now());
+        invoice.setCancelReason(reason);
+        invoiceRepository.save(invoice);
+
+        notificationService.sendAndSave(
+                user,
+                "Hủy gia hạn gói Premium thành công",
+                "Bạn đã hủy gia hạn gói Premium. Quyền lợi của bạn vẫn được giữ nguyên cho đến ngày "
+                        + invoice.getEndDate().toLocalDate().toString(),
+                NotificationType.SUBSCRIPTION,
+                invoice.getInvoiceId()
+        );
+
+        return toResponse(invoice);
     }
 }
