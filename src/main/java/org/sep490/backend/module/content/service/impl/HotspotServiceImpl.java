@@ -80,6 +80,8 @@ public class HotspotServiceImpl implements HotspotService {
         applyCheckInZone(hotspot, request);
         hotspot.setCreatedBy(userService.getCurrentUser());
         hotspot.setStatus(ContentStatus.DRAFT);
+        hotspot.setXp(100L);
+        hotspot.setPoint(10L);
         hotspot = hotspotRepository.save(hotspot);
         geoQueryService.evictNearby();
 
