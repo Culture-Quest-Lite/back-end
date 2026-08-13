@@ -17,4 +17,5 @@ public interface PartnerSubscriptionService {
 
     PaymentInitResponse initiatePayment(Long subscriptionId, String redirectUrl, String gateway);
     void handlePayOsWebhook(Map<String, Object> body);
+    PartnerSubscriptionResponse cancelSubscription(Long id, String reason);
 }

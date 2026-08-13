@@ -140,8 +140,8 @@ public class CustomRouteServiceImpl implements CustomRouteService {
         route.setStatus(RouteStatus.PUBLISHED);
         route.setDescription(request.getDescription());
         route.setTotalStops(totalStops);
-        route.setXp(500L);
-        route.setPoint(500L);
+        route.setXp(calculateXpOrPoint(RouteDifficulty.EASY, totalStops, true));
+        route.setPoint(calculateXpOrPoint(RouteDifficulty.EASY, totalStops, false));
         route = routeRepository.save(route);
 
         return buildRouteResponse(route, route.getStories());
@@ -209,5 +209,26 @@ public class CustomRouteServiceImpl implements CustomRouteService {
         response.setStories(storyResponses);
 
         return response;
+    }
+
+    private long calculateXpOrPoint(RouteDifficulty difficulty, int size, boolean isXp) {
+        double rate = 1.0;
+        switch (difficulty) {
+            case EASY:
+                rate = 1.15;
+                break;
+            case MEDIUM:
+                rate = 1.2;
+                break;
+            case HARD:
+                rate = 1.25;
+                break;
+            default:
+                rate = 1.0;
+        }
+
+        return isXp
+                ? Math.round((size * 100 * rate))
+                : Math.round((size * 10 * rate));
     }
 }

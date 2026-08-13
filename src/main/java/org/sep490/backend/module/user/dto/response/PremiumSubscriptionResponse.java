@@ -23,4 +23,6 @@ public class PremiumSubscriptionResponse {
     LocalDateTime startDate;
     LocalDateTime endDate;
     Long paidAmount;
+    Boolean willCancelAtEnd;
+    LocalDateTime canceledAt;
 }

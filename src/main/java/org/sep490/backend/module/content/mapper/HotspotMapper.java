@@ -36,7 +36,6 @@ public interface HotspotMapper {
 
     @Mapping(target = "location", expression = "java(toPoint(request.getLongitude(), request.getLatitude()))")
     @Mapping(target = "boundary", ignore = true)
-    @Mapping(source = "point", target = "point")
     Hotspot toEntity(HotspotRequest request);
 
     default Point toPoint(Double longitude, Double latitude) {

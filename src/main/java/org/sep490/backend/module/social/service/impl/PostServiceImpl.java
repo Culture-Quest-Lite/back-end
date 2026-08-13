@@ -373,7 +373,7 @@ public class PostServiceImpl implements PostService {
         RewardTransactionRequest rewardRequest = RewardTransactionRequest.builder()
                 .userId(post.getUser().getUserId())
                 .pointsAmount(createPostPoints)
-                .xpAmount(0L)
+                .pointsAmount(20L)
                 .transactionType(TransactionType.POST_CREATION)
                 .description("Bài viết của " + post.getUser().getUsername() + " đã được duyệt")
                 .referenceId(post.getPostId())
@@ -385,6 +385,20 @@ public class PostServiceImpl implements PostService {
         post.setModerateAt(LocalDateTime.now());
         post.setStatus(PostStatus.APPROVED);
         Post savedPost = postRepository.save(post);
+
+        List<User> followers = userFollowRepository.findAllByFollowing(post.getUser()).stream()
+                .map(UserFollow::getFollower).toList();
+
+        if (!followers.isEmpty()) {
+            notificationService.sendToMultipleUsers(
+                    followers,
+                    "Bài viết mới",
+                    post.getUser().getDisplayName() + " vừa đăng một bài viết mới.",
+                    NotificationType.POST,
+                    post.getPostId()
+            );
+        }
+
         return postMapper.toResponse(savedPost);
     }
 

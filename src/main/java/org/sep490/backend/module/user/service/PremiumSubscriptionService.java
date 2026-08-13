@@ -11,4 +11,5 @@ public interface PremiumSubscriptionService {
     List<PremiumSubscriptionResponse> getMyPremiumSubscription();
 
     PremiumSubscriptionResponse confirmPayment(Long invoiceId);
+    PremiumSubscriptionResponse cancelSubscription(Long invoiceId, String reason);
 }

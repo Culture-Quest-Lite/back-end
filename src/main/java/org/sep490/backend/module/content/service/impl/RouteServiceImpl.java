@@ -93,10 +93,16 @@ public class RouteServiceImpl implements RouteService {
         route.setTotalStops(request.getHotspotIds().size());
         route.setImageUrl(imageService.resolveImageUrl(
                 null, request.getImageFile(), IMAGE_FOLDER));
+        route.setXp(100L); // temp
+        route.setPoint(10L);
 
         route = routeRepository.save(route);
 
         List<Story> stories = processRouteStories(route, request.getHotspotIds());
+
+        route.setXp(calculateXpOrPoint(request.getDifficulty(), stories.size(), true));
+        route.setPoint(calculateXpOrPoint(request.getDifficulty(), stories.size(), false));
+        route = routeRepository.save(route);
 
         return buildRouteResponse(route, stories);
     }
@@ -123,10 +129,16 @@ public class RouteServiceImpl implements RouteService {
         route.setTotalStops(request.getStoryIds().size());
         route.setImageUrl(imageService.resolveImageUrl(
                 null, request.getImageFile(), IMAGE_FOLDER));
+        route.setXp(100L); // temp
+        route.setPoint(10L);
 
         route = routeRepository.save(route);
 
         List<Story> stories = processRouteStoriesV2(route, request.getStoryIds());
+
+        route.setXp(calculateXpOrPoint(request.getDifficulty(), stories.size(), true));
+        route.setPoint(calculateXpOrPoint(request.getDifficulty(), stories.size(), false));
+        route = routeRepository.save(route);
 
         return buildRouteResponse(route, stories);
     }
@@ -148,7 +160,6 @@ public class RouteServiceImpl implements RouteService {
         currRoute.setTotalStops(request.getHotspotIds().size());
         currRoute.setImageUrl(imageService.resolveImageUrl(
                 currRoute.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
-        currRoute = routeRepository.save(currRoute);
 
         // Unset route_id cho tất cả story cũ đang thuộc route này
         List<Story> oldStories = storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(id);
@@ -160,6 +171,11 @@ public class RouteServiceImpl implements RouteService {
         storyRepository.saveAll(oldStories);
 
         List<Story> updatedStories = processRouteStories(currRoute, request.getHotspotIds());
+
+        currRoute.setXp(calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), true));
+        currRoute.setPoint(calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), false));
+        currRoute = routeRepository.save(currRoute);
+
         return buildRouteResponse(currRoute, updatedStories);
     }
 
@@ -179,7 +195,6 @@ public class RouteServiceImpl implements RouteService {
         currRoute.setTotalStops(request.getStoryIds().size());
         currRoute.setImageUrl(imageService.resolveImageUrl(
                 currRoute.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
-        currRoute = routeRepository.save(currRoute);
 
         // Unset route_id cho tất cả story cũ đang thuộc route này
         List<Story> oldStories = storyRepository.findByRoute_RouteIdOrderByOrderIndexAsc(id);
@@ -191,6 +206,11 @@ public class RouteServiceImpl implements RouteService {
         storyRepository.saveAll(oldStories);
 
         List<Story> updatedStories = processRouteStoriesV2(currRoute, request.getStoryIds());
+
+        currRoute.setXp(calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), true));
+        currRoute.setPoint(calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), false));
+        currRoute = routeRepository.save(currRoute);
+
         return buildRouteResponse(currRoute, updatedStories);
     }
 
@@ -621,5 +641,26 @@ public class RouteServiceImpl implements RouteService {
 
         storyToAdd.setDistanceToNext(0.0);
         storyRepository.save(storyToAdd);
+    }
+
+    private long calculateXpOrPoint(RouteDifficulty difficulty, int size, boolean isXp) {
+        double rate = 1.0;
+        switch (difficulty) {
+            case EASY:
+                rate = 1.15;
+                break;
+            case MEDIUM:
+                rate = 1.2;
+                break;
+            case HARD:
+                rate = 1.25;
+                break;
+            default:
+                rate = 1.0;
+        }
+
+        return isXp
+                ? Math.round((size * 100 * rate))
+                : Math.round((size * 10 * rate));
     }
 }

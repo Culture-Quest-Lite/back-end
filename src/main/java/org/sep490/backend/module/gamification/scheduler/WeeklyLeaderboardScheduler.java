@@ -40,13 +40,13 @@ public class WeeklyLeaderboardScheduler {
 
         int rank = 1;
         for (LeaderboardProjection record : topUsers) {
-            long bonusXp = calculateBonusXp(rank);
+            long[] bonusXp = calculateBonusXp(rank);
 
-            if (bonusXp > 0) {
+            if (bonusXp[0] > 0) {
                 RewardTransactionRequest rewardRequest = RewardTransactionRequest.builder()
                         .userId(record.getUserId())
-                        .pointsAmount(0L)
-                        .xpAmount(bonusXp)
+                        .pointsAmount(bonusXp[1])
+                        .xpAmount(bonusXp[0])
                         .transactionType(TransactionType.WEEKLY_LEADERBOARD_BONUS)
                         .description("Thưởng XP xếp hạng " + rank + " Leaderboard tuần")
                         .build();
@@ -57,13 +57,13 @@ public class WeeklyLeaderboardScheduler {
         }
     }
 
-    private long calculateBonusXp(int rank) {
-        if (rank == 1) return 1000;
-        if (rank == 2) return 800;
-        if (rank == 3) return 500;
-        if (rank >= 4 && rank <= 10) return 300;
-        if (rank >= 11 && rank <= 50) return 100;
-        if (rank >= 51 && rank <= 100) return 50;
-        return 0;
+    private long[] calculateBonusXp(int rank) {
+        if (rank == 1) return new long[]{1000, 500};
+        if (rank == 2) return new long[]{800, 400};
+        if (rank == 3) return new long[]{500, 250};
+        if (rank >= 4 && rank <= 10) return new long[]{300, 150};
+        if (rank >= 11 && rank <= 50) return new long[]{100, 50};
+        if (rank >= 51 && rank <= 100) return new long[]{50, 25};
+        return new long[]{0, 0};
     }
 }

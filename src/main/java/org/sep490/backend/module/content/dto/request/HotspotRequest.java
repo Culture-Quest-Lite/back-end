@@ -48,14 +48,6 @@ public class HotspotRequest {
             example = "{\"type\":\"Polygon\",\"coordinates\":[[[105.851,21.028],[105.855,21.028],[105.855,21.031],[105.851,21.031],[105.851,21.028]]]}")
     String boundaryGeoJson;
 
-    @NotNull(message = "Điểm kinh nghiệm không được để trống")
-    @PositiveOrZero(message = "Điểm kinh nghiệm không được là số âm")
-    Long xp;
-
-    @NotNull(message = "Điểm thưởng không được để trống")
-    @PositiveOrZero(message = "Điểm thưởng không được là số âm")
-    Long point;
-
     @NotNull(message = "Thời gian dự kiến tối thiểu không được để trống")
     @PositiveOrZero(message = "Thời gian dự kiến tối thiểu không được là số âm")
     Long estimatedDurationMin;

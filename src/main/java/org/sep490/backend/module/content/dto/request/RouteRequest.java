@@ -42,13 +42,5 @@ public class RouteRequest {
     @Size(min = 4, message = "Tuyến đường phải có ít nhất 4 điểm dừng")
     List<Long> hotspotIds;
 
-    @NotNull(message = "Kinh nghiệm không được để trống")
-    @PositiveOrZero(message = "Kinh nghiệm không được là số âm")
-    Long xp;
-
-    @NotNull(message = "Điểm thưởng không được để trống")
-    @PositiveOrZero(message = "Điểm thưởng không được là số âm")
-    Long point;
-
     RouteStatus status;
 }
