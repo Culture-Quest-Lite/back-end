@@ -252,7 +252,7 @@ public class GroupServiceImpl implements GroupService {
 
     @Override
     @Transactional
-    public GroupResponse addUserToGroup(Long userId, Long groupId) { // leader add
+    public GroupResponse addMember(Long userId, Long groupId) { // leader add
 
         //isLoggedIn("addUserToGroup");
 

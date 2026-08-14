@@ -17,7 +17,7 @@ public interface GroupService {
     GroupResponse getDetails(Long groupId);
     Group getGroup(Long groupId);
     GroupResponse joinGroup(String shareToken);
-    GroupResponse addUserToGroup(Long userId, Long groupId);
+    GroupResponse addMember(Long userId, Long groupId);
     GroupResponse kickUserFromGroup(Long userId, Long groupId);
     GroupResponse leaveGroup(Long groupId);
     List<GroupParticipantResponse> getGroupParticipantsByAction(Long groupId, GroupParticipantAction action);

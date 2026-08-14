@@ -74,10 +74,8 @@ public class UserHotspotProgressServiceImpl implements UserHotspotProgressServic
 
         eventPublisher.publishEvent(new CheckInCompletedEvent(
                 user.getUserId(),
-                hotspot.getPoint(),
-                hotspot.getXp(),
                 hotspot.getHotspotId(),
-                hotspot.getHotspotId(),
+                progress.getUserProgressId(),
                 TransactionType.HOTSPOT_CHECKIN,
                 "Check-in tại hotspot: " + hotspot.getHotspotName()
         ));

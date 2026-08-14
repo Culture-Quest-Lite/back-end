@@ -263,7 +263,7 @@ class GroupServiceImplTest {
             securityUtils.when(SecurityUtils::getCurrentUserKeyCloakId).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> groupService.addUserToGroup(2L, 1L));
+                    () -> groupService.addMember(2L, 1L));
 
             assertEquals("Người dùng chưa đăng nhập: addUserToGroup", ex.getMessage());
         }
@@ -278,7 +278,7 @@ class GroupServiceImplTest {
             when(userService.getUserById(2L)).thenReturn(user(2L, "member"));
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> groupService.addUserToGroup(2L, 1L));
+                    () -> groupService.addMember(2L, 1L));
 
             assertEquals("Không thể add thành viên khi nhóm đã bị xóa", ex.getMessage());
         }
@@ -294,7 +294,7 @@ class GroupServiceImplTest {
             when(userService.getUserById(2L)).thenReturn(user(2L, "moi"));
 
             GroupAuthorizeException ex = assertThrows(GroupAuthorizeException.class,
-                    () -> groupService.addUserToGroup(2L, 1L));
+                    () -> groupService.addMember(2L, 1L));
 
             assertEquals("Chỉ có trưởng nhóm mới có thể add thành viên", ex.getMessage());
         }
@@ -309,7 +309,7 @@ class GroupServiceImplTest {
             when(userService.getUserById(1L)).thenReturn(leader);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> groupService.addUserToGroup(1L, 1L));
+                    () -> groupService.addMember(1L, 1L));
 
             assertEquals("Không thể add chính mình vào nhóm", ex.getMessage());
         }
@@ -327,7 +327,7 @@ class GroupServiceImplTest {
             when(userFollowRepository.existsByFollowerAndFollowing(leader, newMember)).thenReturn(false);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> groupService.addUserToGroup(2L, 1L));
+                    () -> groupService.addMember(2L, 1L));
 
             assertEquals("Cả 2 phải theo dõi nhau để add vào group", ex.getMessage());
             verify(groupParticipantService, never())
@@ -346,7 +346,7 @@ class GroupServiceImplTest {
             when(userFollowRepository.existsByFollowerAndFollowing(any(), any())).thenReturn(true);
             leaderOfGroup(1L, leader);
 
-            groupService.addUserToGroup(2L, 1L);
+            groupService.addMember(2L, 1L);
 
             verify(groupParticipantService).addUserToGroup(newMember, target, JoinGroupType.ADD);
         }
