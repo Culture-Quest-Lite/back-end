@@ -81,6 +81,8 @@ class TagServiceImplTest {
         void createTag_valid_createsActiveTag() {
             when(tagRepository.existsByTagNameIgnoreCase("Lịch sử")).thenReturn(false);
             Tag tag = new Tag();
+            tag.setTagId(1L);
+            tag.setTagName("Lịch sử");
             when(tagMapper.toEntity(any(TagRequest.class))).thenReturn(tag);
             when(tagRepository.save(any(Tag.class))).thenAnswer(inv -> inv.getArgument(0));
             when(tagMapper.toResponse(any(Tag.class))).thenReturn(new TagResponse());
@@ -100,6 +102,8 @@ class TagServiceImplTest {
 
             when(tagRepository.existsByTagNameIgnoreCase("Ẩm thực")).thenReturn(false);
             Tag tag = new Tag();
+            tag.setTagId(1L);
+            tag.setTagName("Lịch sử");
             when(tagMapper.toEntity(any(TagRequest.class))).thenReturn(tag);
             when(imageService.resolveImageUrl(isNull(), any(MultipartFile.class), eq("tags")))
                     .thenReturn("https://s3/tags/icon.png");
@@ -180,6 +184,153 @@ class TagServiceImplTest {
             verify(imageService).resolveImageUrl(
                     eq("https://s3/tags/old.png"), isNull(), eq("tags"));
             assertEquals("https://s3/tags/old.png", tag.getImageUrl());
+        }
+
+        // UTCID04 - Abnormal: tên mới trùng với tag khác -> chặn
+        @Test
+        void updateTag_duplicateNameOnOtherTag_throwsAlreadyExists() {
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(existingTag(null)));
+            when(tagRepository.existsByTagNameIgnoreCaseAndTagIdNot("Ẩm thực", 1L)).thenReturn(true);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> tagService.update(1L, tagRequest("Ẩm thực")));
+
+            assertEquals("Tag với tên \"Ẩm thực\" đã tồn tại", ex.getMessage());
+            verify(tagRepository, never()).save(any());
+        }
+
+        // UTCID05 - Boundary: tên mới có khoảng trắng thừa -> được cắt bỏ trước khi lưu
+        @Test
+        void updateTag_nameWithExtraSpaces_isTrimmed() {
+            Tag tag = existingTag(null);
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
+            when(tagRepository.save(any(Tag.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(tagMapper.toResponse(any(Tag.class))).thenReturn(new TagResponse());
+
+            tagService.update(1L, tagRequest("  Ẩm thực  "));
+
+            assertEquals("Ẩm thực", tag.getTagName());
+        }
+    }
+
+    // =====================================================================
+    // Function: delete (Tag)
+    // =====================================================================
+    @Nested
+    @DisplayName("deleteTag")
+    class DeleteTagTest {
+
+        // UTCID01 - Abnormal: tag không tồn tại
+        @Test
+        void deleteTag_notFound_throwsNotFound() {
+            when(tagRepository.findById(99L)).thenReturn(Optional.empty());
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> tagService.delete(99L));
+
+            assertEquals("Không tìm thấy tag với id: 99", ex.getMessage());
+            verify(tagRepository, never()).save(any());
+        }
+
+        // UTCID02 - Abnormal: tag đã bị xóa trước đó -> chặn xóa lần hai
+        @Test
+        void deleteTag_alreadyDeleted_throwsAlreadyDeleted() {
+            Tag tag = new Tag();
+            tag.setTagId(1L);
+            tag.setTagName("Lịch sử");
+            tag.setTagStatus(TagStatus.DELETED);
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> tagService.delete(1L));
+
+            assertEquals("Tag với id 1 đã bị xóa", ex.getMessage());
+            verify(tagRepository, never()).save(any());
+        }
+
+        // UTCID03 - Normal: tag ACTIVE -> xóa mềm, chuyển trạng thái DELETED
+        @Test
+        void deleteTag_activeTag_softDeletes() {
+            Tag tag = new Tag();
+            tag.setTagId(1L);
+            tag.setTagName("Lịch sử");
+            tag.setTagStatus(TagStatus.ACTIVE);
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
+
+            tagService.delete(1L);
+
+            assertEquals(TagStatus.DELETED, tag.getTagStatus());
+            verify(tagRepository).save(tag);
+        }
+
+        // UTCID04 - Normal: tag INACTIVE vẫn xóa được (khác với update)
+        @Test
+        void deleteTag_inactiveTag_canStillBeDeleted() {
+            Tag tag = new Tag();
+            tag.setTagId(1L);
+            tag.setTagName("Lịch sử");
+            tag.setTagStatus(TagStatus.INACTIVE);
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
+
+            tagService.delete(1L);
+
+            assertEquals(TagStatus.DELETED, tag.getTagStatus());
+        }
+    }
+
+    // =====================================================================
+    // Function: getById (Tag)
+    // =====================================================================
+    @Nested
+    @DisplayName("getById")
+    class GetByIdTest {
+
+        // UTCID01 - Abnormal: id không tồn tại
+        @Test
+        void getById_notFound_throwsNotFound() {
+            when(tagRepository.findById(99L)).thenReturn(Optional.empty());
+
+            BusinessException ex = assertThrows(BusinessException.class, () -> tagService.getById(99L));
+
+            assertEquals("Không tìm thấy tag với id: 99", ex.getMessage());
+        }
+
+        // UTCID02 - Abnormal: tag đã bị xóa mềm -> coi như không dùng được
+        @Test
+        void getById_deletedTag_throwsDeleted() {
+            Tag tag = new Tag();
+            tag.setTagId(1L);
+            tag.setTagName("Lịch sử");
+            tag.setTagStatus(TagStatus.DELETED);
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
+
+            BusinessException ex = assertThrows(BusinessException.class, () -> tagService.getById(1L));
+
+            assertEquals("Tag với id 1 đã bị xóa", ex.getMessage());
+        }
+
+        // UTCID03 - Normal: tag ACTIVE -> trả về entity
+        @Test
+        void getById_activeTag_returnsEntity() {
+            Tag tag = new Tag();
+            tag.setTagId(1L);
+            tag.setTagName("Lịch sử");
+            tag.setTagStatus(TagStatus.ACTIVE);
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
+
+            assertSame(tag, tagService.getById(1L));
+        }
+
+        // UTCID04 - Normal: tag INACTIVE vẫn đọc được (chỉ chặn khi DELETED)
+        @Test
+        void getById_inactiveTag_returnsEntity() {
+            Tag tag = new Tag();
+            tag.setTagId(1L);
+            tag.setTagName("Lịch sử");
+            tag.setTagStatus(TagStatus.INACTIVE);
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
+
+            assertSame(tag, tagService.getById(1L));
         }
     }
 }

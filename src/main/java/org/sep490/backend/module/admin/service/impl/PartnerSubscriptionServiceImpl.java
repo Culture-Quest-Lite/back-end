@@ -250,7 +250,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
     public List<PartnerSubscriptionResponse> getMySubscriptions() {
         User currentPartner = userService.getCurrentUser();
         List<Invoice> invoices = invoiceRepository
-                .findByPartnerInfo_User_UserIdOrderByCreatedAtDesc(currentPartner.getUserId());
+                .findPartnerInvoicesForUser(currentPartner.getUserId());
         return invoices.stream()
                 .map(this::toResponseWithMedia)
                 .toList();
@@ -300,7 +300,7 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
             throw new BusinessException("Hóa đơn này không thuộc luồng đối tác");
         }
 
-        if (!invoice.getPartnerInfo().getUser().getUserId().equals(currentUser.getUserId())) {
+        if (!isPartnerInfoAccessibleBy(invoice.getPartnerInfo(), currentUser)) {
             throw new BusinessException("Bạn không có quyền thực hiện thao tác này.");
         }
         if (InvoicePaymentStatus.PAID.equals(invoice.getPaymentStatus())) {
@@ -349,7 +349,12 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         Invoice invoice = invoiceRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Gói đăng ký Partner không tồn tại"));
 
-        if (!invoice.getUser().getUserId().equals(user.getUserId())) {
+        boolean isOwner = invoice.getPartnerInfo() != null
+                ? isPartnerInfoAccessibleBy(invoice.getPartnerInfo(), user)
+                : invoice.getUser() != null
+                        && invoice.getUser().getUserId().equals(user.getUserId());
+
+        if (!isOwner) {
             throw new BusinessException("Bạn không có quyền thao tác trên gói đăng ký này");
         }
 
@@ -378,6 +383,20 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         return subscriptionMapper.toResponse(invoice);
     }
 
+
+    private boolean isPartnerInfoAccessibleBy(PartnerInfo partnerInfo, User user) {
+        if (partnerInfo == null || user == null) {
+            return false;
+        }
+
+        Long userId = user.getUserId();
+        boolean isOwner = partnerInfo.getUser() != null
+                && partnerInfo.getUser().getUserId().equals(userId);
+        boolean isShopAccount = partnerInfo.getShopAccount() != null
+                && partnerInfo.getShopAccount().getUserId().equals(userId);
+
+        return isOwner || isShopAccount;
+    }
 
     private void createPartnerSubAccount(Invoice invoice) {
         User owner = invoice.getPartnerInfo().getUser();
@@ -414,7 +433,11 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
                     .status(UserStatus.ACTIVE)
                     .role(UserRole.PARTNER)
                     .build();
-            userRepository.save(partnerAccount);
+            partnerAccount = userRepository.save(partnerAccount);
+
+            PartnerInfo partnerInfo = invoice.getPartnerInfo();
+            partnerInfo.setShopAccount(partnerAccount);
+            partnerInfoRepository.save(partnerInfo);
         } catch (Exception e) {
             log.error("Lưu tài khoản Partner vào DB thất bại (email: {})", shopEmail, e);
             throw new BusinessException("Lỗi hệ thống khi tạo tài khoản quản lý cho Partner: " + e.getMessage());

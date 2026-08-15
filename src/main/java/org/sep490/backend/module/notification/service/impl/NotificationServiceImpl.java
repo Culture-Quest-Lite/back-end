@@ -30,6 +30,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
 
+    /** Trần kích thước trang cho danh sách thông báo. */
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final NotificationRepository notificationRepository;
     private final FcmService fcmService;
     private final UserRepository userRepository;
@@ -68,6 +71,15 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public Page<NotificationResponse> getMyNotification(Long userId, Pageable pageable) {
+        if (userId == null) {
+            throw new BusinessException("Không xác định được người dùng");
+        }
+        if (pageable == null) {
+            throw new BusinessException("Thiếu thông tin phân trang");
+        }
+        if (pageable.getPageSize() > MAX_PAGE_SIZE) {
+            throw new BusinessException("Kích thước trang không được vượt quá 100");
+        }
         return notificationRepository.findByUser_UserIdOrderByCreatedAtDesc(userId, pageable)
                 .map(notificationMapper::toResponse);
     }
@@ -90,6 +102,9 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public long countUnread(Long userId) {
+        if (userId == null) {
+            throw new BusinessException("Không xác định được người dùng");
+        }
         String key = CacheNames.KEY_NOTIF_UNREAD + userId;
 
         Object cached = circuitBreaker.read("notif.unread.get",

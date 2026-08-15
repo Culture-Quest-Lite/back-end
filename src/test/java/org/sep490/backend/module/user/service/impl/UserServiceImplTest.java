@@ -1,5 +1,6 @@
 package org.sep490.backend.module.user.service.impl;
 
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.service.LeaderboardCacheService;
 import org.sep490.backend.module.user.service.UserIdCacheService;
 
@@ -60,6 +61,7 @@ class UserServiceImplTest {
     @Mock private RedisTemplate<String, Object> redisTemplate;
     @Mock private RedisCircuitBreaker circuitBreaker;
     @Mock private ImageService imageService;
+    @Mock private NotificationService notificationService;
     @InjectMocks private UserServiceImpl userService;
 
     @AfterEach
@@ -67,7 +69,22 @@ class UserServiceImplTest {
         SecurityContextHolder.clearContext();
     }
 
-    /** Giả lập người đang đăng nhập có keycloakUserId = {sub}. */
+    /** Explorer chuan dung xuyen suot cac test: du ho so de doi chieu voi bang unit test. */
+    private static User explorer(Long userId, String username, String displayName,
+                                 String email, String keycloakUserId, UserStatus status) {
+        User user = new User();
+        user.setUserId(userId);
+        user.setUsername(username);
+        user.setDisplayName(displayName);
+        user.setEmail(email);
+        user.setKeycloakUserId(keycloakUserId);
+        user.setStatus(status);
+        user.setRole(UserRole.EXPLORER);
+        user.setTotalXp(1200);
+        user.setTotalPoints(500);
+        return user;
+    }
+
     private void loginAs(String sub) {
         Jwt jwt = Jwt.withTokenValue("token").header("alg", "none").subject(sub).build();
         SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt));
@@ -112,8 +129,8 @@ class UserServiceImplTest {
         // UTCID02 - Abnormal: tài khoản không ở trạng thái hoạt động
         @Test
         void updateMyProfile_inactiveAccount_throwsNotActive() {
-            User user = new User();
-            user.setStatus(UserStatus.INACTIVE);
+            User user = explorer(1L, "traveler01", "Tran Minh Anh",
+                    "traveler01@gmail.com", "kc-001", UserStatus.INACTIVE);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -125,8 +142,8 @@ class UserServiceImplTest {
         // UTCID03 - Normal: cập nhật hồ sơ thành công
         @Test
         void updateMyProfile_validRequest_updatesProfile() {
-            User user = new User();
-            user.setStatus(UserStatus.ACTIVE);
+            User user = explorer(1L, "traveler01", "Tran Minh Anh",
+                    "traveler01@gmail.com", "kc-001", UserStatus.ACTIVE);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
             stubEnrich();
@@ -143,8 +160,8 @@ class UserServiceImplTest {
         // UTCID04 - Boundary: displayName có khoảng trắng thừa -> được cắt bỏ (trim)
         @Test
         void updateMyProfile_displayNameWithSpaces_isTrimmed() {
-            User user = new User();
-            user.setStatus(UserStatus.ACTIVE);
+            User user = explorer(1L, "traveler01", "Tran Minh Anh",
+                    "traveler01@gmail.com", "kc-001", UserStatus.ACTIVE);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
             stubEnrich();
@@ -163,10 +180,11 @@ class UserServiceImplTest {
     class FollowUserTest {
 
         private User activeUser(Long id) {
-            User user = new User();
-            user.setUserId(id);
-            user.setStatus(UserStatus.ACTIVE);
-            return user;
+            return id == 1L
+                    ? explorer(1L, "traveler01", "Tran Minh Anh",
+                            "traveler01@gmail.com", "kc-001", UserStatus.ACTIVE)
+                    : explorer(2L, "hoangnam", "Le Hoang Nam",
+                            "hoangnam@gmail.com", "kc-002", UserStatus.ACTIVE);
         }
 
         // UTCID01 - Abnormal: không tìm thấy người dùng hiện tại
@@ -183,9 +201,8 @@ class UserServiceImplTest {
         // UTCID02 - Abnormal: tài khoản của mình bị khóa/chưa kích hoạt
         @Test
         void followUser_currentUserInactive_throwsAccountLocked() {
-            User follower = new User();
-            follower.setUserId(1L);
-            follower.setStatus(UserStatus.INACTIVE);
+            User follower = explorer(1L, "traveler01", "Tran Minh Anh",
+                    "traveler01@gmail.com", "kc-001", UserStatus.INACTIVE);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(follower));
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -210,9 +227,8 @@ class UserServiceImplTest {
         @Test
         void followUser_targetInactive_throwsTargetInactive() {
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(activeUser(1L)));
-            User target = new User();
-            target.setUserId(2L);
-            target.setStatus(UserStatus.INACTIVE);
+            User target = explorer(2L, "hoangnam", "Le Hoang Nam",
+                    "hoangnam@gmail.com", "kc-002", UserStatus.INACTIVE);
             when(userRepository.findById(2L)).thenReturn(Optional.of(target));
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -278,10 +294,11 @@ class UserServiceImplTest {
     class UnfollowUserTest {
 
         private User activeUser(Long id) {
-            User user = new User();
-            user.setUserId(id);
-            user.setStatus(UserStatus.ACTIVE);
-            return user;
+            return id == 1L
+                    ? explorer(1L, "traveler01", "Tran Minh Anh",
+                            "traveler01@gmail.com", "kc-001", UserStatus.ACTIVE)
+                    : explorer(2L, "hoangnam", "Le Hoang Nam",
+                            "hoangnam@gmail.com", "kc-002", UserStatus.ACTIVE);
         }
 
         // UTCID01 - Abnormal: không tìm thấy người dùng hiện tại
@@ -298,9 +315,8 @@ class UserServiceImplTest {
         // UTCID02 - Abnormal: tài khoản của mình bị khóa/chưa kích hoạt
         @Test
         void unfollowUser_currentUserInactive_throwsAccountLocked() {
-            User follower = new User();
-            follower.setUserId(1L);
-            follower.setStatus(UserStatus.INACTIVE);
+            User follower = explorer(1L, "traveler01", "Tran Minh Anh",
+                    "traveler01@gmail.com", "kc-001", UserStatus.INACTIVE);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(follower));
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -367,11 +383,9 @@ class UserServiceImplTest {
     class LockUserTest {
 
         private User userWith(UserStatus status, UserRole role, String keycloakId) {
-            User user = new User();
-            user.setUserId(5L);
-            user.setStatus(status);
+            User user = explorer(5L, "quochung", "Truong Quoc Hung",
+                    "quochung@gmail.com", keycloakId, status);
             user.setRole(role);
-            user.setKeycloakUserId(keycloakId);
             return user;
         }
 
@@ -445,11 +459,8 @@ class UserServiceImplTest {
     class UnlockUserTest {
 
         private User userWith(UserStatus status) {
-            User user = new User();
-            user.setUserId(5L);
-            user.setStatus(status);
-            user.setKeycloakUserId("kc-5");
-            return user;
+            return explorer(5L, "quochung", "Truong Quoc Hung",
+                    "quochung@gmail.com", "kc-5", status);
         }
 
         // UTCID01 - Abnormal: không tìm thấy người dùng
@@ -496,11 +507,9 @@ class UserServiceImplTest {
     class UpdateUserRoleTest {
 
         private User userWith(UserStatus status, UserRole role, String keycloakId) {
-            User user = new User();
-            user.setUserId(5L);
-            user.setStatus(status);
+            User user = explorer(5L, "quochung", "Truong Quoc Hung",
+                    "quochung@gmail.com", keycloakId, status);
             user.setRole(role);
-            user.setKeycloakUserId(keycloakId);
             return user;
         }
 

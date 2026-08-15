@@ -1,5 +1,7 @@
 package org.sep490.backend.module.groupquest.service.impl;
 
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -59,6 +61,7 @@ class GroupServiceImplTest {
     @Mock private GroupParticipantRepository groupParticipantRepository;
     @Mock private FcmService fcmService;
     @Mock private ImageService imageService;
+    @Mock private NotificationService notificationService;
 
     @InjectMocks private GroupServiceImpl groupService;
 
@@ -81,6 +84,17 @@ class GroupServiceImplTest {
         User user = new User();
         user.setUserId(userId);
         user.setUsername(username);
+        user.setDisplayName(switch (username) {
+            case "leader" -> "Tran Minh Anh";
+            case "member" -> "Minh Anh";
+            case "khach" -> "Le Hoang Nam";
+            case "thanhvien" -> "Pham Van Long";
+            case "nguoila" -> "Nguoi La";
+            case "moi" -> "Vo Thi Mai";
+            default -> "Nguoi dung " + userId;
+        });
+        user.setEmail(username + "@gmail.com");
+        user.setKeycloakUserId("kc-00" + userId);
         return user;
     }
 
@@ -113,18 +127,7 @@ class GroupServiceImplTest {
     @DisplayName("leaveGroup")
     class LeaveGroupTest {
 
-        // UTCID01 - Abnormal: chưa đăng nhập
-        @Test
-        void leaveGroup_notLoggedIn_throwsNotLoggedIn() {
-            securityUtils.when(SecurityUtils::getCurrentUserKeyCloakId).thenReturn(Optional.empty());
-
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> groupService.leaveGroup(1L));
-
-            assertEquals("Người dùng chưa đăng nhập: leaveGroup", ex.getMessage());
-        }
-
-        // UTCID02 - Abnormal: nhóm không tồn tại
+        // UTCID01 - Abnormal: nhóm không tồn tại
         @Test
         void leaveGroup_groupNotFound_throwsGroupNotFound() {
             when(groupRepository.findById(1L)).thenReturn(Optional.empty());
@@ -135,7 +138,7 @@ class GroupServiceImplTest {
             assertEquals("Nhóm không tồn tại", ex.getMessage());
         }
 
-        // UTCID03 - Abnormal: nhóm đã bị xóa
+        // UTCID02 - Abnormal: nhóm đã bị xóa
         @Test
         void leaveGroup_deletedGroup_throwsGroupDeleted() {
             User leader = user(1L, "leader");
@@ -146,23 +149,44 @@ class GroupServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> groupService.leaveGroup(1L));
 
-            assertEquals("Nhóm đã bị xóa", ex.getMessage());
+            assertEquals("Nhóm đã xóa", ex.getMessage());
         }
 
-        // UTCID04 - Abnormal: người dùng không phải thành viên nhóm
+        // UTCID03 - Abnormal: đang chờ duyệt (PENDING) -> phải hủy yêu cầu chứ không phải rời nhóm
         @Test
-        void leaveGroup_notAParticipant_throwsAuthorizeException() {
+        void leaveGroup_stillPending_throwsMustCancelRequest() {
+            User leader = user(1L, "leader");
+            Group target = group(1L, leader, GroupStatus.ACTIVE);
+            User member = user(2L, "member");
+            when(groupRepository.findById(1L)).thenReturn(Optional.of(target));
+            when(userService.getCurrentUser()).thenReturn(member);
+            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
+                    1L, 2L, GroupParticipantAction.PENDING)).thenReturn(true);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> groupService.leaveGroup(1L));
+
+            assertEquals("Bạn không thể rời nhóm khi đang chờ duyệt. Hãy hủy yêu cầu tham gia nhóm",
+                    ex.getMessage());
+        }
+
+        // UTCID04 - Abnormal: không phải thành viên đang JOIN (chưa vào hoặc đã rời) -> không rời được
+        @Test
+        void leaveGroup_notJoinedMember_throwsNotInGroup() {
             User leader = user(1L, "leader");
             Group target = group(1L, leader, GroupStatus.ACTIVE);
             User outsider = user(9L, "nguoila");
             when(groupRepository.findById(1L)).thenReturn(Optional.of(target));
             when(userService.getCurrentUser()).thenReturn(outsider);
-            when(groupParticipantService.isParticipant(outsider, target)).thenReturn(false);
+            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
+                    anyLong(), anyLong(), any())).thenReturn(false);
 
-            GroupAuthorizeException ex = assertThrows(GroupAuthorizeException.class,
+            BusinessException ex = assertThrows(BusinessException.class,
                     () -> groupService.leaveGroup(1L));
 
-            assertEquals("Người dùng không phải là thành viên của nhóm", ex.getMessage());
+            assertEquals("Bạn không thuộc nhóm này", ex.getMessage());
+            verify(groupParticipantService, never())
+                    .updateAction(any(User.class), any(Group.class), any());
         }
 
         // UTCID05 - Abnormal: trưởng nhóm không được rời nhóm
@@ -172,7 +196,10 @@ class GroupServiceImplTest {
             Group target = group(1L, leader, GroupStatus.ACTIVE);
             when(groupRepository.findById(1L)).thenReturn(Optional.of(target));
             when(userService.getCurrentUser()).thenReturn(leader);
-            when(groupParticipantService.isParticipant(leader, target)).thenReturn(true);
+            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
+                    1L, 1L, GroupParticipantAction.PENDING)).thenReturn(false);
+            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
+                    1L, 1L, GroupParticipantAction.JOIN)).thenReturn(true);
             when(groupParticipantService.isLeader(leader, target)).thenReturn(true);
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -184,47 +211,7 @@ class GroupServiceImplTest {
                     .updateAction(any(User.class), any(Group.class), any());
         }
 
-        // UTCID06 - Abnormal: đã rời nhóm này trước đó
-        @Test
-        void leaveGroup_alreadyLeft_throwsAlreadyLeft() {
-            User leader = user(1L, "leader");
-            Group target = group(1L, leader, GroupStatus.ACTIVE);
-            User member = user(2L, "member");
-            when(groupRepository.findById(1L)).thenReturn(Optional.of(target));
-            when(userService.getCurrentUser()).thenReturn(member);
-            when(groupParticipantService.isParticipant(member, target)).thenReturn(true);
-            when(groupParticipantService.isLeader(member, target)).thenReturn(false);
-            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
-                    1L, 2L, GroupParticipantAction.LEAVE)).thenReturn(true);
-
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> groupService.leaveGroup(1L));
-
-            assertEquals("Bạn đã rời nhóm này", ex.getMessage());
-        }
-
-        // UTCID07 - Abnormal: đang chờ duyệt (PENDING) -> chưa phải thành viên nên không thể rời
-        @Test
-        void leaveGroup_stillPending_throwsNotYetMember() {
-            User leader = user(1L, "leader");
-            Group target = group(1L, leader, GroupStatus.ACTIVE);
-            User member = user(2L, "member");
-            when(groupRepository.findById(1L)).thenReturn(Optional.of(target));
-            when(userService.getCurrentUser()).thenReturn(member);
-            when(groupParticipantService.isParticipant(member, target)).thenReturn(true);
-            when(groupParticipantService.isLeader(member, target)).thenReturn(false);
-            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
-                    1L, 2L, GroupParticipantAction.LEAVE)).thenReturn(false);
-            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
-                    1L, 2L, GroupParticipantAction.PENDING)).thenReturn(true);
-
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> groupService.leaveGroup(1L));
-
-            assertEquals("Bạn chưa là thành viên để rời nhóm này", ex.getMessage());
-        }
-
-        // UTCID08 - Normal: rời nhóm thành công -> action = LEAVE, cập nhật lại sĩ số
+        // UTCID06 - Normal: rời nhóm thành công -> action = LEAVE, cập nhật lại sĩ số
         @Test
         void leaveGroup_validMember_setsLeaveActionAndRecountsMembers() {
             User leader = user(1L, "leader");
@@ -232,10 +219,11 @@ class GroupServiceImplTest {
             User member = user(2L, "member");
             when(groupRepository.findById(1L)).thenReturn(Optional.of(target));
             when(userService.getCurrentUser()).thenReturn(member);
-            when(groupParticipantService.isParticipant(member, target)).thenReturn(true);
-            when(groupParticipantService.isLeader(member, target)).thenReturn(false);
             when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
-                    anyLong(), anyLong(), any())).thenReturn(false);
+                    1L, 2L, GroupParticipantAction.PENDING)).thenReturn(false);
+            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
+                    1L, 2L, GroupParticipantAction.JOIN)).thenReturn(true);
+            when(groupParticipantService.isLeader(member, target)).thenReturn(false);
             when(groupParticipantRepository.findAllByGroup_GroupIdAndAction(
                     1L, GroupParticipantAction.JOIN))
                     .thenReturn(List.of(new GroupParticipant(), new GroupParticipant()));
@@ -248,6 +236,30 @@ class GroupServiceImplTest {
             assertEquals(2, target.getTotalMembers());
             verify(groupRepository).save(target);
         }
+
+        // UTCID07 - Normal: rời nhóm xong phải báo cho trưởng nhóm
+        @Test
+        void leaveGroup_validMember_notifiesLeader() {
+            User leader = user(1L, "leader");
+            Group target = group(1L, leader, GroupStatus.ACTIVE);
+            User member = user(2L, "member");
+            member.setDisplayName("Minh Anh");
+            when(groupRepository.findById(1L)).thenReturn(Optional.of(target));
+            when(userService.getCurrentUser()).thenReturn(member);
+            when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
+                    1L, 2L, GroupParticipantAction.JOIN)).thenReturn(true);
+            when(groupParticipantRepository.findAllByGroup_GroupIdAndAction(anyLong(), any()))
+                    .thenReturn(List.of());
+            leaderOfGroup(1L, leader);
+            when(userService.getUserById(1L)).thenReturn(leader);
+
+            groupService.leaveGroup(1L);
+
+            verify(notificationService).sendAndSave(
+                    eq(leader), eq("Thành viên rời nhóm"),
+                    eq("Thành viên Minh Anh đã rời khỏi nhóm Nhóm phượt Đà Lạt."),
+                    eq(NotificationType.GROUP), eq(1L));
+        }
     }
 
     // =====================================================================
@@ -257,15 +269,15 @@ class GroupServiceImplTest {
     @DisplayName("addUserToGroup")
     class AddUserToGroupTest {
 
-        // UTCID01 - Abnormal: chưa đăng nhập
+        // UTCID01 - Abnormal: nhóm không tồn tại
         @Test
-        void addUserToGroup_notLoggedIn_throwsNotLoggedIn() {
-            securityUtils.when(SecurityUtils::getCurrentUserKeyCloakId).thenReturn(Optional.empty());
+        void addUserToGroup_groupNotFound_throwsGroupNotFound() {
+            when(groupRepository.findById(1L)).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> groupService.addMember(2L, 1L));
 
-            assertEquals("Người dùng chưa đăng nhập: addUserToGroup", ex.getMessage());
+            assertEquals("Nhóm không tồn tại", ex.getMessage());
         }
 
         // UTCID02 - Abnormal: nhóm đã bị xóa
@@ -307,6 +319,7 @@ class GroupServiceImplTest {
             when(groupRepository.findById(1L)).thenReturn(Optional.of(target));
             when(userService.getCurrentUser()).thenReturn(leader);
             when(userService.getUserById(1L)).thenReturn(leader);
+            when(groupParticipantService.isLeader(leader, target)).thenReturn(true);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> groupService.addMember(1L, 1L));
@@ -322,7 +335,9 @@ class GroupServiceImplTest {
             User newMember = user(2L, "moi");
             when(groupRepository.findById(1L)).thenReturn(Optional.of(target));
             when(userService.getCurrentUser()).thenReturn(leader);
+            when(userService.getUserById(1L)).thenReturn(leader);
             when(userService.getUserById(2L)).thenReturn(newMember);
+            when(groupParticipantService.isLeader(leader, target)).thenReturn(true);
             when(userFollowRepository.existsByFollowerAndFollowing(newMember, leader)).thenReturn(true);
             when(userFollowRepository.existsByFollowerAndFollowing(leader, newMember)).thenReturn(false);
 
@@ -342,7 +357,9 @@ class GroupServiceImplTest {
             User newMember = user(2L, "moi");
             when(groupRepository.findById(1L)).thenReturn(Optional.of(target));
             when(userService.getCurrentUser()).thenReturn(leader);
+            when(userService.getUserById(1L)).thenReturn(leader);
             when(userService.getUserById(2L)).thenReturn(newMember);
+            when(groupParticipantService.isLeader(leader, target)).thenReturn(true);
             when(userFollowRepository.existsByFollowerAndFollowing(any(), any())).thenReturn(true);
             leaderOfGroup(1L, leader);
 
@@ -407,9 +424,9 @@ class GroupServiceImplTest {
             assertEquals("Bạn không thể kick chính mình", ex.getMessage());
         }
 
-        // UTCID04 - Abnormal: thành viên đã bị kick trước đó
+        // UTCID04 - Abnormal: người bị kick không còn là thành viên đang JOIN (đã rời/đã bị kick)
         @Test
-        void kickUserFromGroup_alreadyKicked_throwsAlreadyKicked() {
+        void kickUserFromGroup_targetNotAnActiveMember_throwsNotInGroup() {
             User leader = user(1L, "leader");
             Group target = group(1L, leader, GroupStatus.ACTIVE);
             User member = user(2L, "member");
@@ -418,12 +435,12 @@ class GroupServiceImplTest {
             when(userService.getUserById(2L)).thenReturn(member);
             when(groupParticipantService.isLeader(leader, target)).thenReturn(true);
             when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
-                    1L, 2L, GroupParticipantAction.KICKED)).thenReturn(true);
+                    1L, 2L, GroupParticipantAction.JOIN)).thenReturn(false);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> groupService.kickUserFromGroup(2L, 1L));
 
-            assertEquals("Thành viên này đã bị kick khỏi nhóm", ex.getMessage());
+            assertEquals("Thành viên này không thuộc nhóm", ex.getMessage());
             verify(groupParticipantService, never())
                     .updateAction(any(User.class), any(Group.class), any());
         }
@@ -439,7 +456,7 @@ class GroupServiceImplTest {
             when(userService.getUserById(2L)).thenReturn(member);
             when(groupParticipantService.isLeader(leader, target)).thenReturn(true);
             when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
-                    anyLong(), anyLong(), any())).thenReturn(false);
+                    1L, 2L, GroupParticipantAction.JOIN)).thenReturn(true);
             when(groupParticipantRepository.findAllByGroup_GroupIdAndAction(
                     1L, GroupParticipantAction.JOIN))
                     .thenReturn(List.of(new GroupParticipant()));
@@ -641,17 +658,6 @@ class GroupServiceImplTest {
             return request;
         }
 
-        // UTCID01 - Abnormal: chưa đăng nhập
-        @Test
-        void createGroup_notLoggedIn_throwsNotLoggedIn() {
-            securityUtils.when(SecurityUtils::getCurrentUserKeyCloakId).thenReturn(Optional.empty());
-
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> groupService.createGroup(groupRequest()));
-
-            assertEquals("Người dùng chưa đăng nhập: createGroup", ex.getMessage());
-        }
-
         // UTCID02 - Abnormal: không có thành viên nào follow nhau
         @Test
         void createGroup_noMutualFollowers_throwsNeedMembers() {
@@ -662,7 +668,7 @@ class GroupServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> groupService.createGroup(groupRequest()));
 
-            assertEquals("Bạn cần ít nhất 2 thành viên follow nhau để tạo nhóm", ex.getMessage());
+            assertEquals("Bạn và 1 thành viên cần phải theo dõi nhau để tạo nhóm", ex.getMessage());
             verify(groupRepository, never()).save(any());
         }
 
@@ -676,7 +682,7 @@ class GroupServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> groupService.createGroup(groupRequest()));
 
-            assertEquals("Bạn cần ít nhất 2 thành viên follow nhau để tạo nhóm", ex.getMessage());
+            assertEquals("Bạn và 1 thành viên cần phải theo dõi nhau để tạo nhóm", ex.getMessage());
         }
 
         // UTCID04 - Normal: tạo nhóm thành công -> status ACTIVE, trim tên, sinh shareToken
@@ -730,7 +736,9 @@ class GroupServiceImplTest {
 
             groupService.createGroup(groupRequest());
 
-            verify(fcmService).sendPushNotification(any(), anyString(), anyString(), any(), eq(1L));
+            verify(notificationService).sendAndSave(eq(leader),
+                    eq("Không thể add 1 thành viên vào nhóm   Nhóm phượt Đà Lạt  "),
+                    contains("b, "), eq(NotificationType.GROUP), eq(1L));
             verify(groupRepository, times(2)).save(any(Group.class));
         }
     }
@@ -752,6 +760,9 @@ class GroupServiceImplTest {
         // UTCID01 - Abnormal: không phải trưởng nhóm
         @Test
         void updateGroup_notLeader_throwsAuthorizeException() {
+            User leader = user(1L, "leader");
+            when(groupRepository.findById(1L))
+                    .thenReturn(Optional.of(group(1L, leader, GroupStatus.ACTIVE)));
             when(userService.getCurrentUser()).thenReturn(user(2L, "member"));
             when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserIdAndRole(
                     1L, 2L, GroupRole.LEADER)).thenReturn(false);

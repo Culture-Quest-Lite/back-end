@@ -63,7 +63,7 @@ public class PartnerDashboardServiceImpl implements PartnerDashboardService {
         LocalDateTime dayTo = today.plusDays(1).atStartOfDay();
 
         // 1. Subscription Info & Usages
-        List<Invoice> invoices = invoiceRepository.findByPartnerInfo_User_UserIdOrderByCreatedAtDesc(partnerId);
+        List<Invoice> invoices = invoiceRepository.findPartnerInvoicesForUser(partnerId);
         Optional<Invoice> activeInvoiceOpt = invoices.stream()
                 .filter(inv -> InvoiceStatus.ACTIVE.equals(inv.getStatus()))
                 .findFirst();

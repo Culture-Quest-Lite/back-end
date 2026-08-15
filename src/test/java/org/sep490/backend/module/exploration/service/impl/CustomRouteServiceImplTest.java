@@ -1,5 +1,6 @@
 package org.sep490.backend.module.exploration.service.impl;
 
+import org.sep490.backend.module.authorization.service.EntitlementService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -31,11 +32,14 @@ import org.sep490.backend.module.content.service.inter.ImageService;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.user.service.UserService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +53,7 @@ class CustomRouteServiceImplTest {
     @Mock private RouteService routeService;
     @Mock private StoryMapper storyMapper;
     @Mock private TagRepository tagRepository;
+    @Mock private EntitlementService entitlementService;
 
     @InjectMocks
     private CustomRouteServiceImpl customRouteService;
@@ -63,8 +68,24 @@ class CustomRouteServiceImplTest {
         private User creator() {
             User u = new User();
             u.setUserId(1L);
+            u.setUsername("traveler01");
             u.setDisplayName("Traveler");
+            u.setEmail("traveler01@gmail.com");
             return u;
+        }
+
+        // UTCID00 - Abnormal: tài khoản thường (không Premium) -> không được ghi hành trình
+        @Test
+        void recordJourney_notPremium_throwsPremiumOnly() {
+            when(userService.getCurrentUser()).thenReturn(creator());
+            when(entitlementService.isPremium()).thenReturn(false);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> customRouteService.recordJourney());
+
+            assertEquals("Tính năng ghi hành trình cá nhân chỉ dành cho Premium Explorer",
+                    ex.getMessage());
+            verify(routeRepository, never()).save(any());
         }
 
         // UTCID01 - Abnormal: đang có một hành trình ghi lại chưa hoàn thành
@@ -72,6 +93,7 @@ class CustomRouteServiceImplTest {
         void recordJourney_alreadyRecording_throwsAlreadyRecording() {
             User creator = creator();
             when(userService.getCurrentUser()).thenReturn(creator);
+            when(entitlementService.isPremium()).thenReturn(true);
             when(routeRepository.findByCreatedByAndTypeAndStatus(creator, RouteType.CUSTOM, RouteStatus.RECORDING))
                     .thenReturn(Optional.of(new Route()));
 
@@ -87,6 +109,7 @@ class CustomRouteServiceImplTest {
         void recordJourney_defaultTagMissing_throwsTagNotFound() {
             User creator = creator();
             when(userService.getCurrentUser()).thenReturn(creator);
+            when(entitlementService.isPremium()).thenReturn(true);
             when(routeRepository.findByCreatedByAndTypeAndStatus(creator, RouteType.CUSTOM, RouteStatus.RECORDING))
                     .thenReturn(Optional.empty());
             when(tagRepository.findByTagName("Hành Trình Cá Nhân")).thenReturn(Optional.empty());
@@ -102,6 +125,7 @@ class CustomRouteServiceImplTest {
         void recordJourney_valid_createsRecordingRoute() {
             User creator = creator();
             when(userService.getCurrentUser()).thenReturn(creator);
+            when(entitlementService.isPremium()).thenReturn(true);
             when(routeRepository.findByCreatedByAndTypeAndStatus(creator, RouteType.CUSTOM, RouteStatus.RECORDING))
                     .thenReturn(Optional.empty());
             Tag tag = new Tag();
@@ -129,6 +153,8 @@ class CustomRouteServiceImplTest {
 
         private Route recordingRouteWithStops(int stops) {
             Route route = new Route();
+            route.setRouteId(10L);
+            route.setRouteName("Hanh trinh cua toi");
             route.setStatus(RouteStatus.RECORDING);
             for (int i = 0; i < stops; i++) {
                 route.getStories().add(new Story());
@@ -201,13 +227,35 @@ class CustomRouteServiceImplTest {
             return request;
         }
 
+        /** Hành trình đã có đủ 4 điểm dừng — điều kiện tiên quyết của finalizeCustomRoute. */
         private Route route(RouteStatus status, RouteType type, User owner) {
             Route route = new Route();
             route.setRouteId(10L);
+            route.setRouteName("Hanh trinh cua toi");
+            route.setDescription("Chuyen di cua toi");
             route.setStatus(status);
             route.setType(type);
             route.setCreatedBy(owner);
+            route.setStories(new ArrayList<>(List.of(
+                    new Story(), new Story(), new Story(), new Story())));
             return route;
+        }
+
+        // UTCID00 - Abnormal: chưa đủ 4 điểm dừng -> chặn ngay trước mọi kiểm tra khác
+        @Test
+        void finalizeCustomRoute_lessThanFourStops_throwsMinStops() {
+            User owner = new User();
+            owner.setUserId(1L);
+            Route route = route(RouteStatus.DRAFT, RouteType.CUSTOM, owner);
+            route.setStories(new ArrayList<>(List.of(new Story(), new Story(), new Story())));
+            when(routeService.getById(10L)).thenReturn(route);
+            when(userService.getCurrentUser()).thenReturn(owner);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> customRouteService.finalizeCustomRoute(request()));
+
+            assertEquals("Hành trình cá nhân phải có ít nhất 4 điểm dừng (Hotspot) để hoàn tất",
+                    ex.getMessage());
         }
 
         // UTCID01 - Abnormal: hành trình không ở trạng thái DRAFT
@@ -271,6 +319,9 @@ class CustomRouteServiceImplTest {
             customRouteService.finalizeCustomRoute(request());
 
             assertEquals(RouteStatus.PUBLISHED, route.getStatus());
+            assertEquals(4, route.getTotalStops());
+            assertEquals(500L, route.getXp());
+            assertEquals(500L, route.getPoint());
         }
     }
 }

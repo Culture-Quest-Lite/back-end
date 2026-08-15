@@ -1,5 +1,8 @@
 package org.sep490.backend.module.social.service.impl;
 
+import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.notification.service.NotificationService;
+import org.sep490.backend.module.user.repository.UserFollowRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -72,6 +75,9 @@ class PostServiceImplTest {
     @Mock private TransactionCompensationService txCompensation;
     @Mock private AuditLogService auditLogService;
     @Mock private PostCounterService postCounterService;
+    @Mock private UserRepository userRepository;
+    @Mock private NotificationService notificationService;
+    @Mock private UserFollowRepository userFollowRepository;
 
     @InjectMocks private PostServiceImpl postService;
 
@@ -79,6 +85,14 @@ class PostServiceImplTest {
         User user = new User();
         user.setUserId(userId);
         user.setUsername(username);
+        user.setDisplayName(switch (username) {
+            case "tacgia" -> "Tran Minh Anh";
+            case "nguoikhac" -> "Le Hoang Nam";
+            case "nguoibinhluan" -> "Pham Van Long";
+            case "nguoichiase" -> "Vo Thi Mai";
+            default -> "Nguoi dung " + userId;
+        });
+        user.setEmail(username + "@gmail.com");
         return user;
     }
 

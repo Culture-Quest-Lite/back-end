@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.config.goong.GoongClient;
 import org.sep490.backend.config.goong.dto.GoongDistanceMatrixResponse;
@@ -29,12 +30,16 @@ public class GoongDistanceServiceImpl implements GoongDistanceService {
 
     static double FALLBACK_SPEED_MPS = 25_000.0 / 3600.0;
 
+    /** Goong giới hạn số điểm mỗi lần gọi ma trận khoảng cách. */
+    static int MAX_POINTS = 25;
+
     GoongClient goongClient;
     RedisTemplate<String, Object> redisTemplate;
     RedisCircuitBreaker circuitBreaker;
 
     @Override
     public DistanceMatrixResult getMatrix(List<double[]> points) {
+        validatePoints(points);
 
         String cacheKey = buildKey(points);
         Object cached = circuitBreaker.read("goong.get",
@@ -50,6 +55,30 @@ public class GoongDistanceServiceImpl implements GoongDistanceService {
                     () -> redisTemplate.opsForValue().set(cacheKey, result, CacheNames.TTL_GOONG));
         }
         return result;
+    }
+
+    /** Mỗi phần tử là cặp {vĩ độ, kinh độ}; chặn dữ liệu hỏng trước khi gọi Goong. */
+    private void validatePoints(List<double[]> points) {
+        if (points == null || points.isEmpty()) {
+            throw new BusinessException("Danh sách toạ độ không được để trống");
+        }
+        if (points.size() < 2) {
+            throw new BusinessException("Cần ít nhất 2 điểm để tính ma trận khoảng cách");
+        }
+        if (points.size() > MAX_POINTS) {
+            throw new BusinessException("Không được vượt quá 25 điểm cho một lần tính khoảng cách");
+        }
+        for (double[] point : points) {
+            if (point == null || point.length != 2) {
+                throw new BusinessException("Mỗi điểm phải gồm đúng 2 giá trị vĩ độ và kinh độ");
+            }
+            if (point[0] < -90 || point[0] > 90) {
+                throw new BusinessException("Vĩ độ phải nằm trong khoảng -90 đến 90");
+            }
+            if (point[1] < -180 || point[1] > 180) {
+                throw new BusinessException("Kinh độ phải nằm trong khoảng -180 đến 180");
+            }
+        }
     }
 
     private DistanceMatrixResult haversineMatrix(List<double[]> points) {

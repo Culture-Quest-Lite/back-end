@@ -29,6 +29,9 @@ public class GeoQueryServiceImpl implements GeoQueryService {
 
     static int NEARBY_PRECISION = 3;
 
+    /** Bán kính tìm kiếm tối đa: 50km, đủ cho mọi màn hình khám phá của app. */
+    static double MAX_RADIUS_IN_METERS = 50_000d;
+
     HotspotRepository hotspotRepository;
     RedisTemplate<String, Object> redisTemplate;
     RedisCircuitBreaker circuitBreaker;
@@ -38,6 +41,7 @@ public class GeoQueryServiceImpl implements GeoQueryService {
         if (longitude == null || latitude == null) {
             return false;
         }
+        validateCoordinate(longitude, latitude);
         String key = CacheNames.KEY_GEO_VN
                 + round(latitude, VN_PRECISION) + ":" + round(longitude, VN_PRECISION);
 
@@ -57,6 +61,16 @@ public class GeoQueryServiceImpl implements GeoQueryService {
     @Override
     public List<Hotspot> findNearby(double longitude, double latitude,
                                     double radiusInMeters, String status) {
+        validateCoordinate(longitude, latitude);
+        if (radiusInMeters <= 0) {
+            throw new BusinessException("Bán kính tìm kiếm phải lớn hơn 0");
+        }
+        if (radiusInMeters > MAX_RADIUS_IN_METERS) {
+            throw new BusinessException("Bán kính tìm kiếm không được vượt quá 50000 mét");
+        }
+        if (status == null || status.isBlank()) {
+            throw new BusinessException("Trạng thái địa điểm không được để trống");
+        }
         String key = CacheNames.KEY_GEO_NEARBY
                 + round(latitude, NEARBY_PRECISION) + ":"
                 + round(longitude, NEARBY_PRECISION) + ":"
@@ -126,5 +140,15 @@ public class GeoQueryServiceImpl implements GeoQueryService {
 
     private String round(double value, int precision) {
         return String.format("%." + precision + "f", value);
+    }
+
+    /** Chặn toạ độ nằm ngoài hệ WGS84 trước khi đụng tới Redis hoặc PostGIS. */
+    private void validateCoordinate(double longitude, double latitude) {
+        if (longitude < -180 || longitude > 180) {
+            throw new BusinessException("Kinh độ phải nằm trong khoảng -180 đến 180");
+        }
+        if (latitude < -90 || latitude > 90) {
+            throw new BusinessException("Vĩ độ phải nằm trong khoảng -90 đến 90");
+        }
     }
 }

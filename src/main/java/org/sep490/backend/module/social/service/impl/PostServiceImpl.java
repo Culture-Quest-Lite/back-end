@@ -179,6 +179,7 @@ public class PostServiceImpl implements PostService {
                     post.setStatus(PostStatus.APPROVED);
                 }
             }
+            post.setVisibility(request.getVisibility());
         }
 
         if (request.getHotspotIds() != null) {
@@ -837,10 +838,6 @@ public class PostServiceImpl implements PostService {
         return response;
     }
 
-    /**
-     * Dùng EXISTS query thay vì stream cả collection postActions:
-     * cách cũ nạp toàn bộ like của post vào bộ nhớ chỉ để tìm một user.
-     */
     private boolean isLikedBy(Long postId, Long userId) {
         if (postId == null || userId == null) {
             return false;

@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Point;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
@@ -47,6 +48,7 @@ public class AISuggestionServiceImpl implements AISuggestionService {
     static double DEFAULT_NEARBY_RADIUS = 3000;
     static int DEFAULT_LIMIT = 10;
     static int MAX_CANDIDATES = 40; // giới hạn để prompt gọn
+    static int MAX_ANCHORS = 10;    // mỗi anchor là một vòng truy vấn PostGIS
 
     ChatClient chatClient;
     HotspotRepository hotspotRepository;
@@ -98,6 +100,21 @@ public class AISuggestionServiceImpl implements AISuggestionService {
     @Override
     @Transactional(readOnly = true)
     public List<HotspotSuggestionResponse> suggestNearby(NearbySuggestRequest request) {
+        if (request == null) {
+            throw new BusinessException("Yêu cầu gợi ý không được để trống");
+        }
+        if (request.getAnchorHotspotIds() == null || request.getAnchorHotspotIds().isEmpty()) {
+            throw new BusinessException("Cần chọn ít nhất một địa điểm neo");
+        }
+        if (request.getAnchorHotspotIds().size() > MAX_ANCHORS) {
+            throw new BusinessException("Không được chọn quá 10 địa điểm neo");
+        }
+        if (request.getRadiusInMeters() != null && request.getRadiusInMeters() <= 0) {
+            throw new BusinessException("Bán kính tìm kiếm phải lớn hơn 0");
+        }
+        if (request.getLimit() != null && request.getLimit() <= 0) {
+            throw new BusinessException("Số lượng gợi ý phải lớn hơn 0");
+        }
         int limit = request.getLimit() != null ? request.getLimit() : DEFAULT_LIMIT;
         double radius = request.getRadiusInMeters() != null ? request.getRadiusInMeters() : DEFAULT_NEARBY_RADIUS;
 

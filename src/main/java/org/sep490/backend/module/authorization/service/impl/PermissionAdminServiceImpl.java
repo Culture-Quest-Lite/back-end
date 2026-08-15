@@ -120,6 +120,12 @@ public class PermissionAdminServiceImpl implements PermissionAdminService {
     @Override
     @Transactional(readOnly = true)
     public List<UserPermissionResponse> getUserPermissions(Long userId) {
+        if (userId == null) {
+            throw new BusinessException("Không xác định được người dùng");
+        }
+        if (!userRepository.existsById(userId)) {
+            throw new BusinessException("Không tìm thấy người dùng");
+        }
         LocalDateTime now = LocalDateTime.now();
         return userPermissionRepository.findAllByUserIdWithPermission(userId).stream()
                 .map(up -> UserPermissionResponse.builder()

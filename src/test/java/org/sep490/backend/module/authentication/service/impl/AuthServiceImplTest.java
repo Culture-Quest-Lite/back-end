@@ -27,6 +27,7 @@ import org.sep490.backend.module.authentication.dto.request.VerifyOtpRequest;
 import org.sep490.backend.module.authentication.dto.response.LoginResponse;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.authentication.mapper.UserMapper;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.user.dto.response.UserProfileResponse;
@@ -134,6 +135,24 @@ class AuthServiceImplTest {
         return captor.getValue();
     }
 
+    // ---------------------------------------------------------------
+    // Tai khoan mau dung xuyen suot: du ho so de doi chieu voi bang unit test
+    // username "traveler01" | email "a@gmail.com" | Keycloak "kc-001"
+    // ---------------------------------------------------------------
+    private static User anAccount() {
+        User user = new User();
+        user.setUserId(7L);
+        user.setUsername("traveler01");
+        user.setDisplayName("Tran Minh Anh");
+        user.setEmail("a@gmail.com");
+        user.setKeycloakUserId("kc-001");
+        user.setRole(UserRole.EXPLORER);
+        user.setStatus(UserStatus.ACTIVE);
+        user.setTotalXp(1200);
+        user.setTotalPoints(500);
+        return user;
+    }
+
     // =====================================================================
     // Function: login
     // =====================================================================
@@ -238,7 +257,7 @@ class AuthServiceImplTest {
             when(keyCloakAuthClient.login(anyString(), anyString()))
                     .thenReturn(tokenWith("kc-001", List.of("EXPLORER")));
 
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.INACTIVE);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
 
@@ -255,7 +274,7 @@ class AuthServiceImplTest {
             when(keyCloakAuthClient.login(anyString(), anyString()))
                     .thenReturn(tokenWith("kc-admin", List.of("ADMIN")));
 
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.INACTIVE);
             when(userRepository.findByKeycloakUserId("kc-admin")).thenReturn(Optional.of(user));
 
@@ -272,7 +291,7 @@ class AuthServiceImplTest {
             KeyCloakTokenResponse token = tokenWith("kc-001", List.of("EXPLORER"));
             when(keyCloakAuthClient.login("traveler01", "123456")).thenReturn(token);
 
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.ACTIVE);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
 
@@ -354,7 +373,7 @@ class AuthServiceImplTest {
         void verifyOtp_validOtp_activatesAccount() {
             when(authTokenService.findOtp("a@gmail.com")).thenReturn(Optional.of("123456"));
 
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.PENDING);
             when(userRepository.findByEmailIgnoreCase("a@gmail.com")).thenReturn(Optional.of(user));
 
@@ -370,7 +389,7 @@ class AuthServiceImplTest {
         void verifyOtp_otpWithSurroundingSpaces_isTrimmedAndAccepted() {
             when(authTokenService.findOtp("a@gmail.com")).thenReturn(Optional.of("123456"));
 
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.PENDING);
             when(userRepository.findByEmailIgnoreCase("a@gmail.com")).thenReturn(Optional.of(user));
 
@@ -482,7 +501,7 @@ class AuthServiceImplTest {
             when(keyCloakAuthClient.createUser(anyString(), anyString(), anyString(), anyString(), anyList()))
                     .thenReturn("kc-001");
             when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
-            when(userMapper.toEntity(request)).thenReturn(new User());
+            when(userMapper.toEntity(request)).thenReturn(anAccount());
             when(levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE))
                     .thenReturn(Optional.empty());
             when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -509,7 +528,7 @@ class AuthServiceImplTest {
                     .thenReturn("kc-001");
             when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
 
-            User mapped = new User();
+            User mapped = anAccount();
             when(userMapper.toEntity(request)).thenReturn(mapped);
             when(levelRepository.findFirstByStatusOrderByRequiredXpAsc(LevelStatus.ACTIVE))
                     .thenReturn(Optional.empty());
@@ -635,7 +654,7 @@ class AuthServiceImplTest {
         // UTCID02 - Abnormal: tài khoản chưa kích hoạt hoặc bị khóa
         @Test
         void forgotPassword_inactiveAccount_throwsNotActivated() {
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.INACTIVE);
             when(userRepository.findByEmailIgnoreCase("a@gmail.com")).thenReturn(Optional.of(user));
 
@@ -649,10 +668,9 @@ class AuthServiceImplTest {
         // UTCID03 - Normal: tài khoản hợp lệ -> tạo token và gửi email đặt lại mật khẩu
         @Test
         void forgotPassword_activeAccount_savesTokenAndSendsEmail() {
-            User user = new User();
+            User user = anAccount();
             user.setUserId(7L);
             user.setStatus(UserStatus.ACTIVE);
-            user.setEmail("a@gmail.com");
             when(userRepository.findByEmailIgnoreCase("a@gmail.com")).thenReturn(Optional.of(user));
             when(mailSender.createMimeMessage()).thenReturn(mock(MimeMessage.class));
 
@@ -715,7 +733,7 @@ class AuthServiceImplTest {
         // UTCID04 - Normal: token hợp lệ -> đặt lại mật khẩu trên Keycloak
         @Test
         void resetPassword_validToken_resetsPassword() {
-            User user = new User();
+            User user = anAccount();
             user.setUserId(7L);
             user.setKeycloakUserId("kc-001");
             when(authTokenService.findUserIdByResetToken("valid-token")).thenReturn(Optional.of(7L));
@@ -766,7 +784,7 @@ class AuthServiceImplTest {
         // UTCID03 - Abnormal: tài khoản bị khóa
         @Test
         void changePassword_lockedAccount_throwsLocked() {
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.INACTIVE);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
 
@@ -779,7 +797,7 @@ class AuthServiceImplTest {
         // UTCID04 - Abnormal: mật khẩu mới trùng mật khẩu cũ
         @Test
         void changePassword_newSameAsOld_throwsSamePassword() {
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.ACTIVE);
             user.setUsername("traveler01");
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
@@ -793,7 +811,7 @@ class AuthServiceImplTest {
         // UTCID05 - Abnormal: mật khẩu hiện tại không đúng (Keycloak từ chối)
         @Test
         void changePassword_wrongOldPassword_throwsWrongCurrent() {
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.ACTIVE);
             user.setUsername("traveler01");
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
@@ -810,7 +828,7 @@ class AuthServiceImplTest {
         // UTCID06 - Normal: đổi mật khẩu thành công
         @Test
         void changePassword_valid_updatesPassword() {
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.ACTIVE);
             user.setUsername("traveler01");
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
@@ -883,7 +901,7 @@ class AuthServiceImplTest {
         void loginGoogle_existingLockedUser_throwsLocked() {
             when(keyCloakAuthClient.exchangeCode("code", "uri"))
                     .thenReturn(socialToken("kc-001", "a@gmail.com", List.of("EXPLORER")));
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.INACTIVE);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
 
@@ -898,7 +916,7 @@ class AuthServiceImplTest {
         void loginGoogle_existingActiveUser_logsIn() {
             when(keyCloakAuthClient.exchangeCode("code", "uri"))
                     .thenReturn(socialToken("kc-001", "a@gmail.com", List.of("EXPLORER")));
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.ACTIVE);
             when(userRepository.findByKeycloakUserId("kc-001")).thenReturn(Optional.of(user));
 
@@ -974,7 +992,7 @@ class AuthServiceImplTest {
         void loginFacebook_existingLockedUser_throwsLocked() {
             when(keyCloakAuthClient.exchangeCode("code", "uri"))
                     .thenReturn(socialToken("kc-fb-001", "a@gmail.com", List.of("EXPLORER")));
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.INACTIVE);
             when(userRepository.findByKeycloakUserId("kc-fb-001")).thenReturn(Optional.of(user));
 
@@ -989,7 +1007,7 @@ class AuthServiceImplTest {
         void loginFacebook_existingActiveUser_logsIn() {
             when(keyCloakAuthClient.exchangeCode("code", "uri"))
                     .thenReturn(socialToken("kc-fb-001", "a@gmail.com", List.of("EXPLORER")));
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.ACTIVE);
             when(userRepository.findByKeycloakUserId("kc-fb-001")).thenReturn(Optional.of(user));
 
@@ -1054,7 +1072,7 @@ class AuthServiceImplTest {
         // UTCID04 - Normal: user đã tồn tại -> không tạo mới (Keycloak auto-link theo email)
         @Test
         void syncSocialUser_existingUser_doesNotCreateDuplicate() {
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.ACTIVE);
             when(userRepository.findByKeycloakUserId("kc-fb-001")).thenReturn(Optional.of(user));
 
@@ -1067,7 +1085,7 @@ class AuthServiceImplTest {
         // UTCID05 - Abnormal: tài khoản bị khóa
         @Test
         void syncSocialUser_lockedUser_throwsLocked() {
-            User user = new User();
+            User user = anAccount();
             user.setStatus(UserStatus.INACTIVE);
             when(userRepository.findByKeycloakUserId("kc-fb-001")).thenReturn(Optional.of(user));
 

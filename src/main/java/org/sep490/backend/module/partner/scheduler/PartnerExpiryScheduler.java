@@ -3,6 +3,7 @@ package org.sep490.backend.module.partner.scheduler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.sep490.backend.module.admin.entity.Invoice;
+import org.sep490.backend.module.admin.entity.PartnerInfo;
 import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
 import org.sep490.backend.module.admin.entity.enumeration.PlanType;
 import org.sep490.backend.module.admin.repository.InvoiceRepository;
@@ -42,35 +43,48 @@ public class PartnerExpiryScheduler {
 
         for (Invoice inv : expired) {
             inv.setStatus(InvoiceStatus.EXPIRED);
-            User user = inv.getUser();
 
-            boolean stillActive = invoiceRepository.existsActiveInvoiceForUserAndPlanType(
-                    user.getUserId(), InvoiceStatus.ACTIVE, now, PlanType.PARTNER);
+            try {
+                PartnerInfo partnerInfo = inv.getPartnerInfo();
 
-            if (!stillActive) {
-                try {
-                    if (user.getRole() == UserRole.PARTNER) {
-                        userService.updateUserRole(user.getUserId(), UserRole.EXPLORER);
-                    }
-
-                    partnerInfoRepository.findByUser_UserId(user.getUserId()).ifPresent(partnerInfo -> {
-                        partnerInfo.setStatus(PartnerInfoStatus.INACTIVE);
-                        partnerInfoRepository.save(partnerInfo);
-                        log.info("[PartnerExpiry] Đã đóng băng gian hàng của user {}", user.getUserId());
-                    });
-
-                    entitlementCacheService.evict(user.getUserId());
-
-                    notificationService.sendAndSave(
-                            user,
-                            "Gói Partner đã hết hạn",
-                            "Gói đăng ký Partner của bạn đã hết hạn. Quyền lợi hệ thống và gian hàng của bạn hiện đã bị tạm ngưng. Vui lòng gia hạn để tiếp tục.",
-                            NotificationType.SUBSCRIPTION,
-                            inv.getInvoiceId()
-                    );
-                } catch (Exception e) {
-                    log.error("[PartnerExpiry] Lỗi khi tước quyền Partner của user {}: {}", user.getUserId(), e.getMessage());
+                if (partnerInfo == null) {
+                    log.warn("[PartnerExpiry] Hóa đơn {} không gắn với thông tin đối tác, bỏ qua",
+                            inv.getInvoiceId());
+                    continue;
                 }
+
+                User owner = partnerInfo.getUser();
+
+                boolean stillActive = invoiceRepository.existsActivePartnerInvoiceForUser(
+                        owner.getUserId(), InvoiceStatus.ACTIVE, now, PlanType.PARTNER);
+
+                if (stillActive) {
+                    continue;
+                }
+
+                User shopAccount = partnerInfo.getOperatingUser();
+
+                if (shopAccount.getRole() == UserRole.PARTNER) {
+                    userService.updateUserRole(shopAccount.getUserId(), UserRole.EXPLORER);
+                }
+
+                partnerInfo.setStatus(PartnerInfoStatus.INACTIVE);
+                partnerInfoRepository.save(partnerInfo);
+                log.info("[PartnerExpiry] Đã đóng băng gian hàng {} của user {}",
+                        partnerInfo.getPartnerInfoId(), owner.getUserId());
+
+                entitlementCacheService.evict(shopAccount.getUserId());
+
+                notificationService.sendAndSave(
+                        owner,
+                        "Gói Partner đã hết hạn",
+                        "Gói đăng ký Partner của bạn đã hết hạn. Quyền lợi hệ thống và gian hàng của bạn hiện đã bị tạm ngưng. Vui lòng gia hạn để tiếp tục.",
+                        NotificationType.SUBSCRIPTION,
+                        inv.getInvoiceId()
+                );
+            } catch (Exception e) {
+                log.error("[PartnerExpiry] Lỗi khi tước quyền Partner của hóa đơn {}: {}",
+                        inv.getInvoiceId(), e.getMessage());
             }
         }
 

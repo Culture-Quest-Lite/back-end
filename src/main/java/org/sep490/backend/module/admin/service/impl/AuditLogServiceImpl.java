@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.module.admin.dto.filter.AuditLogFilterRequest;
 import org.sep490.backend.module.admin.dto.response.AuditLogResponse;
@@ -28,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.util.Set;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,6 +38,12 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 public class AuditLogServiceImpl implements AuditLogService {
 
     static int MAX_VALUE_LENGTH = 4000;
+
+    static int MAX_PAGE_SIZE = 100;
+
+    /** Chỉ cho sắp xếp theo cột có thật, tránh dò tên thuộc tính qua tham số sortBy. */
+    static Set<String> SORTABLE_FIELDS = Set.of(
+            "createdAt", "action", "tableName", "recordId", "endpoint", "ipAddress");
 
     AuditLogRepository auditLogRepository;
     UserRepository userRepository;
@@ -77,6 +86,25 @@ public class AuditLogServiceImpl implements AuditLogService {
     @Override
     @Transactional(readOnly = true)
     public Page<AuditLogResponse> getLogs(AuditLogFilterRequest filter) {
+        if (filter == null) {
+            throw new BusinessException("Bộ lọc nhật ký không được để trống");
+        }
+        if (filter.getPage() < 0) {
+            throw new BusinessException("Số trang không được nhỏ hơn 0");
+        }
+        if (filter.getSize() <= 0) {
+            throw new BusinessException("Kích thước trang phải lớn hơn 0");
+        }
+        if (filter.getSize() > MAX_PAGE_SIZE) {
+            throw new BusinessException("Kích thước trang không được vượt quá 100");
+        }
+        if (!SORTABLE_FIELDS.contains(filter.getSortBy())) {
+            throw new BusinessException("Không hỗ trợ sắp xếp theo trường: " + filter.getSortBy());
+        }
+        if (filter.getFrom() != null && filter.getTo() != null
+                && filter.getFrom().isAfter(filter.getTo())) {
+            throw new BusinessException("Thời gian bắt đầu phải trước thời gian kết thúc");
+        }
         Sort sort = filter.getSortDir().equalsIgnoreCase(Sort.Direction.ASC.name())
                 ? Sort.by(filter.getSortBy()).ascending()
                 : Sort.by(filter.getSortBy()).descending();

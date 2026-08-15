@@ -395,6 +395,7 @@ class PermissionAdminServiceImplTest {
         // UTCID01 - Normal: quyền vĩnh viễn (expiresAt = null) -> expired = false
         @Test
         void getUserPermissions_neverExpires_expiredIsFalse() {
+            when(userRepository.existsById(1L)).thenReturn(true);
             when(userPermissionRepository.findAllByUserIdWithPermission(1L))
                     .thenReturn(List.of(userPermission(1L, "REVIEW_MODERATE", true, null)));
 
@@ -409,6 +410,7 @@ class PermissionAdminServiceImplTest {
         // UTCID02 - Abnormal: quyền đã quá hạn -> expired = true
         @Test
         void getUserPermissions_pastExpiry_expiredIsTrue() {
+            when(userRepository.existsById(1L)).thenReturn(true);
             when(userPermissionRepository.findAllByUserIdWithPermission(1L))
                     .thenReturn(List.of(userPermission(1L, "REVIEW_MODERATE", true,
                             LocalDateTime.now().minusDays(1))));
@@ -421,6 +423,7 @@ class PermissionAdminServiceImplTest {
         // UTCID03 - Boundary: quyền còn hạn 1 giờ -> expired = false
         @Test
         void getUserPermissions_futureExpiry_expiredIsFalse() {
+            when(userRepository.existsById(1L)).thenReturn(true);
             when(userPermissionRepository.findAllByUserIdWithPermission(1L))
                     .thenReturn(List.of(userPermission(1L, "REVIEW_MODERATE", true,
                             LocalDateTime.now().plusHours(1))));
@@ -433,9 +436,32 @@ class PermissionAdminServiceImplTest {
         // UTCID04 - Boundary: user không có ngoại lệ quyền nào -> danh sách rỗng
         @Test
         void getUserPermissions_noOverrides_returnsEmptyList() {
+            when(userRepository.existsById(1L)).thenReturn(true);
             when(userPermissionRepository.findAllByUserIdWithPermission(1L)).thenReturn(List.of());
 
             assertTrue(permissionAdminService.getUserPermissions(1L).isEmpty());
+        }
+
+        // UTCID05 - Abnormal: userId = null -> không xác định được người dùng
+        @Test
+        void getUserPermissions_nullUserId_throwsUserNotIdentified() {
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> permissionAdminService.getUserPermissions(null));
+
+            assertEquals("Không xác định được người dùng", ex.getMessage());
+            verifyNoInteractions(userPermissionRepository);
+        }
+
+        // UTCID06 - Abnormal: userId = 999 không tồn tại -> không tìm thấy người dùng
+        @Test
+        void getUserPermissions_userNotFound_throwsUserNotFound() {
+            when(userRepository.existsById(999L)).thenReturn(false);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> permissionAdminService.getUserPermissions(999L));
+
+            assertEquals("Không tìm thấy người dùng", ex.getMessage());
+            verifyNoInteractions(userPermissionRepository);
         }
     }
 
