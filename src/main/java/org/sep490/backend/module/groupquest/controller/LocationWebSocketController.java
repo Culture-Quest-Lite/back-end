@@ -20,6 +20,8 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class LocationWebSocketController {
 
+    private static final String INTERNAL_USER_ID_CLAIM = "internal_id";
+
     private final SimpMessagingTemplate messagingTemplate;
     private final GroupService groupService;
 
@@ -28,15 +30,10 @@ public class LocationWebSocketController {
                                   @Payload LocationMessage message,
                                   Principal principal) {
 
-        if (principal instanceof JwtAuthenticationToken jwtAuthToken) {
-            Jwt jwt = (Jwt) jwtAuthToken.getPrincipal();
+        Long currentUserId = readInternalUserId(principal);
 
-            Object claimValue = jwt.getClaim("internal_id");
-
-            if (claimValue instanceof Number numberValue) {
-                Long currentUserId = numberValue.longValue();
-                message.setUserId(currentUserId);
-            }
+        if (currentUserId != null) {
+            message.setUserId(currentUserId);
         }
 
         message.setTimestamp(LocalDateTime.now());
@@ -48,19 +45,51 @@ public class LocationWebSocketController {
                                    @Payload GroupCommand command,
                                    Principal principal) {
 
-        if (principal instanceof JwtAuthenticationToken jwtAuthToken) {
-            Jwt jwt = (Jwt) jwtAuthToken.getPrincipal();
-            Object claimValue = jwt.getClaim("custom_internal_user_id");
+        Long currentUserId = readInternalUserId(principal);
 
-            if (claimValue instanceof Number numberValue) {
-                Long currentUserId = numberValue.longValue();
+        if (currentUserId == null) {
+            return;
+        }
 
-                boolean isLeader = groupService.isLeader(currentUserId, groupId);
+        boolean isLeader = groupService.isLeader(currentUserId, groupId);
 
-                if (isLeader && "STOP_LOCATION".equals(command.getAction())) {
-                    messagingTemplate.convertAndSend("/topic/group/" + groupId + "/commands", command);
-                }
+        if (isLeader && "STOP_LOCATION".equals(command.getAction())) {
+            messagingTemplate.convertAndSend("/topic/group/" + groupId + "/commands", command);
+        }
+    }
+
+    /**
+     * Claim đúng là "internal_id" (AuthServiceImpl ghi attribute này lên
+     * Keycloak). handleGroupCommand trước đây đọc "custom_internal_user_id" —
+     * claim không tồn tại, nên lệnh STOP_LOCATION của trưởng nhóm không bao giờ
+     * được broadcast.
+     *
+     * Attribute của Keycloak là chuỗi, và tuỳ cấu hình protocol mapper mà claim
+     * ra dạng số hay chuỗi, nên chấp nhận cả hai thay vì chỉ instanceof Number.
+     */
+    private Long readInternalUserId(Principal principal) {
+        if (!(principal instanceof JwtAuthenticationToken jwtAuthToken)) {
+            return null;
+        }
+
+        if (!(jwtAuthToken.getPrincipal() instanceof Jwt jwt)) {
+            return null;
+        }
+
+        Object claimValue = jwt.getClaim(INTERNAL_USER_ID_CLAIM);
+
+        if (claimValue instanceof Number numberValue) {
+            return numberValue.longValue();
+        }
+
+        if (claimValue instanceof String stringValue && !stringValue.isBlank()) {
+            try {
+                return Long.parseLong(stringValue.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
             }
         }
+
+        return null;
     }
 }
