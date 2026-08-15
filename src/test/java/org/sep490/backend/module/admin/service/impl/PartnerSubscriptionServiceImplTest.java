@@ -1,5 +1,6 @@
 package org.sep490.backend.module.admin.service.impl;
 
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -67,6 +68,7 @@ class PartnerSubscriptionServiceImplTest {
     @Mock private UserRepository userRepository;
     @Mock private S3Service s3Service;
     @Mock private MediaService mediaService;
+    @Mock private NotificationService notificationService;
     @Mock private JavaMailSender mailSender;
     @Mock private PayOsProperties payOsProperties;
     @Mock private PayOS payOS;

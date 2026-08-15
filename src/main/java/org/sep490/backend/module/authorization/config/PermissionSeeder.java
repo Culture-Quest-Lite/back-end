@@ -6,6 +6,7 @@ import org.sep490.backend.module.authorization.entity.Permission;
 import org.sep490.backend.module.authorization.entity.RolePermission;
 import org.sep490.backend.module.authorization.repository.PermissionRepository;
 import org.sep490.backend.module.authorization.repository.RolePermissionRepository;
+import org.sep490.backend.module.authorization.service.PermissionCacheService;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -14,9 +15,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.sep490.backend.module.authorization.constant.PermissionCode.*;
 
@@ -27,6 +31,7 @@ import static org.sep490.backend.module.authorization.constant.PermissionCode.*;
 public class PermissionSeeder implements ApplicationRunner {
     private final PermissionRepository permissionRepository;
     private final RolePermissionRepository rolePermissionRepository;
+    private final PermissionCacheService permissionCacheService;
 
     private static final Map<String, String[]> CATALOG = new LinkedHashMap<>();
 
@@ -98,17 +103,44 @@ public class PermissionSeeder implements ApplicationRunner {
     }
 
     private void seedMatrixEmpty() {
-        if (rolePermissionRepository.count() > 0) {
-            log.debug("Ma trận phân quyền đã có dữ liệu, bỏ qua seed");
+        boolean firstRun = rolePermissionRepository.count() == 0;
+
+        // Sau lần seed đầu chỉ bù quyền chưa từng gán cho bất kỳ vai trò nào,
+        // để không hồi sinh mapping mà admin đã chủ động gỡ.
+        Set<String> alreadyMapped = firstRun
+                ? Set.of()
+                : new HashSet<>(rolePermissionRepository.findMappedPermissionCodes());
+
+        int created = 0;
+        for (Map.Entry<UserRole, List<String>> entry : DEFAULT_MATRIX.entrySet()) {
+            for (String code : entry.getValue()) {
+                if (alreadyMapped.contains(code)) {
+                    continue;
+                }
+
+                Optional<Permission> permission = permissionRepository.findByCode(code);
+                if (permission.isEmpty()) {
+                    continue;
+                }
+
+                rolePermissionRepository.save(RolePermission.builder()
+                        .role(entry.getKey())
+                        .permission(permission.get())
+                        .build());
+                created++;
+            }
+        }
+
+        if (created == 0) {
+            log.debug("Ma trận phân quyền đã đầy đủ, không cần seed");
             return;
         }
 
-        DEFAULT_MATRIX.forEach((role, codes) -> codes.forEach(code ->
-                permissionRepository.findByCode(code).ifPresent(p ->
-                        rolePermissionRepository.save(RolePermission.builder()
-                                        .role(role)
-                                        .permission(p)
-                                        .build()))));
-        log.info("Đã seed ma trận phân quyền mặc định");
+        log.info("Đã seed {} mapping vai trò-quyền mặc định", created);
+        try {
+            permissionCacheService.evictAllRoles();
+        } catch (Exception e) {
+            log.warn("Không xoá được cache quyền theo vai trò, sẽ tự hết hạn sau TTL: {}", e.getMessage());
+        }
     }
 }

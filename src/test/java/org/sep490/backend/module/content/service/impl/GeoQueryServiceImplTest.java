@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.redis.RedisCircuitBreaker;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.repository.HotspotRepository;
@@ -22,6 +23,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -65,6 +67,7 @@ class GeoQueryServiceImplTest {
     @DisplayName("isLocationInVietnam")
     class InVietnam {
 
+        // UTCID01 - Normal: cache miss -> query DB rồi ghi cache với TTL dài
         @Test
         @DisplayName("Cache miss thì query DB rồi ghi cache với TTL dài")
         void missThiQueryDb() {
@@ -77,6 +80,7 @@ class GeoQueryServiceImplTest {
             verify(valueOps).set(anyString(), any(), any(Duration.class));
         }
 
+        // UTCID02 - Normal: cache hit -> KHÔNG chạy ST_Within
         @Test
         @DisplayName("Cache hit thì KHÔNG chạy ST_Within")
         void hitThiKhongQueryDb() {
@@ -88,6 +92,7 @@ class GeoQueryServiceImplTest {
             verify(hotspotRepository, never()).isLocationInVietnam(anyDouble(), anyDouble());
         }
 
+        // UTCID03 - Abnormal: toạ độ null -> trả false, không gọi DB
         @Test
         @DisplayName("Toạ độ null trả false, không gọi DB")
         void toaDoNull() {
@@ -96,6 +101,7 @@ class GeoQueryServiceImplTest {
             verify(hotspotRepository, never()).isLocationInVietnam(any(), any());
         }
 
+        // UTCID04 - Boundary: toạ độ lệch <110m -> dùng CHUNG một key
         @Test
         @DisplayName("Toạ độ lệch <110m dùng CHUNG một key")
         void lamTronToaDo() {
@@ -112,6 +118,28 @@ class GeoQueryServiceImplTest {
             // Nếu không làm tròn, hai lời gọi sẽ sinh hai key khác nhau -> cache vô dụng
             assertThat(keys.getAllValues()).containsOnly("geo:vn:21.028:105.854");
         }
+
+        // UTCID05 - Boundary: kinh độ 200.0 vượt biên -> ném lỗi
+        @Test
+        @DisplayName("Kinh độ 200.0 vượt biên -> ném lỗi thay vì trả false")
+        void kinhDoNgoaiBienThiNemLoi() {
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> geoQueryService.isLocationInVietnam(200.0, 21.028));
+
+            assertThat(ex.getMessage()).isEqualTo("Kinh độ phải nằm trong khoảng -180 đến 180");
+            verify(hotspotRepository, never()).isLocationInVietnam(anyDouble(), anyDouble());
+        }
+
+        // UTCID06 - Boundary: vĩ độ 95.0 vượt biên -> ném lỗi
+        @Test
+        @DisplayName("Vĩ độ 95.0 vượt biên -> ném lỗi thay vì trả false")
+        void viDoNgoaiBienThiNemLoi() {
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> geoQueryService.isLocationInVietnam(105.854, 95.0));
+
+            assertThat(ex.getMessage()).isEqualTo("Vĩ độ phải nằm trong khoảng -90 đến 90");
+            verify(hotspotRepository, never()).isLocationInVietnam(anyDouble(), anyDouble());
+        }
     }
 
     @Nested
@@ -124,6 +152,7 @@ class GeoQueryServiceImplTest {
             return h;
         }
 
+        // UTCID01 - Normal: cache miss -> chạy ST_DWithin và lưu danh sách ID
         @Test
         @DisplayName("Cache miss thì chạy ST_DWithin và lưu danh sách ID")
         void missThiQueryDb() {
@@ -138,6 +167,7 @@ class GeoQueryServiceImplTest {
             verify(valueOps).set(anyString(), any(List.class), any(Duration.class));
         }
 
+        // UTCID02 - Normal: cache hit -> nạp theo ID, KHÔNG chạy ST_DWithin
         @Test
         @DisplayName("Cache hit thì nạp theo ID, KHÔNG chạy ST_DWithin")
         void hitThiKhongQueryPostGIS() {
@@ -152,6 +182,7 @@ class GeoQueryServiceImplTest {
                     .findNearbyHotspotsWithStatus(anyDouble(), anyDouble(), anyDouble(), anyString());
         }
 
+        // UTCID03 - Abnormal: có hotspot đã bị xoá -> bỏ cache, truy vấn lại DB
         @Test
         @DisplayName("Có hotspot đã bị xoá thì bỏ cache, truy vấn lại DB")
         void hotspotBiXoaThiQueryLai() {
@@ -169,6 +200,7 @@ class GeoQueryServiceImplTest {
                     .findNearbyHotspotsWithStatus(anyDouble(), anyDouble(), anyDouble(), anyString());
         }
 
+        // UTCID04 - Normal: giữ đúng thứ tự gần -> xa
         @Test
         @DisplayName("Giữ đúng thứ tự gần -> xa dù findAllById trả lộn xộn")
         void giuDungThuTu() {
@@ -183,6 +215,7 @@ class GeoQueryServiceImplTest {
                     .containsExactly(3L, 1L, 2L);
         }
 
+        // UTCID05 - Boundary: radius khác nhau -> dùng key khác nhau
         @Test
         @DisplayName("Radius khác nhau dùng key khác nhau")
         void radiusKhacThiKeyKhac() {
@@ -200,6 +233,60 @@ class GeoQueryServiceImplTest {
             assertThat(keys.getAllValues()).contains(
                     "geo:nearby:21.028:105.854:3000:PUBLISHED",
                     "geo:nearby:21.028:105.854:5000:PUBLISHED");
+        }
+
+        // UTCID06 - Boundary: kinh độ 181.0 vượt biên -> ném lỗi
+        @Test
+        @DisplayName("Kinh độ 181.0 vượt biên -> ném lỗi, không chạm Redis")
+        void kinhDoNgoaiBienThiNemLoi() {
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> geoQueryService.findNearby(181.0, 21.028, 3000, "PUBLISHED"));
+
+            assertThat(ex.getMessage()).isEqualTo("Kinh độ phải nằm trong khoảng -180 đến 180");
+            verify(hotspotRepository, never())
+                    .findNearbyHotspotsWithStatus(anyDouble(), anyDouble(), anyDouble(), anyString());
+        }
+
+        // UTCID07 - Boundary: vĩ độ -90.5 vượt biên -> ném lỗi
+        @Test
+        @DisplayName("Vĩ độ -90.5 vượt biên -> ném lỗi, không chạm Redis")
+        void viDoNgoaiBienThiNemLoi() {
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> geoQueryService.findNearby(105.854, -90.5, 3000, "PUBLISHED"));
+
+            assertThat(ex.getMessage()).isEqualTo("Vĩ độ phải nằm trong khoảng -90 đến 90");
+            verify(hotspotRepository, never())
+                    .findNearbyHotspotsWithStatus(anyDouble(), anyDouble(), anyDouble(), anyString());
+        }
+
+        // UTCID08 - Boundary: bán kính 0 -> phải lớn hơn 0
+        @Test
+        @DisplayName("Bán kính 0 -> ném lỗi bán kính phải lớn hơn 0")
+        void banKinhBangKhongThiNemLoi() {
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> geoQueryService.findNearby(105.854, 21.028, 0, "PUBLISHED"));
+
+            assertThat(ex.getMessage()).isEqualTo("Bán kính tìm kiếm phải lớn hơn 0");
+        }
+
+        // UTCID09 - Boundary: bán kính 50001m -> vượt trần 50km
+        @Test
+        @DisplayName("Bán kính 50001m vượt trần 50km -> ném lỗi")
+        void banKinhVuotTranThiNemLoi() {
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> geoQueryService.findNearby(105.854, 21.028, 50001, "PUBLISHED"));
+
+            assertThat(ex.getMessage()).isEqualTo("Bán kính tìm kiếm không được vượt quá 50000 mét");
+        }
+
+        // UTCID10 - Abnormal: status rỗng -> không được để trống
+        @Test
+        @DisplayName("Status rỗng -> ném lỗi trạng thái không được để trống")
+        void statusRongThiNemLoi() {
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> geoQueryService.findNearby(105.854, 21.028, 3000, "  "));
+
+            assertThat(ex.getMessage()).isEqualTo("Trạng thái địa điểm không được để trống");
         }
     }
 }

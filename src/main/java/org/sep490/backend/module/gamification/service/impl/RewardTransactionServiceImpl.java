@@ -35,6 +35,9 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class RewardTransactionServiceImpl implements RewardTransactionService {
 
+    /** Trần kích thước trang cho lịch sử điểm thưởng. */
+    static int MAX_PAGE_SIZE = 100;
+
     UserService userService;
     UserRepository userRepository;
     RewardTransactionRepository rewardTransactionRepository;
@@ -46,6 +49,21 @@ public class RewardTransactionServiceImpl implements RewardTransactionService {
     @Override
     @Transactional(readOnly = true)
     public Page<RewardTransactionResponse> getMyRewardHistory(VoucherFilter filter) {
+        if (filter == null) {
+            throw new BusinessException("Bộ lọc lịch sử điểm thưởng không được để trống");
+        }
+        if (filter.getPage() < 0) {
+            throw new BusinessException("Số trang không được nhỏ hơn 0");
+        }
+        if (filter.getSize() <= 0) {
+            throw new BusinessException("Kích thước trang phải lớn hơn 0");
+        }
+        if (filter.getSize() > MAX_PAGE_SIZE) {
+            throw new BusinessException("Kích thước trang không được vượt quá 100");
+        }
+        if (filter.getSortBy() == null || filter.getSortBy().isBlank()) {
+            throw new BusinessException("Trường sắp xếp không được để trống");
+        }
         User currentUser = userService.getCurrentUser();
 
         String sortBy = filter.getSortBy().equals("id") ? "createdAt" : filter.getSortBy();

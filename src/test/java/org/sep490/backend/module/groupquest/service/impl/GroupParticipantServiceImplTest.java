@@ -49,6 +49,9 @@ class GroupParticipantServiceImplTest {
     private static User user(Long userId) {
         User user = new User();
         user.setUserId(userId);
+        user.setUsername(userId == 1L ? "leader" : "member");
+        user.setDisplayName(userId == 1L ? "Tran Minh Anh" : "Minh Anh");
+        user.setEmail((userId == 1L ? "leader" : "member") + "@gmail.com");
         return user;
     }
 

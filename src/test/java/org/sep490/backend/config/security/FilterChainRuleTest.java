@@ -51,7 +51,6 @@ class FilterChainRuleTest {
         mvc.perform(get("/api/notifications")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/saved-routes")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/groups")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/api/vouchers/available")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -76,6 +75,15 @@ class FilterChainRuleTest {
     @DisplayName("POST lên path public-GET + không token -> 401 (trước Phase 1 là 500)")
     void ghiLenPathPublicGetVanBiChan() throws Exception {
         mockMvc().perform(post("/api/posts")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Voucher: khách chưa đăng nhập XEM được, nhưng ĐỔI thì phải đăng nhập")
+    void xemVoucherKhongCanTokenNhungDoiVoucherThiCan() throws Exception {
+        MockMvc mvc = mockMvc();
+        mvc.perform(get("/api/vouchers/available")).andExpect(not401());
+        mvc.perform(get("/api/vouchers/1")).andExpect(not401());
+        mvc.perform(post("/api/vouchers/1/redeem")).andExpect(status().isUnauthorized());
     }
 
     // ===== Nhóm 3: admin — chặn 2 lớp =====

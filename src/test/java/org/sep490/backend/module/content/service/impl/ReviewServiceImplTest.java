@@ -104,12 +104,16 @@ class ReviewServiceImplTest {
     private static User user(Long userId) {
         User user = new User();
         user.setUserId(userId);
+        user.setUsername("traveler01");
+        user.setDisplayName("Tran Minh Anh");
+        user.setEmail("traveler01@gmail.com");
         return user;
     }
 
     private static Hotspot hotspot(Long id, ContentStatus status) {
         Hotspot hotspot = new Hotspot();
         hotspot.setHotspotId(id);
+        hotspot.setHotspotName("Ho Guom");
         hotspot.setStatus(status);
         return hotspot;
     }
@@ -117,6 +121,7 @@ class ReviewServiceImplTest {
     private static Route route(Long id, RouteStatus status) {
         Route route = new Route();
         route.setRouteId(id);
+        route.setRouteName("Pho co Ha Noi");
         route.setStatus(status);
         return route;
     }
@@ -124,6 +129,7 @@ class ReviewServiceImplTest {
     private static Story story(Long id, ContentStatus status) {
         Story story = new Story();
         story.setStoryId(id);
+        story.setTitle("Su tich Ho Guom");
         story.setStatus(status);
         return story;
     }

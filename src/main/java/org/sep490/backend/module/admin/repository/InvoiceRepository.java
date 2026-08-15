@@ -17,6 +17,11 @@ import java.util.Optional;
 @Repository
 public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     List<Invoice> findByPartnerInfo_User_UserIdOrderByCreatedAtDesc(Long userId);
+
+    @Query("SELECT i FROM Invoice i WHERE i.partnerInfo.user.userId = :userId "
+            + "OR i.partnerInfo.shopAccount.userId = :userId ORDER BY i.createdAt DESC")
+    List<Invoice> findPartnerInvoicesForUser(@Param("userId") Long userId);
+
     List<Invoice> findAllByOrderByCreatedAtDesc();
     List<Invoice> findByStatusOrderByCreatedAtDesc(InvoiceStatus status);
     Optional<Invoice> findByPayosOrderCode(Long payosOrderCode);
@@ -58,8 +63,10 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             @Param("now") LocalDateTime now,
             @Param("planType") PlanType planType);
 
-    @Query("SELECT COUNT(i) > 0 FROM Invoice i WHERE i.user.userId = :userId AND i.status = :status AND i.endDate > :now AND i.subscriptionPlan.planType = :planType")
-    boolean existsActiveInvoiceForUserAndPlanType(
+    @Query("SELECT COUNT(i) > 0 FROM Invoice i WHERE "
+            + "(i.partnerInfo.user.userId = :userId OR i.partnerInfo.shopAccount.userId = :userId) "
+            + "AND i.status = :status AND i.endDate > :now AND i.subscriptionPlan.planType = :planType")
+    boolean existsActivePartnerInvoiceForUser(
             @Param("userId") Long userId,
             @Param("status") InvoiceStatus status,
             @Param("now") LocalDateTime now,
