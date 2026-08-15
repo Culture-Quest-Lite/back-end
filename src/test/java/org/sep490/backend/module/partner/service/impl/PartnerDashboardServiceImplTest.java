@@ -118,7 +118,7 @@ class PartnerDashboardServiceImplTest {
                     .maxAllowed(20)
                     .build();
 
-            when(invoiceRepository.findByPartnerInfo_User_UserIdOrderByCreatedAtDesc(10L))
+            when(invoiceRepository.findPartnerInvoicesForUser(10L))
                     .thenReturn(List.of(invoice));
             when(subscriptionUsageRepository.findByInvoice_InvoiceId(100L))
                     .thenReturn(List.of(usage1));
@@ -138,7 +138,7 @@ class PartnerDashboardServiceImplTest {
 
         @Test
         void getDashboard_noSubscription_returnsNullInfoAndEmptyUsages() {
-            when(invoiceRepository.findByPartnerInfo_User_UserIdOrderByCreatedAtDesc(10L))
+            when(invoiceRepository.findPartnerInvoicesForUser(10L))
                     .thenReturn(List.of());
 
             PartnerDashboardResponse response = service.getDashboard();

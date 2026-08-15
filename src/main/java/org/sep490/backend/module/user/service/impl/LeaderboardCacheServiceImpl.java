@@ -3,6 +3,7 @@ package org.sep490.backend.module.user.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.redis.CacheNames;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
@@ -31,12 +32,24 @@ import java.util.List;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class LeaderboardCacheServiceImpl implements LeaderboardCacheService {
 
+    /** Trần kích thước trang: chặn client kéo cả bảng xếp hạng trong một lần gọi. */
+    static int MAX_PAGE_SIZE = 100;
+
     UserRepository userRepository;
 
     @Override
     @Cacheable(value = CacheNames.LEADERBOARD, key = "#page + ':' + #size")
     @Transactional(readOnly = true)
     public LeaderboardPageCache loadPage(int page, int size) {
+        if (page < 0) {
+            throw new BusinessException("Số trang không được nhỏ hơn 0");
+        }
+        if (size <= 0) {
+            throw new BusinessException("Kích thước trang phải lớn hơn 0");
+        }
+        if (size > MAX_PAGE_SIZE) {
+            throw new BusinessException("Kích thước trang không được vượt quá 100");
+        }
         Pageable pageable = PageRequest.of(page, size);
         Page<User> result = userRepository.findLeaderboardByXp(
                 UserStatus.ACTIVE, UserRole.EXPLORER, pageable);
@@ -69,6 +82,15 @@ public class LeaderboardCacheServiceImpl implements LeaderboardCacheService {
     @Cacheable(value = CacheNames.MY_RANK, key = "#userId + ':' + #xp")
     @Transactional(readOnly = true)
     public long countRankedAbove(Long userId, int xp, LocalDateTime createdAt) {
+        if (userId == null) {
+            throw new BusinessException("Không xác định được người dùng");
+        }
+        if (xp < 0) {
+            throw new BusinessException("Điểm kinh nghiệm không được nhỏ hơn 0");
+        }
+        if (createdAt == null) {
+            throw new BusinessException("Thiếu thời điểm tạo tài khoản để xếp hạng");
+        }
         return userRepository.countUsersRankedAbove(
                 UserStatus.ACTIVE, UserRole.EXPLORER, xp, createdAt, userId);
     }

@@ -21,6 +21,9 @@ public interface RolePermissionRepository extends JpaRepository<RolePermission, 
 """)
     List<String> findPermissionCodesByRole(@Param("role") UserRole role);
 
+    @Query("SELECT DISTINCT rp.permission.code FROM RolePermission rp")
+    List<String> findMappedPermissionCodes();
+
     @Modifying
     void deleteByRole(UserRole role);
 

@@ -53,6 +53,9 @@ class UserPlanServiceImplTest {
     private static User user(Long userId) {
         User user = new User();
         user.setUserId(userId);
+        user.setUsername(userId == 1L ? "traveler01" : "hoangnam");
+        user.setDisplayName(userId == 1L ? "Tran Minh Anh" : "Le Hoang Nam");
+        user.setEmail((userId == 1L ? "traveler01" : "hoangnam") + "@gmail.com");
         return user;
     }
 

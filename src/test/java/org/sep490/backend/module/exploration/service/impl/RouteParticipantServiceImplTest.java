@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.module.content.entity.enumeration.RouteType;
 import org.sep490.backend.common.utils.ShareTokenUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
@@ -63,18 +64,24 @@ class RouteParticipantServiceImplTest {
     private User user(Long id) {
         User u = new User();
         u.setUserId(id);
+        u.setUsername("traveler0" + id);
+        u.setDisplayName("Tran Minh Anh");
+        u.setEmail("traveler0" + id + "@gmail.com");
         return u;
     }
 
     private Route route(Long id) {
         Route r = new Route();
         r.setRouteId(id);
+        r.setRouteName("Pho co Ha Noi");
+        r.setDescription("Hanh trinh kham pha pho co Ha Noi");
         return r;
     }
 
     private Hotspot hotspot(Long id) {
         Hotspot h = new Hotspot();
         h.setHotspotId(id);
+        h.setHotspotName(id == 100L ? "Ho Guom" : "Van Mieu");
         return h;
     }
 
@@ -330,12 +337,31 @@ class RouteParticipantServiceImplTest {
     @DisplayName("joinRouteFromLink")
     class JoinRouteFromLinkTest {
 
+        /**
+         * Token mã hoá routeId + mốc thời gian. Service so mốc này với thời điểm hiện tại,
+         * nên test phải sinh token có mốc ở tương lai thì mới đi qua được cửa kiểm tra hạn.
+         */
+        private String tokenFor(long routeId) {
+            long future = java.time.LocalDateTime.now().plusDays(1)
+                    .toEpochSecond(java.time.ZoneOffset.UTC);
+            return ShareTokenUtils.encodeToBase62(routeId, 4)
+                    + ShareTokenUtils.encodeToBase62(future, 6);
+        }
+
+        private Route customRoute(Long id, String shareToken) {
+            Route r = new Route();
+            r.setRouteId(id);
+            r.setType(RouteType.CUSTOM);
+            r.setShareToken(shareToken);
+            return r;
+        }
+
         // UTCID01 - Normal: token hợp lệ -> giải mã routeId và bắt đầu tuyến đường
         @Test
         void joinRouteFromLink_validToken_startsRoute() {
-            String token = ShareTokenUtils.generateToken(10L); // token 10 ký tự, giải mã ra routeId = 10
+            String token = tokenFor(10L);
             when(userService.getCurrentUser()).thenReturn(user(1L));
-            when(routeService.getById(10L)).thenReturn(route(10L));
+            when(routeService.getById(10L)).thenReturn(customRoute(10L, token));
             when(routeParticipantRepository.findByRoute_RouteIdAndUser_UserId(10L, 1L)).thenReturn(Optional.empty());
             when(storyRepository.findHotspotsByRouteIdOrderByIndexAsc(10L)).thenReturn(List.of());
             when(routeParticipantRepository.save(any(RouteParticipant.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -354,6 +380,46 @@ class RouteParticipantServiceImplTest {
                     () -> service.joinRouteFromLink("abc"));
 
             assertEquals("Token không hợp lệ. Độ dài bắt buộc là 10 ký tự.", ex.getMessage());
+        }
+
+        // UTCID03 - Abnormal: link mời đã quá hạn
+        @Test
+        void joinRouteFromLink_expiredToken_throwsExpired() {
+            long past = java.time.LocalDateTime.now().minusDays(1)
+                    .toEpochSecond(java.time.ZoneOffset.UTC);
+            String expired = ShareTokenUtils.encodeToBase62(10L, 4)
+                    + ShareTokenUtils.encodeToBase62(past, 6);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> service.joinRouteFromLink(expired));
+
+            assertEquals("Link mời đã hết hạn", ex.getMessage());
+        }
+
+        // UTCID04 - Abnormal: link trỏ tới tuyến chính thức, không phải hành trình cá nhân
+        @Test
+        void joinRouteFromLink_officialRoute_throwsCustomOnly() {
+            String token = tokenFor(10L);
+            Route official = customRoute(10L, token);
+            official.setType(RouteType.OFFICIAL);
+            when(routeService.getById(10L)).thenReturn(official);
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> service.joinRouteFromLink(token));
+
+            assertEquals("Link mời chỉ phục vụ cho Hành trình cá nhân", ex.getMessage());
+        }
+
+        // UTCID05 - Abnormal: token không khớp token đang lưu (đã bị làm mới) -> từ chối
+        @Test
+        void joinRouteFromLink_tokenMismatch_throwsInvalidLink() {
+            String token = tokenFor(10L);
+            when(routeService.getById(10L)).thenReturn(customRoute(10L, tokenFor(11L)));
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> service.joinRouteFromLink(token));
+
+            assertEquals("Link mời không hợp lệ", ex.getMessage());
         }
     }
 }

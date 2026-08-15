@@ -86,7 +86,9 @@ public class VoucherServiceImpl implements VoucherService {
 
         User partner = userService.getCurrentUser();
 
-        PartnerInfo partnerInfo = partnerInfoRepository.findByUser_UserId(partner.getUserId())
+        PartnerInfo partnerInfo = partnerInfoRepository.findByOwnerOrShopAccount(partner.getUserId())
+                .stream()
+                .findFirst()
                 .orElseThrow(() -> new BusinessException("Thông tin đối tác không tồn tại"));
 
         Voucher voucher = voucherMapper.toEntity(request);
@@ -319,7 +321,8 @@ public class VoucherServiceImpl implements VoucherService {
         Specification<PartnerInfo> partnerSpec = PartnerInfoSpecification.isNearAnyLocation(hotspotPoints, filter.getDistanceMeters());
 
         List<PartnerInfo> partnerInfos = partnerInfoRepository.findAll(partnerSpec);
-        List<Long> userIds = partnerInfos.stream().map(partnerInfo -> partnerInfo.getUser().getUserId())
+        List<Long> userIds = partnerInfos.stream()
+                .map(partnerInfo -> partnerInfo.getOperatingUser().getUserId())
                 .toList();
 
         Specification<Voucher> voucherSpec = VoucherSpecification.filterByPartnersAndStatus(userIds, filter.getStatus());

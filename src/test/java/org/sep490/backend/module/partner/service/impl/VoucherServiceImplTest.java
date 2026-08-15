@@ -1,5 +1,8 @@
 package org.sep490.backend.module.partner.service.impl;
 
+import org.sep490.backend.common.utils.SpatialUtils;
+import org.sep490.backend.module.admin.entity.PartnerInfo;
+import org.sep490.backend.module.admin.repository.PartnerInfoRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,6 +33,7 @@ import org.sep490.backend.module.partner.repository.VoucherUsageRepository;
 import org.sep490.backend.module.user.service.UserService;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -51,6 +55,7 @@ class VoucherServiceImplTest {
     @Mock private VoucherUsageMapper voucherUsageMapper;
     @Mock private RewardTransactionRepository rewardTransactionRepository;
     @Mock private ImageService imageService;
+    @Mock private PartnerInfoRepository partnerInfoRepository;
     @Mock private UserRepository userRepository;
 
     @InjectMocks private VoucherServiceImpl voucherService;
@@ -76,6 +81,9 @@ class VoucherServiceImplTest {
     private static User user(long userId, int totalPoints) {
         User user = new User();
         user.setUserId(userId);
+        user.setUsername("traveler01");
+        user.setDisplayName("Tran Minh Anh");
+        user.setEmail("traveler01@gmail.com");
         user.setTotalPoints(totalPoints);
         user.setTotalXp(1200);
         return user;
@@ -522,6 +530,9 @@ class VoucherServiceImplTest {
             User partner = user(7L, 0);
             when(voucherRepository.existsByVoucherCode(anyString())).thenReturn(false);
             when(userService.getCurrentUser()).thenReturn(partner);
+            PartnerInfo partnerInfo = new PartnerInfo();
+            partnerInfo.setLocation(SpatialUtils.fromCoordinates(105.8355, 21.0278));
+            when(partnerInfoRepository.findByOwnerOrShopAccount(7L)).thenReturn(List.of(partnerInfo));
             when(voucherMapper.toEntity(any(VoucherRequest.class))).thenReturn(mapped);
             when(voucherRepository.save(any(Voucher.class))).thenAnswer(inv -> inv.getArgument(0));
             when(imageService.resolveImageUrl(isNull(), any(), eq("vouchers")))
@@ -537,6 +548,51 @@ class VoucherServiceImplTest {
             assertSame(partner, mapped.getPartner());
             assertEquals(8, mapped.getVoucherCode().length());
             assertEquals("https://s3/vouchers/moi.png", mapped.getImageUrl());
+            assertSame(partnerInfo.getLocation(), mapped.getLocation());
+        }
+
+        // UTCID04 - Abnormal: tài khoản chưa có hồ sơ đối tác -> không tạo được voucher
+        @Test
+        void createVoucher_partnerInfoMissing_throwsPartnerInfoNotFound() {
+            when(voucherRepository.existsByVoucherCode(anyString())).thenReturn(false);
+            when(userService.getCurrentUser()).thenReturn(user(7L, 0));
+            when(partnerInfoRepository.findByOwnerOrShopAccount(7L)).thenReturn(List.of());
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> voucherService.createVoucher(createRequest("ABC12345", NOW, NOW.plusDays(10))));
+
+            assertEquals("Thông tin đối tác không tồn tại", ex.getMessage());
+            verify(voucherRepository, never()).save(any());
+        }
+
+        // UTCID05 - Normal: tài khoản shop được cấp qua email tạo voucher thành công
+        @Test
+        void createVoucher_shopAccount_createsVoucherForLinkedPartnerInfo() {
+            Voucher mapped = new Voucher();
+            User shopAccount = user(99L, 0);
+            when(voucherRepository.existsByVoucherCode(anyString())).thenReturn(false);
+            when(userService.getCurrentUser()).thenReturn(shopAccount);
+
+            PartnerInfo partnerInfo = new PartnerInfo();
+            partnerInfo.setUser(user(7L, 0));
+            partnerInfo.setShopAccount(shopAccount);
+            partnerInfo.setLocation(SpatialUtils.fromCoordinates(105.8355, 21.0278));
+            when(partnerInfoRepository.findByOwnerOrShopAccount(99L)).thenReturn(List.of(partnerInfo));
+
+            when(voucherMapper.toEntity(any(VoucherRequest.class))).thenReturn(mapped);
+            when(voucherRepository.save(any(Voucher.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(imageService.resolveImageUrl(isNull(), any(), eq("vouchers")))
+                    .thenReturn("https://s3/vouchers/shop.png");
+
+            VoucherResponse expected = mock(VoucherResponse.class);
+            when(voucherMapper.toResponse(mapped)).thenReturn(expected);
+
+            assertSame(expected, voucherService.createVoucher(
+                    createRequest("ABC12345", NOW, NOW.plusDays(10))));
+
+            assertEquals(VoucherStatus.PENDING, mapped.getStatus());
+            assertSame(shopAccount, mapped.getPartner());
+            assertSame(partnerInfo.getLocation(), mapped.getLocation());
         }
     }
 
