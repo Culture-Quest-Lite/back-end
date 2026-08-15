@@ -31,7 +31,7 @@ public class LocationWebSocketController {
         if (principal instanceof JwtAuthenticationToken jwtAuthToken) {
             Jwt jwt = (Jwt) jwtAuthToken.getPrincipal();
 
-            Object claimValue = jwt.getClaim("custom_internal_user_id");
+            Object claimValue = jwt.getClaim("internal_id");
 
             if (claimValue instanceof Number numberValue) {
                 Long currentUserId = numberValue.longValue();
