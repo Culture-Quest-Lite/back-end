@@ -40,7 +40,12 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mock.web.MockMultipartFile;
 import vn.payos.PayOS;
 
+import jakarta.mail.Address;
+import jakarta.mail.Session;
+import jakarta.mail.internet.MimeMessage;
+
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -446,6 +451,36 @@ class PartnerSubscriptionServiceImplTest {
             assertTrue(ex.getMessage()
                     .startsWith("Lỗi hệ thống khi tạo tài khoản quản lý cho Partner: "));
             verify(txCompensation, never()).runOnRollback(anyString(), any(Runnable.class));
+        }
+
+        // UTCID09 - Normal: email credentials gửi tới email shop vừa đăng ký, không phải email chủ đơn
+        @Test
+        void verifiedSubscription_approved_sendsCredentialsToShopEmailOnly() throws Exception {
+            Invoice target = invoice(InvoiceStatus.PENDING, BillingCycleEnum.MONTHLY, null);
+            when(invoiceRepository.findById(10L)).thenReturn(Optional.of(target));
+            when(userRepository.existsByEmail(anyString())).thenReturn(false);
+            when(userService.getCurrentUser()).thenReturn(user(99L, "admin@gmail.com"));
+            when(planRuleRepository.findBySubscriptionPlan_SubscriptionPlanId(anyLong()))
+                    .thenReturn(List.of());
+            when(keyCloakAuthClient.createUser(anyString(), anyString(), anyString(), anyString(), anyList()))
+                    .thenReturn("kc-shop-001");
+            when(invoiceRepository.save(any(Invoice.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            MimeMessage message = new MimeMessage((Session) null);
+            when(mailSender.createMimeMessage()).thenReturn(message);
+
+            partnerSubscriptionService.verifiedSubscription(10L, true);
+
+            // txCompensation là mock nên callback sau commit phải được chạy thủ công
+            ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
+            verify(txCompensation).runAfterCommit(anyString(), captor.capture());
+            captor.getValue().run();
+
+            verify(mailSender).send(message);
+            List<String> recipients = Arrays.stream(message.getAllRecipients())
+                    .map(Address::toString)
+                    .toList();
+            assertEquals(List.of("shop@gmail.com"), recipients);
         }
     }
 

@@ -400,7 +400,6 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
 
     private void createPartnerSubAccount(Invoice invoice) {
         User owner = invoice.getPartnerInfo().getUser();
-        String ownerEmail = owner.getEmail();
         String ownerName = owner.getDisplayName();
         String shopEmail = invoice.getPartnerInfo().getShopEmail();
 
@@ -443,9 +442,9 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
             throw new BusinessException("Lỗi hệ thống khi tạo tài khoản quản lý cho Partner: " + e.getMessage());
         }
 
-        txCompensation.runAfterCommit("Gửi email credentials Partner " + ownerEmail, () -> {
+        txCompensation.runAfterCommit("Gửi email credentials Partner " + shopEmail, () -> {
             try {
-                sendPartnerCredentialsEmail(ownerEmail, shopEmail, partnerUsername, rawPassword, ownerName);
+                sendPartnerCredentialsEmail(shopEmail, partnerUsername, rawPassword, ownerName);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -473,12 +472,12 @@ public class PartnerSubscriptionServiceImpl implements PartnerSubscriptionServic
         throw new BusinessException("Không thể sinh tên đăng nhập cho tài khoản shop, vui lòng liên hệ quản trị viên");
     }
 
-    private void sendPartnerCredentialsEmail(String ownerEmail, String shopEmail, String username, String password,
+    private void sendPartnerCredentialsEmail(String shopEmail, String username, String password,
             String ownerName) throws Exception {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-        helper.setTo(ownerEmail);
+        helper.setTo(shopEmail);
         helper.setSubject("[CULTURE QUEST LITE] THÔNG TIN TÀI KHOẢN QUẢN LÝ SHOP");
 
         ClassPathResource resource = new ClassPathResource("templates/partner-account-email.html");
