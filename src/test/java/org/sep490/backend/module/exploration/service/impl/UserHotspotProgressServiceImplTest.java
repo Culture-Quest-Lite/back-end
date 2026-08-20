@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.utils.SpatialUtils;
+import org.sep490.backend.module.admin.service.CheckInRadiusConfigService;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.repository.HotspotRepository;
@@ -40,7 +41,14 @@ class UserHotspotProgressServiceImplTest {
     @Mock private ApplicationEventPublisher eventPublisher;
 
     @Mock private CheckInStatusService checkInStatusService;
+    @Mock private CheckInRadiusConfigService checkInRadiusConfigService;
     @InjectMocks private UserHotspotProgressServiceImpl service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUpRadiusConfig() {
+        // Bán kính mặc định do admin cấu hình; test giữ nguyên mốc 50m như trước
+        when(checkInRadiusConfigService.getDefaultRadius()).thenReturn(50);
+    }
 
     // ~0.000450 độ kinh/vĩ tuyến tại Hà Nội xấp xỉ 50m theo chiều bắc-nam
     private static final double HOTSPOT_LAT = 21.020000;

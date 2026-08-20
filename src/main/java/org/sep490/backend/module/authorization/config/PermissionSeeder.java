@@ -66,6 +66,7 @@ public class PermissionSeeder implements ApplicationRunner {
         CATALOG.put(DASHBOARD_PARTNER_VIEW, new String[]{"SYSTEM", "Xem dashboard đối tác"});
         CATALOG.put(AUDIT_LOG_VIEW,         new String[]{"SYSTEM", "Xem nhật ký hệ thống"});
         CATALOG.put(PERMISSION_MANAGE,      new String[]{"SYSTEM", "Cấu hình ma trận phân quyền"});
+        CATALOG.put(SYSTEM_CONFIG_MANAGE,   new String[]{"SYSTEM", "Cấu hình tham số hệ thống"});
     }
 
     private static final Map<UserRole, List<String>> DEFAULT_MATRIX = Map.of(

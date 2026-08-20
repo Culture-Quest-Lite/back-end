@@ -39,9 +39,10 @@ public class HotspotRequest {
     @NotNull(message = "Kinh độ không được để trống")
     Double longitude;
 
-    @Min(value = 20, message = "Bán kính check-in tối thiểu 20m")
-    @Max(value = 5000, message = "Bán kính check-in tối đa 5000m")
-    @Schema(description = "Bán kính vùng check-in (mét). Bỏ trống sẽ dùng mặc định 50m", example = "800")
+    // Khoảng cho phép do admin cấu hình (GET /api/v1/configs/check-in-radius), kiểm tra ở service
+    @Positive(message = "Bán kính check-in phải lớn hơn 0")
+    @Schema(description = "Bán kính vùng check-in (mét). Bỏ trống sẽ dùng bán kính mặc định do admin cấu hình",
+            example = "800")
     Integer checkInRadius;
 
     @Schema(description = "Ranh giới GeoJSON dạng Polygon; để trống nếu dùng bán kính",
