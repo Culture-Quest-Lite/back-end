@@ -29,10 +29,10 @@ public class VoucherUsage {
     @JoinColumn(name = "voucher_id", nullable = false)
     Voucher voucher;
 
-    @Column(name = "voucher_code", nullable = false)
+    @Column(name = "voucher_code", nullable = false, length = 50)
     String voucherCode;
 
-    @Column(name = "voucher_usage_code", nullable = false, unique = true)
+    @Column(name = "voucher_usage_code", nullable = false, unique = true, length = 10)
     String voucherUsageCode;
 
     @Column(name = "points_required")

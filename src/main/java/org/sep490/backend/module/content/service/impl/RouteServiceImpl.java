@@ -14,7 +14,6 @@ import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.common.utils.ShareTokenUtils;
 import org.sep490.backend.common.utils.SpatialUtils;
 import org.sep490.backend.module.authentication.entity.User;
-import org.sep490.backend.module.content.dto.request.FinalizeCustomRouteRequest;
 import org.sep490.backend.module.content.dto.request.RouteRequestV2;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
@@ -36,7 +35,7 @@ import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.repository.TagRepository;
 import org.sep490.backend.module.exploration.entity.RouteParticipant;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.data.domain.Page;
@@ -115,7 +114,7 @@ public class RouteServiceImpl implements RouteService {
             throw new BusinessException("Tuyến đường phải có ít nhất 4 điểm dừng (Hotspot)");
         }
 
-        Tag tag = tagRepository.findById(request.getTagId())
+        Tag tag = tagRepository.findById(request.getTagId()) // service
                 .orElseThrow(() -> new BusinessException("Tag không tồn tại với ID: " + request.getTagId()));
 
         Route route = routeMapper.toEntity(request);
@@ -457,16 +456,16 @@ public class RouteServiceImpl implements RouteService {
 
     private RouteResponse buildRouteResponse(Route route, List<Story> stories) {
 
-        ProgressStatus progressStatus;
+        RouteParticipantStatus routeParticipantStatus;
         String keycloakId = SecurityUtils.getCurrentUserKeyCloakId().orElse(null);
 
         if(keycloakId == null) {
-            progressStatus = null;
+            routeParticipantStatus = null;
         } else {
             User user = userService.getCurrentUser();
             RouteParticipant rp = routeParticipantRepository.findByRoute_RouteIdAndUser_UserId(route.getRouteId(), user.getUserId())
                     .orElse(null);
-            progressStatus = rp != null ? rp.getStatus() : null;
+            routeParticipantStatus = rp != null ? rp.getStatus() : null;
         }
 
         RouteResponse response = routeMapper.toResponse(route);
@@ -483,7 +482,7 @@ public class RouteServiceImpl implements RouteService {
         ratingSummaryService.applyToHotspots(hotspotResponses);
         checkInStatusService.apply(hotspotResponses);
         response.setHotspots(hotspotResponses);
-        response.setUserProgress(progressStatus);
+        response.setUserProgress(routeParticipantStatus);
 
         if (route.getTag() != null) {
             response.setTag(storyMapper.toTagResponse(route.getTag()));

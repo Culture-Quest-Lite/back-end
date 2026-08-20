@@ -18,7 +18,6 @@ import org.sep490.backend.module.groupquest.mapper.GroupParticipantMapper;
 import org.sep490.backend.module.groupquest.repository.GroupParticipantRepository;
 import org.sep490.backend.module.groupquest.repository.GroupRepository;
 import org.sep490.backend.module.groupquest.service.inter.GroupParticipantService;
-import org.sep490.backend.module.groupquest.service.inter.GroupService;
 import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
 import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.service.UserService;
@@ -50,7 +49,7 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
         GroupParticipantAction action;
         LocalDateTime joinedAt;
 
-        if(repository.existsByGroup_GroupIdAndUser_UserId_AndAction(group.getGroupId(), user.getUserId(), GroupParticipantAction.JOIN)) {
+        if(repository.existsByGroup_GroupIdAndUser_UserId_AndAction(group.getGroupId(), user.getUserId(), GroupParticipantAction.JOINED)) {
             throw new BusinessException("Người dùng đã là thành viên của nhóm");
         }
 
@@ -62,7 +61,7 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
             action = GroupParticipantAction.PENDING;
             joinedAt = null;
         } else {
-            action = GroupParticipantAction.JOIN;
+            action = GroupParticipantAction.JOINED;
             joinedAt = LocalDateTime.now();
         }
 
@@ -76,7 +75,7 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
             groupParticipant.setLeftAt(null);
         } else {
             groupParticipant = getGroupParticipant(group.getGroupId(), user.getUserId());
-            if(groupParticipant.getAction() != GroupParticipantAction.JOIN) {
+            if(groupParticipant.getAction() != GroupParticipantAction.JOINED) {
                 groupParticipant.setAction(action);
                 groupParticipant.setRole(GroupRole.MEMBER);
                 groupParticipant.setStatus(GroupStatus.ACTIVE);
@@ -115,7 +114,7 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
                     .user(user)
                     .group(group)
                     .role(GroupRole.MEMBER)
-                    .action(GroupParticipantAction.JOIN)
+                    .action(GroupParticipantAction.JOINED)
                     .status(GroupStatus.ACTIVE)
                     .joinedAt(LocalDateTime.now())
                     .build();
@@ -132,7 +131,7 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
                 .user(user)
                 .group(group)
                 .role(GroupRole.LEADER)
-                .action(GroupParticipantAction.JOIN)
+                .action(GroupParticipantAction.JOINED)
                 .status(GroupStatus.ACTIVE)
                 .joinedAt(LocalDateTime.now())
                 .build();
@@ -152,10 +151,10 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
 
         groupParticipant.setAction(action);
 
-        if(action == GroupParticipantAction.JOIN) {
+        if(action == GroupParticipantAction.JOINED) {
             groupParticipant.setJoinedAt(LocalDateTime.now());
             groupParticipant.setLeftAt(null);
-        } else if (action == GroupParticipantAction.LEAVE || action == GroupParticipantAction.KICKED) {
+        } else if (action == GroupParticipantAction.LEFT || action == GroupParticipantAction.KICKED) {
             groupParticipant.setLeftAt(LocalDateTime.now());
         }
 
@@ -184,7 +183,7 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
 
         return repository.findAllByUser_UserIdAndActionAndStatus(
                 user.getUserId(),
-                GroupParticipantAction.JOIN,
+                GroupParticipantAction.JOINED,
                 GroupStatus.ACTIVE);
     }
 
@@ -222,19 +221,19 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
             throw new GroupAuthorizeException("Bạn không phải là trưởng nhóm của nhóm này");
         }
 
-        if(participant.getAction() == GroupParticipantAction.JOIN && action == GroupParticipantAction.DENIED) {
+        if(participant.getAction() == GroupParticipantAction.JOINED && action == GroupParticipantAction.DENIED) {
             throw new GroupConflictException("Bạn không thể từ chối thành viên đã tham gia nhóm");
-        } else if (participant.getAction() == GroupParticipantAction.DENIED && action == GroupParticipantAction.JOIN) {
+        } else if (participant.getAction() == GroupParticipantAction.DENIED && action == GroupParticipantAction.JOINED) {
             throw new GroupConflictException("Bạn không thể chấp nhận thành viên đã bị từ chối. Hãy cho thành viên request lại.");
         } else if (participant.getAction() == GroupParticipantAction.PENDING && action == GroupParticipantAction.KICKED) {
             throw new GroupConflictException("Bạn không thể kick thành viên đang chờ duyệt. Hãy từ chối yêu cầu của thành viên này.");
         }
 
         participant.setAction(action);
-        if(action == GroupParticipantAction.JOIN) {
+        if(action == GroupParticipantAction.JOINED) {
             participant.setJoinedAt(LocalDateTime.now());
             participant.setLeftAt(null);
-        } else if (action == GroupParticipantAction.LEAVE || action == GroupParticipantAction.KICKED) {
+        } else if (action == GroupParticipantAction.LEFT || action == GroupParticipantAction.KICKED) {
             participant.setLeftAt(LocalDateTime.now());
         }
         participant = repository.save(participant);
@@ -247,6 +246,6 @@ public class GroupParticipantServiceImpl implements GroupParticipantService {
     }
 
     private Integer countMember(long groupId) {
-        return repository.findAllByGroup_GroupIdAndAction(groupId, GroupParticipantAction.JOIN).size();
+        return repository.findAllByGroup_GroupIdAndAction(groupId, GroupParticipantAction.JOINED).size();
     }
 }

@@ -10,7 +10,7 @@ import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.exploration.entity.RouteParticipant;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 import org.sep490.backend.module.exploration.event.CheckInCompletedEvent;
 import org.sep490.backend.module.exploration.event.CheckInCustomRouteCompletedEvent;
 import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
@@ -52,7 +52,7 @@ public class RouteProgressEventListener {
         }
 
         List<RouteParticipant> unfinishedProgresses = routeParticipantRepository
-                .findByUser_UserIdAndRoute_RouteIdInAndStatusNot(event.userId(), routeIds, ProgressStatus.COMPLETED);
+                .findByUser_UserIdAndRoute_RouteIdInAndStatusNot(event.userId(), routeIds, RouteParticipantStatus.COMPLETED);
 
         for (RouteParticipant progress : unfinishedProgresses) {
             int newCompletedStops = progress.getCompletedStops() + 1;
@@ -62,7 +62,7 @@ public class RouteProgressEventListener {
             progress.setProgressPercentage(Math.min(newPercentage, 100.0));
 
             if (newCompletedStops >= progress.getTotalStops()) {
-                progress.setStatus(ProgressStatus.COMPLETED);
+                progress.setStatus(RouteParticipantStatus.COMPLETED);
                 progress.setCompletedAt(LocalDateTime.now());
                 eventPublisher.publishEvent(new RouteProgressCompletedEvent(
                         event.userId(),

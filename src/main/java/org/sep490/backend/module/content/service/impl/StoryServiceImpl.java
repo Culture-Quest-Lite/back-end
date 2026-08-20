@@ -50,7 +50,7 @@ public class StoryServiceImpl implements StoryService {
     @Override
     @Transactional
     public StoryResponse create(StoryRequest storyRequest) {
-        Tag tag = tagRepository.findById(storyRequest.getTagId())
+        Tag tag = tagRepository.findById(storyRequest.getTagId()) // dung service
                 .orElseThrow(() -> new BusinessException("Tag không tồn tại với ID: " + storyRequest.getTagId()));
 
         Hotspot hotspot = hotspotService.getById(storyRequest.getHotspotId());

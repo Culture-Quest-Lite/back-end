@@ -5,12 +5,12 @@ import jakarta.validation.constraints.Min;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RouteParticipantFilter {
-    ProgressStatus status;
+    RouteParticipantStatus status;
 
     @Min(value = 0, message = "Page không được nhỏ hơn 0")
     int page = 0;

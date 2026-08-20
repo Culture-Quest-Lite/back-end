@@ -26,7 +26,7 @@ import org.sep490.backend.module.curator.dto.projection.HotspotCheckInCountProje
 import org.sep490.backend.module.curator.dto.projection.RatingSummaryProjection;
 import org.sep490.backend.module.curator.dto.projection.RouteStatusCountProjection;
 import org.sep490.backend.module.curator.dto.response.CuratorDashboardResponse;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.sep490.backend.module.exploration.repository.UserHotspotProgressRepository;
 import org.springframework.data.domain.PageRequest;
@@ -313,7 +313,7 @@ class CuratorDashboardServiceImplTest {
             service.getDashboard();
 
             verify(routeParticipantRepository, times(1)).findTopRouteEngagement(
-                    eq(ProgressStatus.COMPLETED), eq(RouteStatus.DELETED), eq(PageRequest.of(0, 5)));
+                    eq(RouteParticipantStatus.COMPLETED), eq(RouteStatus.DELETED), eq(PageRequest.of(0, 5)));
         }
 
         // UTCID03 - Abnormal: started = 0 → completionRate null

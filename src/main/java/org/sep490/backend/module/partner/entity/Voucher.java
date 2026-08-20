@@ -31,7 +31,7 @@ public class Voucher {
     @Column(name = "voucher_code", nullable = false, unique = true, length = 50)
     String voucherCode;
 
-    @Column(name = "voucher_name", nullable = false)
+    @Column(name = "voucher_name", nullable = false, length = 100)
     String voucherName;
 
     @Column(name = "image_url", length = 500)

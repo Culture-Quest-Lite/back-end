@@ -87,7 +87,7 @@ class GroupParticipantServiceImplTest {
             when(repository.findById(10L)).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> groupParticipantService.updateAction(10L, GroupParticipantAction.JOIN));
+                    () -> groupParticipantService.updateAction(10L, GroupParticipantAction.JOINED));
 
             assertEquals("Thành viên nhóm không tồn tại", ex.getMessage());
         }
@@ -104,7 +104,7 @@ class GroupParticipantServiceImplTest {
                     .thenReturn(false);
 
             GroupAuthorizeException ex = assertThrows(GroupAuthorizeException.class,
-                    () -> groupParticipantService.updateAction(10L, GroupParticipantAction.JOIN));
+                    () -> groupParticipantService.updateAction(10L, GroupParticipantAction.JOINED));
 
             assertEquals("Bạn không phải là trưởng nhóm của nhóm này", ex.getMessage());
             verify(repository, never()).save(any());
@@ -115,7 +115,7 @@ class GroupParticipantServiceImplTest {
         void updateAction_denyJoinedMember_throwsConflict() {
             Group target = group(1L, true);
             GroupParticipant gp = participant(target, user(2L),
-                    GroupRole.MEMBER, GroupParticipantAction.JOIN);
+                    GroupRole.MEMBER, GroupParticipantAction.JOINED);
             when(repository.findById(10L)).thenReturn(Optional.of(gp));
             when(userService.getCurrentUser()).thenReturn(user(1L));
             when(repository.existsByGroup_GroupIdAndUser_UserIdAndRole(anyLong(), anyLong(), any()))
@@ -140,7 +140,7 @@ class GroupParticipantServiceImplTest {
                     .thenReturn(true);
 
             GroupConflictException ex = assertThrows(GroupConflictException.class,
-                    () -> groupParticipantService.updateAction(10L, GroupParticipantAction.JOIN));
+                    () -> groupParticipantService.updateAction(10L, GroupParticipantAction.JOINED));
 
             assertEquals("Bạn không thể chấp nhận thành viên đã bị từ chối. "
                     + "Hãy cho thành viên request lại.", ex.getMessage());
@@ -175,13 +175,13 @@ class GroupParticipantServiceImplTest {
             when(repository.existsByGroup_GroupIdAndUser_UserIdAndRole(anyLong(), anyLong(), any()))
                     .thenReturn(true);
             when(repository.save(any(GroupParticipant.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(repository.findAllByGroup_GroupIdAndAction(1L, GroupParticipantAction.JOIN))
+            when(repository.findAllByGroup_GroupIdAndAction(1L, GroupParticipantAction.JOINED))
                     .thenReturn(List.of(new GroupParticipant(), new GroupParticipant(),
                             new GroupParticipant(), new GroupParticipant()));
 
-            groupParticipantService.updateAction(10L, GroupParticipantAction.JOIN);
+            groupParticipantService.updateAction(10L, GroupParticipantAction.JOINED);
 
-            assertEquals(GroupParticipantAction.JOIN, gp.getAction());
+            assertEquals(GroupParticipantAction.JOINED, gp.getAction());
             assertEquals(4, target.getTotalMembers());
             verify(groupRepository).save(target);
         }
@@ -218,7 +218,7 @@ class GroupParticipantServiceImplTest {
             Group target = group(1L, false);
             User member = user(2L);
             when(repository.existsByGroup_GroupIdAndUser_UserId_AndAction(
-                    1L, 2L, GroupParticipantAction.JOIN)).thenReturn(true);
+                    1L, 2L, GroupParticipantAction.JOINED)).thenReturn(true);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> groupParticipantService.addUserToGroup(member, target, JoinGroupType.LINK));
@@ -233,7 +233,7 @@ class GroupParticipantServiceImplTest {
             Group target = group(1L, true);
             User member = user(2L);
             when(repository.existsByGroup_GroupIdAndUser_UserId_AndAction(
-                    1L, 2L, GroupParticipantAction.JOIN)).thenReturn(false);
+                    1L, 2L, GroupParticipantAction.JOINED)).thenReturn(false);
             when(repository.existsByGroup_GroupIdAndUser_UserId_AndAction(
                     1L, 2L, GroupParticipantAction.PENDING)).thenReturn(true);
 
@@ -276,7 +276,7 @@ class GroupParticipantServiceImplTest {
             GroupParticipant result =
                     groupParticipantService.addUserToGroup(member, target, JoinGroupType.ADD);
 
-            assertEquals(GroupParticipantAction.JOIN, result.getAction());
+            assertEquals(GroupParticipantAction.JOINED, result.getAction());
         }
 
         // UTCID05 - Normal: nhóm không cần duyệt + vào bằng LINK -> JOIN ngay
@@ -293,7 +293,7 @@ class GroupParticipantServiceImplTest {
             GroupParticipant result =
                     groupParticipantService.addUserToGroup(member, target, JoinGroupType.LINK);
 
-            assertEquals(GroupParticipantAction.JOIN, result.getAction());
+            assertEquals(GroupParticipantAction.JOINED, result.getAction());
             assertEquals(GroupStatus.ACTIVE, result.getStatus());
         }
 
@@ -303,7 +303,7 @@ class GroupParticipantServiceImplTest {
             Group target = group(1L, false);
             User member = user(2L);
             GroupParticipant old = participant(target, member,
-                    GroupRole.MEMBER, GroupParticipantAction.LEAVE);
+                    GroupRole.MEMBER, GroupParticipantAction.LEFT);
             when(repository.existsByGroup_GroupIdAndUser_UserId_AndAction(anyLong(), anyLong(), any()))
                     .thenReturn(false);
             when(repository.existsByGroup_GroupIdAndUser_UserId(1L, 2L)).thenReturn(true);
@@ -315,7 +315,7 @@ class GroupParticipantServiceImplTest {
                     groupParticipantService.addUserToGroup(member, target, JoinGroupType.LINK);
 
             assertSame(old, result);
-            assertEquals(GroupParticipantAction.JOIN, result.getAction());
+            assertEquals(GroupParticipantAction.JOINED, result.getAction());
             assertEquals(GroupStatus.ACTIVE, result.getStatus());
         }
     }
@@ -336,7 +336,7 @@ class GroupParticipantServiceImplTest {
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> groupParticipantService.updateAction(
-                            outsider, target, GroupParticipantAction.LEAVE));
+                            outsider, target, GroupParticipantAction.LEFT));
 
             assertEquals("Người dùng chưa là thành viên của nhóm", ex.getMessage());
             verify(repository, never()).save(any());
@@ -348,14 +348,14 @@ class GroupParticipantServiceImplTest {
             Group target = group(1L, false);
             User member = user(2L);
             GroupParticipant gp = participant(target, member,
-                    GroupRole.MEMBER, GroupParticipantAction.JOIN);
+                    GroupRole.MEMBER, GroupParticipantAction.JOINED);
             when(repository.existsByGroup_GroupIdAndUser_UserId(1L, 2L)).thenReturn(true);
             when(repository.findByGroup_GroupIdAndUser_UserId(1L, 2L)).thenReturn(Optional.of(gp));
             when(repository.save(any(GroupParticipant.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            groupParticipantService.updateAction(member, target, GroupParticipantAction.LEAVE);
+            groupParticipantService.updateAction(member, target, GroupParticipantAction.LEFT);
 
-            assertEquals(GroupParticipantAction.LEAVE, gp.getAction());
+            assertEquals(GroupParticipantAction.LEFT, gp.getAction());
         }
 
         // UTCID03 - Normal: đánh dấu bị kick
@@ -364,7 +364,7 @@ class GroupParticipantServiceImplTest {
             Group target = group(1L, false);
             User member = user(2L);
             GroupParticipant gp = participant(target, member,
-                    GroupRole.MEMBER, GroupParticipantAction.JOIN);
+                    GroupRole.MEMBER, GroupParticipantAction.JOINED);
             when(repository.existsByGroup_GroupIdAndUser_UserId(1L, 2L)).thenReturn(true);
             when(repository.findByGroup_GroupIdAndUser_UserId(1L, 2L)).thenReturn(Optional.of(gp));
             when(repository.save(any(GroupParticipant.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -389,7 +389,7 @@ class GroupParticipantServiceImplTest {
             User leader = user(1L);
             when(repository.findByGroup_GroupIdAndUser_UserId(1L, 1L))
                     .thenReturn(Optional.of(participant(target, leader,
-                            GroupRole.LEADER, GroupParticipantAction.JOIN)));
+                            GroupRole.LEADER, GroupParticipantAction.JOINED)));
 
             assertTrue(groupParticipantService.isLeader(leader, target));
         }
@@ -401,7 +401,7 @@ class GroupParticipantServiceImplTest {
             User member = user(2L);
             when(repository.findByGroup_GroupIdAndUser_UserId(1L, 2L))
                     .thenReturn(Optional.of(participant(target, member,
-                            GroupRole.MEMBER, GroupParticipantAction.JOIN)));
+                            GroupRole.MEMBER, GroupParticipantAction.JOINED)));
 
             assertFalse(groupParticipantService.isLeader(member, target));
         }

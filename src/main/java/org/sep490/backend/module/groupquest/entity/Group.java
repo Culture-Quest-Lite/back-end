@@ -35,7 +35,7 @@ public class Group {
     @Column(name = "group_name", length = 255, nullable = false)
     String groupName;
 
-    @Column(name = "total_members")
+    @Column(name = "total_members", nullable = false)
     Integer totalMembers;
 
     @Column(name = "image_url", length = 500)

@@ -55,7 +55,7 @@ public class Media {
     @Column(name = "file_url")
     String fileUrl;
 
-    @Column(name = "file_name", length = 50)
+    @Column(name = "file_name", length = 255)
     String fileName;
 
     @Column(name = "file_size")

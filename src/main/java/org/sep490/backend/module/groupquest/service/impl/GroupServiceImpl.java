@@ -143,11 +143,11 @@ public class GroupServiceImpl implements GroupService {
         List<User> members = new ArrayList<>();
 
         for(GroupParticipant gp : gps) {
-            if(gp.getAction().equals(GroupParticipantAction.JOIN) || gp.getAction().equals(GroupParticipantAction.PENDING)) {
+            if(gp.getAction().equals(GroupParticipantAction.JOINED) || gp.getAction().equals(GroupParticipantAction.PENDING)) {
                 gp.setAction(GroupParticipantAction.DISMISSED);
                 gp.setStatus(GroupStatus.DELETED);
 
-                if(gp.getAction().equals(GroupParticipantAction.JOIN)) {
+                if(gp.getAction().equals(GroupParticipantAction.JOINED)) {
                     gp.setLeftAt(LocalDateTime.now());
                 }
 
@@ -201,7 +201,7 @@ public class GroupServiceImpl implements GroupService {
 
         User user = userService.getCurrentUser();
 
-        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOINED)) {
             throw new GroupAuthorizeException("Bạn không phải là thành viên của nhóm");
         }
 
@@ -307,7 +307,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Bạn không thể kick chính mình");
         }
 
-        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, userId, GroupParticipantAction.JOIN)) {
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, userId, GroupParticipantAction.JOINED)) {
             throw new BusinessException("Thành viên này không thuộc nhóm");
         }
 
@@ -335,7 +335,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Bạn không thể rời nhóm khi đang chờ duyệt. Hãy hủy yêu cầu tham gia nhóm");
         }
 
-        if (!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
+        if (!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOINED)) {
             throw new BusinessException("Bạn không thuộc nhóm này");
         }
 
@@ -343,7 +343,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Trưởng nhóm không thể rời nhóm. Hãy chuyển quyền trưởng nhóm cho người khác trước khi rời nhóm");
         }
 
-        groupParticipantService.updateAction(user, group, GroupParticipantAction.LEAVE);
+        groupParticipantService.updateAction(user, group, GroupParticipantAction.LEFT);
         group.setTotalMembers(countMember(group.getGroupId()));
         groupRepository.save(group);
 
@@ -374,7 +374,7 @@ public class GroupServiceImpl implements GroupService {
             throw new BusinessException("Nhóm đã bị xóa");
         }
 
-        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOIN)) {
+        if(!groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(groupId, user.getUserId(), GroupParticipantAction.JOINED)) {
             throw new GroupAuthorizeException("Người dùng không phải là thành viên của nhóm");
         }
 
@@ -382,7 +382,7 @@ public class GroupServiceImpl implements GroupService {
 
         if(action == null || !isLeader) {
             return groupParticipantService.getGroupParticipants(groupId).stream()
-                    .filter(gp -> gp.getAction() == GroupParticipantAction.JOIN)
+                    .filter(gp -> gp.getAction() == GroupParticipantAction.JOINED)
                     .map(groupParticipantMapper::toResponse)
                     .toList();
         } else {
@@ -451,7 +451,7 @@ public class GroupServiceImpl implements GroupService {
     }
 
     private Integer countMember(long groupId) {
-        return groupParticipantRepository.findAllByGroup_GroupIdAndAction(groupId, GroupParticipantAction.JOIN).size();
+        return groupParticipantRepository.findAllByGroup_GroupIdAndAction(groupId, GroupParticipantAction.JOINED).size();
     }
 
     private List<User> validateListMember(Long leaderId, List<Long> memberIds, String groupName) {

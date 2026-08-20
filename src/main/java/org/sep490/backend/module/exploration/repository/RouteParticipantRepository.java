@@ -5,7 +5,7 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.exploration.entity.RouteParticipant;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -20,9 +20,9 @@ public interface RouteParticipantRepository extends JpaRepository<RouteParticipa
     Optional<RouteParticipant> findByRoute_RouteIdAndUser_UserId(Long routeId, Long userId);
 
     List<RouteParticipant> findByUser_UserIdAndRoute_RouteIdInAndStatusNot(
-            Long userId, List<Long> routeIds, ProgressStatus status);
+            Long userId, List<Long> routeIds, RouteParticipantStatus status);
 
-    List<RouteParticipant> findByUserInAndStatus(List<User> users, ProgressStatus status);
+    List<RouteParticipant> findByUserInAndStatus(List<User> users, RouteParticipantStatus status);
 
     List<RouteParticipant> findByUserInAndRoute(List<User> users, Route route);
 
@@ -35,7 +35,7 @@ public interface RouteParticipantRepository extends JpaRepository<RouteParticipa
             "WHERE r.status <> :deletedStatus " +
             "GROUP BY r.routeId, r.routeName " +
             "ORDER BY COUNT(rp) DESC, r.routeId ASC")
-    List<RouteEngagementProjection> findTopRouteEngagement(@Param("completedStatus") ProgressStatus completedStatus,
+    List<RouteEngagementProjection> findTopRouteEngagement(@Param("completedStatus") RouteParticipantStatus completedStatus,
                                                            @Param("deletedStatus") RouteStatus deletedStatus,
                                                            Pageable pageable);
 }

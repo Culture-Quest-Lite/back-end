@@ -42,7 +42,7 @@ public class AuditLog {
     @Column(name = "endpoint", length = 255)
     private String endpoint;
 
-    @Column(name = "record_id")
+    @Column(name = "record_id", length = 100)
     private String recordId;
 
     @Column(name = "old_value", columnDefinition = "TEXT")

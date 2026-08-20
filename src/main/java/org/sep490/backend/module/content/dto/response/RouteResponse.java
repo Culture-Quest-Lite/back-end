@@ -5,7 +5,7 @@ import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.RouteDifficulty;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 
 import java.util.List;
 
@@ -24,7 +24,7 @@ public class RouteResponse {
     Long point;
     Double averageRating;
     Long totalReviews;
-    ProgressStatus userProgress;
+    RouteParticipantStatus userProgress;
     TagResponse tag;
     List<HotspotResponse> hotspots;
 }

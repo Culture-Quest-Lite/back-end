@@ -12,11 +12,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.sep490.backend.module.admin.dto.projection.DailyCountProjection;
-import org.sep490.backend.module.admin.dto.projection.HotspotPublishSummaryProjection;
 import org.sep490.backend.module.admin.dto.projection.MonthlyCountProjection;
 import org.sep490.backend.module.admin.dto.projection.RevenueSummaryProjection;
 import org.sep490.backend.module.admin.dto.projection.RouteEngagementProjection;
-import org.sep490.backend.module.admin.dto.projection.UserSummaryProjection;
 import org.sep490.backend.module.admin.dto.response.AdminDashboardResponse;
 import org.sep490.backend.module.admin.entity.enumeration.InvoicePaymentStatus;
 import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
@@ -26,7 +24,7 @@ import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.repository.HotspotRepository;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.sep490.backend.module.exploration.repository.UserHotspotProgressRepository;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
@@ -314,7 +312,7 @@ class AdminDashboardServiceImplTest {
             service.getDashboard();
 
             verify(routeParticipantRepository, times(1)).findTopRouteEngagement(
-                    eq(ProgressStatus.COMPLETED), eq(RouteStatus.DELETED), eq(PageRequest.of(0, 5)));
+                    eq(RouteParticipantStatus.COMPLETED), eq(RouteStatus.DELETED), eq(PageRequest.of(0, 5)));
         }
 
         // UTCID03 - Abnormal: repo rỗng → list rỗng, không null

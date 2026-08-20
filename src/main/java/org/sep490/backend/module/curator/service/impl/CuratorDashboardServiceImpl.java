@@ -27,7 +27,7 @@ import org.sep490.backend.module.curator.dto.response.CuratorDashboardResponse.R
 import org.sep490.backend.module.curator.dto.response.CuratorDashboardResponse.TopContent;
 import org.sep490.backend.module.curator.dto.response.CuratorDashboardResponse.TopHotspotPoint;
 import org.sep490.backend.module.curator.service.CuratorDashboardService;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.sep490.backend.module.exploration.repository.UserHotspotProgressRepository;
 import org.springframework.cache.annotation.Cacheable;
@@ -85,7 +85,7 @@ public class CuratorDashboardServiceImpl implements CuratorDashboardService {
         RatingSummaryProjection ratingSummary = reviewRepository.summarizeGlobalRatings(ReviewStatus.ACTIVE);
         List<DailyCountProjection> dailyRows = userHotspotProgressRepository.countCheckInsPerDay(dayFrom, dayTo);
         List<RouteEngagementProjection> routeRows = routeParticipantRepository.findTopRouteEngagement(
-                ProgressStatus.COMPLETED, RouteStatus.DELETED, PageRequest.of(0, TOP_LIMIT));
+                RouteParticipantStatus.COMPLETED, RouteStatus.DELETED, PageRequest.of(0, TOP_LIMIT));
         List<HotspotCheckInCountProjection> hotspotRows = userHotspotProgressRepository.findTopHotspotCheckIns(
                 ContentStatus.DELETED, PageRequest.of(0, TOP_LIMIT));
 

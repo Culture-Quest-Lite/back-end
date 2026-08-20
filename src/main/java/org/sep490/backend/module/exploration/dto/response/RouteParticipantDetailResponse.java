@@ -3,7 +3,7 @@ package org.sep490.backend.module.exploration.dto.response;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,7 +17,7 @@ public class RouteParticipantDetailResponse {
     Integer totalStops;
     Integer completedStops;
     Double progressPercentage;
-    ProgressStatus status;
+    RouteParticipantStatus status;
     LocalDateTime startedAt;
     List<HotspotProgressInRouteResponse> hotspotProgressList;
 }

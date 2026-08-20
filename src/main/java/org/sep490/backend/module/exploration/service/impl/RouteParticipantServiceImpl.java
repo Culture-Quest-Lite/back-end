@@ -4,7 +4,6 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
-import org.sep490.backend.common.utils.SecurityUtils;
 import org.sep490.backend.common.utils.ShareTokenUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
@@ -18,7 +17,7 @@ import org.sep490.backend.module.exploration.dto.response.HotspotProgressInRoute
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantDetailResponse;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantResponse;
 import org.sep490.backend.module.exploration.entity.RouteParticipant;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
 import org.sep490.backend.module.exploration.mapper.RouteParticipantMapper;
 import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
@@ -89,11 +88,11 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
                     .totalStops(totalStops)
                     .completedStops(completedStops)
                     .progressPercentage(Math.min(progressPercentage, 100.0))
-                    .status(ProgressStatus.IN_PROGRESS)
+                    .status(RouteParticipantStatus.IN_PROGRESS)
                     .build();
 
             if (completedStops >= totalStops && totalStops > 0) {
-                participant.setStatus(ProgressStatus.COMPLETED);
+                participant.setStatus(RouteParticipantStatus.COMPLETED);
                 participant.setCompletedAt(LocalDateTime.now());
                 participant = routeParticipantRepository.save(participant);
 
@@ -107,7 +106,7 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
 
             result.put(201, routeParticipantMapper.toResponse(participant));
         } else {
-            if (participant.getStatus() == ProgressStatus.IN_PROGRESS) {
+            if (participant.getStatus() == RouteParticipantStatus.IN_PROGRESS) {
                 throw new BusinessException("Bạn hiện đang trong tuyến đường này");
             } else {
                 List<Hotspot> routeHotspots = storyRepository.findHotspotsByRouteIdOrderByIndexAsc(route.getRouteId());
@@ -122,10 +121,10 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
 
                 participant.setCompletedStops(completedStops);
                 participant.setProgressPercentage(Math.min(progressPercentage, 100.0));
-                participant.setStatus(ProgressStatus.IN_PROGRESS);
+                participant.setStatus(RouteParticipantStatus.IN_PROGRESS);
 
                 if (completedStops >= totalStops && totalStops > 0) {
-                    participant.setStatus(ProgressStatus.COMPLETED);
+                    participant.setStatus(RouteParticipantStatus.COMPLETED);
                     participant.setCompletedAt(LocalDateTime.now());
                     participant = routeParticipantRepository.save(participant);
 
@@ -144,6 +143,7 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
     }
 
     @Override
+    @Transactional
     public RouteParticipantResponse abandonRouteProgress(Long routeId) {
         User user = userService.getCurrentUser();
         Route route = routeService.getById(routeId);
@@ -153,10 +153,10 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
         if (participant == null) {
             throw new BusinessException("Bạn chưa bắt đầu hành trình " + route.getRouteName());
         } else {
-            if (participant.getStatus() == ProgressStatus.ABANDONED) {
+            if (participant.getStatus() == RouteParticipantStatus.ABANDONED) {
                 throw new BusinessException("Bạn đã kết thúc tuyến đường này");
             } else {
-                participant.setStatus(ProgressStatus.ABANDONED);
+                participant.setStatus(RouteParticipantStatus.ABANDONED);
                 participant = routeParticipantRepository.save(participant);
             }
         }
@@ -268,7 +268,7 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
                 .toList();
 
         List<RouteParticipant> activeParticipants = routeParticipantRepository
-                .findByUserInAndStatus(members, ProgressStatus.IN_PROGRESS);
+                .findByUserInAndStatus(members, RouteParticipantStatus.IN_PROGRESS);
 
         List<RouteParticipant> targetRouteParticipants = routeParticipantRepository
                 .findByUserInAndRoute(members, route);
@@ -288,7 +288,7 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
                 if (currentActive.getRoute().getRouteId().equals(route.getRouteId())) {
                     continue;
                 } else {
-                    currentActive.setStatus(ProgressStatus.ON_HOLD);
+                    currentActive.setStatus(RouteParticipantStatus.ON_HOLD);
                 }
             }
 
@@ -306,7 +306,7 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
                     .orElse(null);
 
             if (existingTargetRecord != null) {
-                existingTargetRecord.setStatus(ProgressStatus.IN_PROGRESS);
+                existingTargetRecord.setStatus(RouteParticipantStatus.IN_PROGRESS);
                 existingTargetRecord.setCompletedStops(completedStops);
                 existingTargetRecord.setProgressPercentage(progress);
             } else {
@@ -316,7 +316,7 @@ public class RouteParticipantServiceImpl implements RouteParticipantService {
                         .totalStops(totalStops)
                         .completedStops(completedStops)
                         .progressPercentage(progress)
-                        .status(ProgressStatus.IN_PROGRESS)
+                        .status(RouteParticipantStatus.IN_PROGRESS)
                         .build();
                 newParticipants.add(newRp);
             }

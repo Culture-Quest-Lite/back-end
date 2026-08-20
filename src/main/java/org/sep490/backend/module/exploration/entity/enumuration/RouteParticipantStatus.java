@@ -1,6 +1,6 @@
 package org.sep490.backend.module.exploration.entity.enumuration;
 
-public enum ProgressStatus {
+public enum RouteParticipantStatus {
     IN_PROGRESS,
     COMPLETED,
     ABANDONED, // bỏ luôn

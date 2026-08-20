@@ -195,7 +195,7 @@ class GroupServiceImplTest {
             when(groupParticipantService.isParticipant(member, target)).thenReturn(true);
             when(groupParticipantService.isLeader(member, target)).thenReturn(false);
             when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
-                    1L, 2L, GroupParticipantAction.LEAVE)).thenReturn(true);
+                    1L, 2L, GroupParticipantAction.LEFT)).thenReturn(true);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> groupService.leaveGroup(1L));
@@ -214,7 +214,7 @@ class GroupServiceImplTest {
             when(groupParticipantService.isParticipant(member, target)).thenReturn(true);
             when(groupParticipantService.isLeader(member, target)).thenReturn(false);
             when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
-                    1L, 2L, GroupParticipantAction.LEAVE)).thenReturn(false);
+                    1L, 2L, GroupParticipantAction.LEFT)).thenReturn(false);
             when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
                     1L, 2L, GroupParticipantAction.PENDING)).thenReturn(true);
 
@@ -237,14 +237,14 @@ class GroupServiceImplTest {
             when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
                     anyLong(), anyLong(), any())).thenReturn(false);
             when(groupParticipantRepository.findAllByGroup_GroupIdAndAction(
-                    1L, GroupParticipantAction.JOIN))
+                    1L, GroupParticipantAction.JOINED))
                     .thenReturn(List.of(new GroupParticipant(), new GroupParticipant()));
             leaderOfGroup(1L, leader);
 
             groupService.leaveGroup(1L);
 
             verify(groupParticipantService)
-                    .updateAction(member, target, GroupParticipantAction.LEAVE);
+                    .updateAction(member, target, GroupParticipantAction.LEFT);
             assertEquals(2, target.getTotalMembers());
             verify(groupRepository).save(target);
         }
@@ -441,7 +441,7 @@ class GroupServiceImplTest {
             when(groupParticipantRepository.existsByGroup_GroupIdAndUser_UserId_AndAction(
                     anyLong(), anyLong(), any())).thenReturn(false);
             when(groupParticipantRepository.findAllByGroup_GroupIdAndAction(
-                    1L, GroupParticipantAction.JOIN))
+                    1L, GroupParticipantAction.JOINED))
                     .thenReturn(List.of(new GroupParticipant()));
             leaderOfGroup(1L, leader);
 
@@ -860,7 +860,7 @@ class GroupServiceImplTest {
             Group target = group(1L, leader, GroupStatus.ACTIVE);
 
             GroupParticipant joined = new GroupParticipant();
-            joined.setAction(GroupParticipantAction.JOIN);
+            joined.setAction(GroupParticipantAction.JOINED);
             GroupParticipant pending = new GroupParticipant();
             pending.setAction(GroupParticipantAction.PENDING);
             GroupParticipant kicked = new GroupParticipant();

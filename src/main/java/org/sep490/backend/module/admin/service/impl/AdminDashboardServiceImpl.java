@@ -25,7 +25,7 @@ import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.repository.HotspotRepository;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
 import org.sep490.backend.module.exploration.repository.UserHotspotProgressRepository;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
@@ -93,7 +93,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 hotspotRepository.summarizePublishedHotspots(ContentStatus.PUBLISHED, weekStart);
         long pendingPosts = postRepository.countByStatus(PostStatus.PENDING);
         List<RouteEngagementProjection> routeRows = routeParticipantRepository.findTopRouteEngagement(
-                ProgressStatus.COMPLETED, RouteStatus.DELETED, PageRequest.of(0, TOP_ROUTE_LIMIT));
+                RouteParticipantStatus.COMPLETED, RouteStatus.DELETED, PageRequest.of(0, TOP_ROUTE_LIMIT));
         RevenueSummaryProjection revenue =
                 invoiceRepository.summarizeRevenue(InvoicePaymentStatus.PAID, InvoiceStatus.ACTIVE,
                         monthStart, prevMonthStart, now);

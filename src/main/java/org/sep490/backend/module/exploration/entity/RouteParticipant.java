@@ -7,7 +7,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Route;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 
 import java.time.LocalDateTime;
 
@@ -45,7 +45,7 @@ public class RouteParticipant {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    ProgressStatus status;
+    RouteParticipantStatus status;
 
     @CreationTimestamp
     @Column(name = "started_at", updatable = false)

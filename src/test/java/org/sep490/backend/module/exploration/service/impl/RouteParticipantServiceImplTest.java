@@ -20,7 +20,7 @@ import org.sep490.backend.module.exploration.dto.request.StartGroupQuestRoute;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantDetailResponse;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantResponse;
 import org.sep490.backend.module.exploration.entity.RouteParticipant;
-import org.sep490.backend.module.exploration.entity.enumuration.ProgressStatus;
+import org.sep490.backend.module.exploration.entity.enumuration.RouteParticipantStatus;
 import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
 import org.sep490.backend.module.exploration.mapper.RouteParticipantMapper;
 import org.sep490.backend.module.exploration.repository.RouteParticipantRepository;
@@ -128,7 +128,7 @@ class RouteParticipantServiceImplTest {
         void startRouteProgress_alreadyInProgress_throwsInProgress() {
             when(userService.getCurrentUser()).thenReturn(user(1L));
             when(routeService.getById(10L)).thenReturn(route(10L));
-            RouteParticipant participant = RouteParticipant.builder().status(ProgressStatus.IN_PROGRESS).build();
+            RouteParticipant participant = RouteParticipant.builder().status(RouteParticipantStatus.IN_PROGRESS).build();
             when(routeParticipantRepository.findByRoute_RouteIdAndUser_UserId(10L, 1L))
                     .thenReturn(Optional.of(participant));
 
@@ -143,7 +143,7 @@ class RouteParticipantServiceImplTest {
         void startRouteProgress_previouslyAbandoned_restartsReturns200() {
             when(userService.getCurrentUser()).thenReturn(user(1L));
             when(routeService.getById(10L)).thenReturn(route(10L));
-            RouteParticipant participant = RouteParticipant.builder().status(ProgressStatus.ABANDONED).build();
+            RouteParticipant participant = RouteParticipant.builder().status(RouteParticipantStatus.ABANDONED).build();
             when(routeParticipantRepository.findByRoute_RouteIdAndUser_UserId(10L, 1L))
                     .thenReturn(Optional.of(participant));
             when(storyRepository.findHotspotsByRouteIdOrderByIndexAsc(10L)).thenReturn(List.of());
@@ -153,7 +153,7 @@ class RouteParticipantServiceImplTest {
             HashMap<Integer, RouteParticipantResponse> result = service.startRouteProgress(10L);
 
             assertTrue(result.containsKey(200));
-            assertEquals(ProgressStatus.IN_PROGRESS, participant.getStatus());
+            assertEquals(RouteParticipantStatus.IN_PROGRESS, participant.getStatus());
         }
     }
 
@@ -184,7 +184,7 @@ class RouteParticipantServiceImplTest {
         void abandonRouteProgress_alreadyAbandoned_throwsAlreadyEnded() {
             when(userService.getCurrentUser()).thenReturn(user(1L));
             when(routeService.getById(10L)).thenReturn(route(10L));
-            RouteParticipant participant = RouteParticipant.builder().status(ProgressStatus.ABANDONED).build();
+            RouteParticipant participant = RouteParticipant.builder().status(RouteParticipantStatus.ABANDONED).build();
             when(routeParticipantRepository.findByRoute_RouteIdAndUser_UserId(10L, 1L))
                     .thenReturn(Optional.of(participant));
 
@@ -199,7 +199,7 @@ class RouteParticipantServiceImplTest {
         void abandonRouteProgress_inProgress_setsAbandoned() {
             when(userService.getCurrentUser()).thenReturn(user(1L));
             when(routeService.getById(10L)).thenReturn(route(10L));
-            RouteParticipant participant = RouteParticipant.builder().status(ProgressStatus.IN_PROGRESS).build();
+            RouteParticipant participant = RouteParticipant.builder().status(RouteParticipantStatus.IN_PROGRESS).build();
             when(routeParticipantRepository.findByRoute_RouteIdAndUser_UserId(10L, 1L))
                     .thenReturn(Optional.of(participant));
             when(routeParticipantRepository.save(any(RouteParticipant.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -207,7 +207,7 @@ class RouteParticipantServiceImplTest {
 
             service.abandonRouteProgress(10L);
 
-            assertEquals(ProgressStatus.ABANDONED, participant.getStatus());
+            assertEquals(RouteParticipantStatus.ABANDONED, participant.getStatus());
             verify(routeParticipantRepository).save(participant);
         }
     }
@@ -236,7 +236,7 @@ class RouteParticipantServiceImplTest {
             User owner = user(1L);
             User current = user(2L);
             RouteParticipant participant = RouteParticipant.builder()
-                    .route(route(10L)).user(owner).status(ProgressStatus.IN_PROGRESS).build();
+                    .route(route(10L)).user(owner).status(RouteParticipantStatus.IN_PROGRESS).build();
             when(routeParticipantRepository.findById(50L)).thenReturn(Optional.of(participant));
             when(userService.getCurrentUser()).thenReturn(current);
 
@@ -251,7 +251,7 @@ class RouteParticipantServiceImplTest {
         void getRouteProgress_owner_returnsDetail() {
             User owner = user(1L);
             RouteParticipant participant = RouteParticipant.builder()
-                    .route(route(10L)).user(owner).status(ProgressStatus.IN_PROGRESS).build();
+                    .route(route(10L)).user(owner).status(RouteParticipantStatus.IN_PROGRESS).build();
             when(routeParticipantRepository.findById(50L)).thenReturn(Optional.of(participant));
             when(userService.getCurrentUser()).thenReturn(owner);
             when(storyRepository.getHotspotCheckInStatusByRouteAndUserNative(anyLong(), anyLong()))
