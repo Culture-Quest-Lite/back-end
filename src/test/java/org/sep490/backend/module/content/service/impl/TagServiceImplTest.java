@@ -1,5 +1,6 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,9 @@ import org.sep490.backend.module.content.mapper.TagMapper;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
+import org.sep490.backend.module.content.dto.record.CultureCheckResult;
+import org.sep490.backend.module.content.entity.enumeration.CultureDecision;
+import org.sep490.backend.module.content.service.inter.CultureGuardService;
 import org.sep490.backend.module.content.service.inter.ImageService;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,8 +48,19 @@ class TagServiceImplTest {
     @Mock private StoryRepository storyRepository;
     @Mock private TagMapper tagMapper;
     @Mock private ImageService imageService;
+    @Mock private CultureGuardService cultureGuardService;
 
     @InjectMocks private TagServiceImpl tagService;
+
+    @BeforeEach
+    void guardPassesByDefault() {
+        when(cultureGuardService.checkAndEnforce(anyString(), anyString(), any()))
+                .thenReturn(culture(CultureDecision.PASS));
+    }
+
+    private static CultureCheckResult culture(CultureDecision decision) {
+        return CultureCheckResult.rule(decision, decision == CultureDecision.PASS ? 1d : 0.4d, "lý do", java.util.List.of());
+    }
 
     private static MockMultipartFile imageFile() {
         return new MockMultipartFile("imageFile", "icon.png", "image/png", new byte[1024]);
@@ -113,6 +128,78 @@ class TagServiceImplTest {
             tagService.create(request);
 
             assertEquals("https://s3/tags/icon.png", tag.getImageUrl());
+        }
+
+        // UTCID04 - Abnormal: bộ lọc văn hóa từ chối thì không được lưu
+        @Test
+        void createTag_cultureRejected_doesNotSave() {
+            when(tagRepository.existsByTagNameIgnoreCase("Crypto trading")).thenReturn(false);
+            when(cultureGuardService.checkAndEnforce(anyString(), anyString(), any()))
+                    .thenThrow(new BusinessException("Nội dung không phù hợp"));
+
+            assertThrows(BusinessException.class, () -> tagService.create(tagRequest("Crypto trading")));
+
+            verify(tagRepository, never()).save(any());
+        }
+
+        // UTCID05 - Normal: vùng xám đã xác nhận thì lưu ở trạng thái chờ duyệt
+        @Test
+        void createTag_cultureReview_savesAsPendingReview() {
+            when(tagRepository.existsByTagNameIgnoreCase("Cà phê sáng")).thenReturn(false);
+            when(cultureGuardService.checkAndEnforce(anyString(), anyString(), any()))
+                    .thenReturn(culture(CultureDecision.REVIEW));
+            Tag tag = new Tag();
+            when(tagMapper.toEntity(any(TagRequest.class))).thenReturn(tag);
+            when(tagRepository.save(any(Tag.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(tagMapper.toResponse(any(Tag.class))).thenReturn(new TagResponse());
+
+            TagRequest request = tagRequest("Cà phê sáng");
+            request.setConfirmCultural(true);
+            tagService.create(request);
+
+            assertEquals(TagStatus.PENDING_REVIEW, tag.getTagStatus());
+            assertEquals(0.4d, tag.getCultureScore());
+            assertNotNull(tag.getCultureCheckedAt());
+        }
+    }
+
+    // =====================================================================
+    // Function: update (Tag) - sau khi bi tu choi
+    // =====================================================================
+    @Nested
+    @DisplayName("updateTag sau khi bi tu choi")
+    class UpdateRejectedTagTest {
+
+        // UTCID01 - Normal: tag bi tu choi sua lai, du bo loc PASS van phai cho admin duyet lai
+        @Test
+        void updateTag_rejectedThenPasses_goesBackToPendingReview() {
+            Tag tag = new Tag();
+            tag.setTagId(1L);
+            tag.setTagStatus(TagStatus.REJECTED);
+            tag.setRejectReason("Không liên quan văn hóa");
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
+            when(tagRepository.save(any(Tag.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(tagMapper.toResponse(any(Tag.class))).thenReturn(new TagResponse());
+
+            tagService.update(1L, tagRequest("Lễ hội Gióng"));
+
+            assertEquals(TagStatus.PENDING_REVIEW, tag.getTagStatus());
+            assertNull(tag.getRejectReason());
+        }
+
+        // UTCID02 - Normal: tag dang ACTIVE ma bo loc PASS thi giu nguyen trang thai
+        @Test
+        void updateTag_activeAndPasses_keepsActive() {
+            Tag tag = new Tag();
+            tag.setTagId(1L);
+            tag.setTagStatus(TagStatus.ACTIVE);
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
+            when(tagRepository.save(any(Tag.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(tagMapper.toResponse(any(Tag.class))).thenReturn(new TagResponse());
+
+            tagService.update(1L, tagRequest("Lễ hội Gióng"));
+
+            assertEquals(TagStatus.ACTIVE, tag.getTagStatus());
         }
     }
 

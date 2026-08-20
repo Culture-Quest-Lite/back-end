@@ -20,6 +20,16 @@ public class BusinessException extends RuntimeException {
         this.errorCode = status.name();
     }
 
+    private BusinessException(HttpStatus status, String errorCode, String formattedMessage) {
+        super(formattedMessage);
+        this.status = status;
+        this.errorCode = errorCode;
+    }
+
+    public static BusinessException withCode(HttpStatus status, String errorCode, String message, Object... args) {
+        return new BusinessException(status, errorCode, formatMessage(message, args));
+    }
+
     private static String formatMessage(String message, Object... args) {
         if (args == null || args.length == 0) {
             return message;

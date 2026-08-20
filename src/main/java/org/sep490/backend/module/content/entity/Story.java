@@ -62,6 +62,24 @@ public class Story {
     @Column(name = "status")
     ContentStatus status;
 
+    @Column(name = "culture_score")
+    Double cultureScore;
+
+    @Column(name = "culture_reason", columnDefinition = "TEXT")
+    String cultureReason;
+
+    @Column(name = "culture_checked_at")
+    LocalDateTime cultureCheckedAt;
+
+    @Column(name = "moderate_by")
+    Long moderateBy;
+
+    @Column(name = "moderate_at")
+    LocalDateTime moderateAt;
+
+    @Column(name = "reject_reason", columnDefinition = "TEXT")
+    String rejectReason;
+
     @OneToMany(mappedBy = "story", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     List<Media> medias = new ArrayList<>();
