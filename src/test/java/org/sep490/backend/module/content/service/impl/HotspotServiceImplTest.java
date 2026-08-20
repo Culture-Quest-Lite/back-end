@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.module.admin.service.CheckInRadiusConfigService;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
 import org.sep490.backend.module.content.dto.response.HotspotResponse;
@@ -55,6 +56,7 @@ class HotspotServiceImplTest {
     @Mock private RatingSummaryService ratingSummaryService;
     @Mock private CheckInStatusService checkInStatusService;
     @Mock private GeoQueryService geoQueryService;
+    @Mock private CheckInRadiusConfigService checkInRadiusConfigService;
     @InjectMocks private HotspotServiceImpl hotspotService;
 
     @org.junit.jupiter.api.BeforeEach
@@ -64,6 +66,9 @@ class HotspotServiceImplTest {
                 .thenAnswer(inv -> inv.getArgument(0));
         when(checkInStatusService.apply(any(HotspotResponse.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
+        // Bán kính do admin cấu hình: null -> mặc định 50m, có giá trị -> giữ nguyên
+        when(checkInRadiusConfigService.resolveRadius(any()))
+                .thenAnswer(inv -> inv.getArgument(0) == null ? 50 : inv.getArgument(0));
     }
 
     private static User aCurator() {

@@ -327,6 +327,16 @@ class PreAuthorizeMatrixTest {
                     ROLE_ADMIN, "PERM_LEVEL_MANAGE");
             call(HttpMethod.GET, "/api/gamification/levels", passedAuthz(), ROLE_EXPLORER);
         }
+
+        @Test
+        @DisplayName("Cấu hình bán kính check-in: sửa cần PERM_SYSTEM_CONFIG_MANAGE, đọc thì không")
+        void cauHinhBanKinhCheckIn() throws Exception {
+            String body = "{\"minRadius\":20,\"maxRadius\":5000,\"defaultRadius\":50}";
+            call(HttpMethod.PUT, "/api/v1/configs/check-in-radius", body, forbidden(), ROLE_ADMIN);
+            call(HttpMethod.PUT, "/api/v1/configs/check-in-radius", body, passedAuthz(),
+                    ROLE_ADMIN, "PERM_SYSTEM_CONFIG_MANAGE");
+            call(HttpMethod.GET, "/api/v1/configs/check-in-radius", passedAuthz(), ROLE_CURATOR);
+        }
     }
 
     // ================= Partner: chặn theo ROLE ở cấp class =================

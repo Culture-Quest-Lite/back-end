@@ -19,7 +19,7 @@ import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.utils.SpatialUtils;
-import org.sep490.backend.module.exploration.service.impl.CheckInPolicy;
+import org.sep490.backend.module.admin.service.CheckInRadiusConfigService;
 import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.springframework.util.StringUtils;
 import org.sep490.backend.common.filter.dto.SearchRequest;
@@ -69,6 +69,7 @@ public class HotspotServiceImpl implements HotspotService {
     CheckInStatusService checkInStatusService;
     GeoQueryService geoQueryService;
     RouteRepository routeRepository;
+    CheckInRadiusConfigService checkInRadiusConfigService;
 
     @Override
     @Transactional
@@ -249,10 +250,9 @@ public class HotspotServiceImpl implements HotspotService {
     }
 
     private void applyCheckInZone(Hotspot hotspot, HotspotRequest request) {
-        if (request.getCheckInRadius() != null) {
-            hotspot.setCheckInRadius(request.getCheckInRadius());
-        } else if (hotspot.getCheckInRadius() == null) {
-            hotspot.setCheckInRadius(CheckInPolicy.DEFAULT_RADIUS_METERS);
+        // Khoảng bán kính hợp lệ do admin cấu hình, không cố định trong code
+        if (request.getCheckInRadius() != null || hotspot.getCheckInRadius() == null) {
+            hotspot.setCheckInRadius(checkInRadiusConfigService.resolveRadius(request.getCheckInRadius()));
         }
 
         if (!StringUtils.hasText(request.getBoundaryGeoJson())) {
