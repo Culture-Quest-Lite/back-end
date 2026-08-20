@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.sep490.backend.module.admin.annotation.Auditable;
 import org.sep490.backend.module.admin.entity.enumeration.AuditAction;
 import org.sep490.backend.module.content.dto.request.CultureRejectRequest;
-import org.sep490.backend.module.content.dto.response.PendingCultureResponse;
+import org.sep490.backend.module.content.dto.response.CultureContentResponse;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
 import org.sep490.backend.module.content.dto.response.TagResponse;
 import org.sep490.backend.module.content.service.inter.CultureModerationService;
@@ -22,7 +22,7 @@ public class ContentModerationController {
 
     @GetMapping("/pending-culture")
     @PreAuthorize("hasAnyAuthority('PERM_TAG_MANAGE', 'PERM_STORY_MANAGE')")
-    public ResponseEntity<PendingCultureResponse> getPending() {
+    public ResponseEntity<CultureContentResponse> getPending() {
         return ResponseEntity.ok(cultureModerationService.getPending());
     }
 

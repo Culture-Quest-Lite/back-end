@@ -6,7 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.redis.CacheNames;
 import org.sep490.backend.module.content.dto.request.CultureRejectRequest;
-import org.sep490.backend.module.content.dto.response.PendingCultureResponse;
+import org.sep490.backend.module.content.dto.response.CultureContentResponse;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
 import org.sep490.backend.module.content.dto.response.TagResponse;
 import org.sep490.backend.module.content.entity.Story;
@@ -39,16 +39,26 @@ public class CultureModerationServiceImpl implements CultureModerationService {
 
     @Override
     @Transactional(readOnly = true)
-    public PendingCultureResponse getPending() {
-        List<TagResponse> tags = tagRepository.findByTagStatusOrderByCreatedAtAsc(TagStatus.PENDING_REVIEW)
+    public CultureContentResponse getPending() {
+        return collect(TagStatus.PENDING_REVIEW, ContentStatus.PENDING_REVIEW);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CultureContentResponse getRejected() {
+        return collect(TagStatus.REJECTED, ContentStatus.REJECTED);
+    }
+
+    private CultureContentResponse collect(TagStatus tagStatus, ContentStatus storyStatus) {
+        List<TagResponse> tags = tagRepository.findByTagStatusOrderByCreatedAtAsc(tagStatus)
                 .stream()
                 .map(tagMapper::toResponse)
                 .toList();
-        List<StoryResponse> stories = storyRepository.findByStatus(ContentStatus.PENDING_REVIEW)
+        List<StoryResponse> stories = storyRepository.findByStatus(storyStatus)
                 .stream()
                 .map(storyMapper::toResponse)
                 .toList();
-        return new PendingCultureResponse(tags, stories);
+        return new CultureContentResponse(tags, stories);
     }
 
     @Override
