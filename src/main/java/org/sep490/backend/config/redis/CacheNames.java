@@ -69,4 +69,5 @@ public class CacheNames {
     public static final String KEY_KC_ADMIN_TOKEN = "kc:admin-token";
     public static final String KEY_GEO_VN = "geo:vn:";
     public static final String KEY_GEO_NEARBY = "geo:nearby:";
+    public static final String KEY_CULTURE_CHECK = "culture:check:";
 }

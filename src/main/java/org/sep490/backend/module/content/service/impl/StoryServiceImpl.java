@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.content.dto.filter.StoryFilterRequest;
+import org.sep490.backend.module.content.dto.record.CultureCheckResult;
 import org.sep490.backend.module.content.dto.request.StoryRequest;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.dto.response.StoryResponse;
@@ -14,10 +15,12 @@ import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.Tag;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.CultureDecision;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
+import org.sep490.backend.module.content.service.inter.CultureGuardService;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.StoryService;
@@ -32,6 +35,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -46,6 +50,7 @@ public class StoryServiceImpl implements StoryService {
     TagRepository tagRepository;
     HotspotService hotspotService;
     RatingSummaryService ratingSummaryService;
+    CultureGuardService cultureGuardService;
 
     @Override
     @Transactional
@@ -55,11 +60,17 @@ public class StoryServiceImpl implements StoryService {
 
         Hotspot hotspot = hotspotService.getById(storyRequest.getHotspotId());
 
+        CultureCheckResult culture = cultureGuardService.checkAndEnforce(
+                CultureGuardService.KIND_STORY, buildCultureText(storyRequest), storyRequest.getConfirmCultural());
+
         Story story = storyMapper.toEntity(storyRequest);
         story.setCreatedBy(userService.getCurrentUser());
         story.setTag(tag);
         story.setHotspot(hotspot);
-        story.setStatus(ContentStatus.DRAFT);
+        story.setStatus(culture.decision() == CultureDecision.REVIEW
+                ? ContentStatus.PENDING_REVIEW
+                : ContentStatus.DRAFT);
+        applyCulture(story, culture);
 
         story = storyRepository.save(story);
         StoryResponse response = storyMapper.toResponse(story);
@@ -86,9 +97,18 @@ public class StoryServiceImpl implements StoryService {
 
         Hotspot hotspot = hotspotService.getById(storyRequest.getHotspotId());
 
+        CultureCheckResult culture = cultureGuardService.checkAndEnforce(
+                CultureGuardService.KIND_STORY, buildCultureText(storyRequest), storyRequest.getConfirmCultural());
+
         storyMapper.updateFromRequest(story, storyRequest);
         story.setTag(tag);
         story.setHotspot(hotspot);
+        // Story từng bị admin từ chối thì dù bộ lọc PASS vẫn phải để admin duyệt lại.
+        if (culture.decision() == CultureDecision.REVIEW || story.getStatus() == ContentStatus.REJECTED) {
+            story.setStatus(ContentStatus.PENDING_REVIEW);
+            story.setRejectReason(null);
+        }
+        applyCulture(story, culture);
 
         story = storyRepository.save(story);
         StoryResponse response = storyMapper.toResponse(story);
@@ -103,6 +123,26 @@ public class StoryServiceImpl implements StoryService {
             }
         }
         return ratingSummaryService.applyToStory(response);
+    }
+
+    private static String buildCultureText(StoryRequest request) {
+        StringBuilder sb = new StringBuilder();
+        if (request.getTitle() != null) {
+            sb.append(request.getTitle()).append('\n');
+        }
+        if (request.getContent() != null) {
+            sb.append(request.getContent()).append('\n');
+        }
+        if (request.getAudioScript() != null) {
+            sb.append(request.getAudioScript());
+        }
+        return sb.toString();
+    }
+
+    private static void applyCulture(Story story, CultureCheckResult culture) {
+        story.setCultureScore(culture.score());
+        story.setCultureReason(culture.reason());
+        story.setCultureCheckedAt(LocalDateTime.now());
     }
 
     @Override
@@ -179,10 +219,32 @@ public class StoryServiceImpl implements StoryService {
     public StoryResponse updateStatus(Long id, ContentStatus status) {
 
         Story story = getById(id);
+        validateStatusTransition(story.getStatus(), status);
         story.setStatus(status);
 
         storyRepository.save(story);
 
         return ratingSummaryService.applyToStory(storyMapper.toResponse(story));
+    }
+
+    /**
+     * PENDING_REVIEW và REJECTED là kết quả của bộ lọc văn hóa và kiểm duyệt viên,
+     * không được đặt hay gỡ bằng tay. Nếu không chặn ở đây thì chỉ cần gọi
+     * PUT /{id}/status?status=PUBLISHED là lách được toàn bộ khâu kiểm duyệt.
+     */
+    private static void validateStatusTransition(ContentStatus current, ContentStatus target) {
+        if (target == ContentStatus.PENDING_REVIEW || target == ContentStatus.REJECTED) {
+            throw new BusinessException(
+                    "Không thể tự đặt trạng thái {}. Trạng thái này do bộ lọc văn hóa và kiểm duyệt viên quyết định.",
+                    target);
+        }
+        if (current == ContentStatus.PENDING_REVIEW) {
+            throw new BusinessException(
+                    "Câu chuyện đang chờ kiểm duyệt viên duyệt, không thể đổi trạng thái");
+        }
+        if (current == ContentStatus.REJECTED) {
+            throw new BusinessException(
+                    "Câu chuyện đã bị từ chối. Hãy sửa nội dung và lưu lại để gửi kiểm duyệt viên duyệt lại.");
+        }
     }
 }

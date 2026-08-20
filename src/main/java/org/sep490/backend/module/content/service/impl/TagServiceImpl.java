@@ -6,6 +6,9 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.config.redis.CacheNames;
 import org.sep490.backend.module.content.dto.projection.TagUsageProjection;
+import org.sep490.backend.module.content.dto.record.CultureCheckResult;
+import org.sep490.backend.module.content.entity.enumeration.CultureDecision;
+import org.sep490.backend.module.content.service.inter.CultureGuardService;
 import org.sep490.backend.module.content.dto.response.TagUsageResponse;
 import org.sep490.backend.module.content.entity.enumeration.TagStatus;
 import org.sep490.backend.module.content.dto.filter.TagFilterRequest;
@@ -34,6 +37,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -52,6 +56,7 @@ public class TagServiceImpl implements TagService {
     StoryRepository storyRepository;
     TagMapper tagMapper;
     ImageService imageService;
+    CultureGuardService cultureGuardService;
 
     @Override
     @Transactional
@@ -60,12 +65,24 @@ public class TagServiceImpl implements TagService {
         if (tagRepository.existsByTagNameIgnoreCase(request.getTagName())) {
             throw new BusinessException("Tag với tên \"" + request.getTagName() + "\" đã tồn tại");
         }
+        CultureCheckResult culture = cultureGuardService.checkAndEnforce(
+                CultureGuardService.KIND_TAG, request.getTagName(), request.getConfirmCultural());
+
         Tag tag = tagMapper.toEntity(request);
-        tag.setTagStatus(TagStatus.ACTIVE);
+        tag.setTagStatus(culture.decision() == CultureDecision.REVIEW
+                ? TagStatus.PENDING_REVIEW
+                : TagStatus.ACTIVE);
+        applyCulture(tag, culture);
         tag.setImageUrl(imageService.resolveImageUrl(
                 null, request.getImageFile(), IMAGE_FOLDER));
         tag = tagRepository.save(tag);
         return tagMapper.toResponse(tag);
+    }
+
+    private void applyCulture(Tag tag, CultureCheckResult culture) {
+        tag.setCultureScore(culture.score());
+        tag.setCultureReason(culture.reason());
+        tag.setCultureCheckedAt(LocalDateTime.now());
     }
 
     @Override
@@ -79,7 +96,17 @@ public class TagServiceImpl implements TagService {
         if (tagRepository.existsByTagNameIgnoreCaseAndTagIdNot(request.getTagName(), id)) {
             throw new BusinessException("Tag với tên \"" + request.getTagName() + "\" đã tồn tại");
         }
+        CultureCheckResult culture = cultureGuardService.checkAndEnforce(
+                CultureGuardService.KIND_TAG, request.getTagName(), request.getConfirmCultural());
+
         tag.setTagName(request.getTagName().trim());
+        // Tag từng bị admin từ chối thì dù bộ lọc PASS vẫn phải để admin duyệt lại,
+        // vì lý do từ chối có thể nằm ngoài tầm nhìn của bộ lọc.
+        if (culture.decision() == CultureDecision.REVIEW || tag.getTagStatus() == TagStatus.REJECTED) {
+            tag.setTagStatus(TagStatus.PENDING_REVIEW);
+            tag.setRejectReason(null);
+        }
+        applyCulture(tag, culture);
         tag.setImageUrl(imageService.resolveImageUrl(
                 tag.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
         tag = tagRepository.save(tag);

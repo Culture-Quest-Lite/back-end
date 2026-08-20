@@ -1,0 +1,408 @@
+allow:
+  - di san
+  - di san van hoa
+  - di san the gioi
+  - di san phi vat the
+  - di san vat the
+  - di tich
+  - di tich lich su
+  - di tich quoc gia
+  - di chi
+  - phe tich
+  - bao tang
+  - bao tang lich su
+  - bao tang dan toc hoc
+  - trien lam
+  - co vat
+  - hien vat
+  - bao vat quoc gia
+  - khao co
+  - khao co hoc
+  - van hoa
+  - van hoa dan gian
+  - van hoa truyen thong
+  - van hoa viet
+  - van hoa viet nam
+  - ban sac
+  - ban sac dan toc
+  - phong tuc
+  - tap quan
+  - phong tuc tap quan
+  - nghi le
+  - nghi thuc
+  - le nghi
+  - lich su
+  - su hoc
+  - su viet
+  - chinh su
+  - bien nien su
+  - trieu dai
+  - nha ly
+  - nha tran
+  - nha le
+  - nha nguyen
+  - nha ho
+  - nha mac
+  - nha dinh
+  - nha tien le
+  - hau le
+  - le so
+  - le trung hung
+  - tay son
+  - dinh bo linh
+  - ly thai to
+  - ly thuong kiet
+  - tran hung dao
+  - tran nhan tong
+  - le loi
+  - le thanh tong
+  - nguyen trai
+  - quang trung
+  - nguyen hue
+  - gia long
+  - minh mang
+  - hai ba trung
+  - ba trieu
+  - ngo quyen
+  - phung hung
+  - mai thuc loan
+  - chu van an
+  - nguyen du
+  - ho xuan huong
+  - nguyen dinh chieu
+  - ho chi minh
+  - vo nguyen giap
+  - danh nhan
+  - danh nhan van hoa
+  - anh hung dan toc
+  - hoang de
+  - hoang cung
+  - kinh thanh
+  - kinh do
+  - co do
+  - thanh co
+  - hoang thanh
+  - tu cam thanh
+  - dai noi
+  - lang tam
+  - lang vua
+  - den tho
+  - dinh lang
+  - nha tho ho
+  - tu duong
+  - mieu
+  - van mieu
+  - quoc tu giam
+  - chua chien
+  - thap cham
+  - thien vien
+  - tu vien
+  - nha tho co
+  - thanh dia
+  - tin nguong
+  - tho cung
+  - tho mau
+  - dao mau
+  - hau dong
+  - len dong
+  - chau van
+  - hat van
+  - tho cung hung vuong
+  - gio to
+  - gio to hung vuong
+  - tho thanh hoang
+  - tho to tien
+  - phat giao
+  - nho giao
+  - dao giao
+  - tam giao
+  - le hoi
+  - le hoi truyen thong
+  - hoi lang
+  - hoi xuan
+  - tet
+  - tet nguyen dan
+  - tet trung thu
+  - tet doan ngo
+  - tet han thuc
+  - vu lan
+  - ram thang gieng
+  - ram thang bay
+  - le hoi den hung
+  - le hoi giong
+  - le hoi chua huong
+  - le hoi ba chua xu
+  - le hoi ok om bok
+  - le hoi katê
+  - le hoi cau ngu
+  - le hoi long tong
+  - hoi lim
+  - choi trau
+  - dua thuyen
+  - dua ghe ngo
+  - dau vat
+  - keo co
+  - bai choi
+  - nem con
+  - tro choi dan gian
+  - nghe thuat dan gian
+  - dan ca
+  - dan ca quan ho
+  - quan ho
+  - ca tru
+  - hat xoan
+  - hat then
+  - hat cheo
+  - hat boi
+  - cai luong
+  - don ca tai tu
+  - nha nhac
+  - nha nhac cung dinh
+  - cong chieng
+  - khong gian van hoa cong chieng
+  - mua roi nuoc
+  - roi nuoc
+  - mua roi
+  - hat xam
+  - vi giam
+  - dan bau
+  - dan tranh
+  - dan nguyet
+  - dan ty ba
+  - sao truc
+  - trong dong
+  - trong dong dong son
+  - tranh dong ho
+  - tranh hang trong
+  - tranh kim hoang
+  - tranh lang sinh
+  - thu phap
+  - chu nom
+  - chu han
+  - han nom
+  - ca dao
+  - tuc ngu
+  - thanh ngu
+  - truyen co tich
+  - truyen thuyet
+  - than thoai
+  - su thi
+  - truyen kieu
+  - lang nghe
+  - lang nghe truyen thong
+  - thu cong my nghe
+  - nghe truyen thong
+  - gom su
+  - gom bat trang
+  - gom chu dau
+  - lang gom
+  - det lua
+  - det tho cam
+  - tho cam
+  - lua van phuc
+  - lua tan chau
+  - non la
+  - lang non
+  - may tre dan
+  - dan lat
+  - son mai
+  - son mai truyen thong
+  - kham trai
+  - cham khac
+  - cham go
+  - dieu khac
+  - duc dong
+  - kim hoan
+  - lam giay
+  - giay do
+  - lang giay
+  - nuoc mam
+  - nuoc mam truyen thong
+  - banh trang
+  - lang chieu
+  - lang muoi
+  - am thuc
+  - am thuc truyen thong
+  - am thuc dan gian
+  - mon an truyen thong
+  - dac san
+  - dac san vung mien
+  - bun bo
+  - banh chung
+  - banh giay
+  - banh tet
+  - banh xeo
+  - com lang vong
+  - tra dao
+  - van hoa tra
+  - ruou can
+  - ruou truyen thong
+  - co tet
+  - mam co
+  - kien truc
+  - kien truc co
+  - kien truc truyen thong
+  - nha ruong
+  - nha san
+  - nha rong
+  - dinh chua
+  - cong lang
+  - cau ngoi
+  - chua cau
+  - ao dai
+  - ao tu than
+  - ao ba ba
+  - khan dong
+  - trang phuc truyen thong
+  - trang phuc dan toc
+  - co phuc
+  - viet phuc
+  - dan toc
+  - dan toc thieu so
+  - 54 dan toc
+  - vung cao
+  - ban lang
+  - buon lang
+  - cho phien
+  - cho noi
+  - cho que
+  - ha noi
+  - pho co
+  - pho co ha noi
+  - ho guom
+  - ho hoan kiem
+  - chua mot cot
+  - hoang thanh thang long
+  - thang long
+  - co loa
+  - hue
+  - co do hue
+  - quan the di tich co do hue
+  - song huong
+  - chua thien mu
+  - hoi an
+  - pho co hoi an
+  - my son
+  - thanh dia my son
+  - trang an
+  - hoa lu
+  - ninh binh
+  - phong nha
+  - phong nha ke bang
+  - ha long
+  - vinh ha long
+  - cat tien
+  - sa pa
+  - ruong bac thang
+  - dong van
+  - cao nguyen da
+  - tay nguyen
+  - tay bac
+  - dong bang song cuu long
+  - mien tay
+  - dat mui
+  - con dao
+  - phu quoc
+  - dien bien phu
+  - cu chi
+  - dia dao cu chi
+  - truong son
+  - thanh nha ho
+  - den hung
+  - chien khu
+  - can cu cach mang
+  - bao tang chung tich
+  - nghia trang liet si
+  - cach mang
+  - khang chien
+  - chien tranh
+  - unesco
+  - di san unesco
+  - bao ton
+  - bao ton di san
+  - trung tu
+  - phuc dung
+  - phuc hoi di tich
+  - nghe nhan
+  - nghe nhan uu tu
+  - nghe nhan nhan dan
+  - truyen day
+  - truyen thua
+  - giao duc di san
+  - du lich van hoa
+  - du lich di san
+  - du lich tam linh
+  - du lich cong dong
+  - kham pha van hoa
+  - trai nghiem van hoa
+
+deny:
+  - crypto
+  - tien ao
+  - tien dien tu
+  - bitcoin
+  - ethereum
+  - blockchain dau tu
+  - altcoin
+  - dao coin
+  - san coin
+  - forex
+  - san forex
+  - chung khoan phai sinh
+  - ban vang
+  - lua dao dau tu
+  - da cap
+  - ban hang da cap
+  - ponzi
+  - lam giau nhanh
+  - kiem tien nhanh
+  - vay tien nhanh
+  - vay nong
+  - tin dung den
+  - cho vay nang lai
+  - app vay tien
+  - dao han the
+  - ca do
+  - ca cuoc
+  - ca cuoc bong da
+  - danh bac
+  - casino
+  - can sa
+  - ma tuy da
+  - thuoc lac
+  - bong cuoi
+  - thuoc la dien tu
+  - vape
+  - shisha
+  - ruou lau
+  - hang gia
+  - hang nhai
+  - hang xach tay lau
+  - buon lau
+  - vu khi
+  - sung dan
+  - vu khi quan dung
+  - chat no
+  - hack tai khoan
+  - ban tai khoan
+  - ban data
+  - ban thong tin ca nhan
+  - phan mem crack
+  - be khoa
+  - spam quang cao
+  - quang cao thuoc
+  - thuoc giam can cap toc
+  - thuoc tang cuong sinh ly
+  - than duoc
+  - chua bach benh
+  - me tin di doan
+  - boi toan online
+  - giai han online
+  - dot vang ma thue
+  - buon than ban thanh
+  - lat do
+  - chong pha nha nuoc
+  - phan dong
+  - kich dong bao luc
+  - thu han dan toc
+  - xuyen tac lich su
