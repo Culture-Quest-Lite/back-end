@@ -21,6 +21,9 @@ public class StoryResponse {
     List<MediaResponse> medias;
     Long hotspotId;
     Long routeId;
+    Double cultureScore;
+    String cultureReason;
+    String rejectReason;
 
     Double averageRating;
     Long totalReviews;

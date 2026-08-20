@@ -1740,7 +1740,7 @@
       "firstBrokerLoginFlowAlias": "first-broker-login-auto-link",
       "config": {
         "hideOnLoginPage": "false",
-        "clientId": "712713452929-pc8vhlmal3cpu6a6kbe8a2o24d45og7l.apps.googleusercontent.com",
+        "clientId": "712713452929-ag0h7rqnnivnaagnk76cldkpvhocms82.apps.googleusercontent.com",
         "acceptsPromptNoneForwardFromClient": "false",
         "disableUserInfo": "false",
         "syncMode": "LEGACY",
@@ -1763,7 +1763,7 @@
       "firstBrokerLoginFlowAlias": "first-broker-login-auto-link",
       "config": {
         "hideOnLoginPage": "false",
-        "clientId": "REPLACE_WITH_FACEBOOK_APP_ID",
+        "clientId": "1714033974056870",
         "acceptsPromptNoneForwardFromClient": "false",
         "disableUserInfo": "false",
         "syncMode": "LEGACY",

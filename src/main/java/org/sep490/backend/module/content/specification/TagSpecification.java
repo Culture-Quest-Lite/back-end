@@ -30,7 +30,8 @@ public class TagSpecification {
             if (status != null) {
                 predicates.add(cb.equal(root.get("tagStatus"), status));
             } else {
-                predicates.add(cb.notEqual(root.get("tagStatus"), TagStatus.DELETED));
+                // Tag chờ duyệt văn hóa không được lộ ra danh sách công khai
+                predicates.add(root.get("tagStatus").in(TagStatus.ACTIVE, TagStatus.INACTIVE));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

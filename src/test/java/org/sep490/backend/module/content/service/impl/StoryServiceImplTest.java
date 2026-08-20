@@ -2,6 +2,7 @@ package org.sep490.backend.module.content.service.impl;
 
 import org.sep490.backend.module.content.service.inter.RatingSummaryService;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,9 @@ import org.sep490.backend.module.user.entity.enumeration.UserRole;
 import org.sep490.backend.module.content.mapper.StoryMapper;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.repository.TagRepository;
+import org.sep490.backend.module.content.dto.record.CultureCheckResult;
+import org.sep490.backend.module.content.entity.enumeration.CultureDecision;
+import org.sep490.backend.module.content.service.inter.CultureGuardService;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
@@ -55,7 +59,18 @@ class StoryServiceImplTest {
     @Mock private HotspotService hotspotService;
 
     @Mock private RatingSummaryService ratingSummaryService;
+    @Mock private CultureGuardService cultureGuardService;
     @InjectMocks private StoryServiceImpl storyService;
+
+    @BeforeEach
+    void guardPassesByDefault() {
+        when(cultureGuardService.checkAndEnforce(anyString(), anyString(), any()))
+                .thenReturn(culture(CultureDecision.PASS));
+    }
+
+    private static CultureCheckResult culture(CultureDecision decision) {
+        return CultureCheckResult.rule(decision, decision == CultureDecision.PASS ? 1d : 0.4d, "lý do", List.of());
+    }
 
     // ---------------------------------------------------------------
     // Du lieu test dung chung - moi entity deu co gia tri cu the
@@ -160,6 +175,60 @@ class StoryServiceImplTest {
             assertNotNull(response);
             assertEquals(ContentStatus.DRAFT, story.getStatus());
             verify(storyRepository).save(story);
+        }
+
+        // UTCID03b - Abnormal: bộ lọc văn hóa từ chối thì không được lưu
+        @Test
+        void createStory_cultureRejected_doesNotSave() {
+            StoryRequest request = storyRequest();
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tagLichSu()));
+            when(hotspotService.getById(2L)).thenReturn(hoGuom());
+            when(cultureGuardService.checkAndEnforce(anyString(), anyString(), any()))
+                    .thenThrow(new BusinessException("Nội dung không phù hợp"));
+
+            assertThrows(BusinessException.class, () -> storyService.create(request));
+
+            verify(storyRepository, never()).save(any());
+        }
+
+        // UTCID03c - Normal: vùng xám đã xác nhận thì lưu ở trạng thái chờ duyệt
+        @Test
+        void createStory_cultureReview_savesAsPendingReview() {
+            StoryRequest request = storyRequest();
+            request.setConfirmCultural(true);
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tagLichSu()));
+            when(hotspotService.getById(2L)).thenReturn(hoGuom());
+            when(cultureGuardService.checkAndEnforce(anyString(), anyString(), any()))
+                    .thenReturn(culture(CultureDecision.REVIEW));
+            Story story = storyOf(10L, "Su tich Ho Guom", ContentStatus.DRAFT);
+            when(storyMapper.toEntity(request)).thenReturn(story);
+            when(userService.getCurrentUser()).thenReturn(curator());
+            when(storyRepository.save(any(Story.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(storyMapper.toResponse(any(Story.class))).thenReturn(new StoryResponse());
+
+            storyService.create(request);
+
+            assertEquals(ContentStatus.PENDING_REVIEW, story.getStatus());
+            assertEquals(0.4d, story.getCultureScore());
+            assertNotNull(story.getCultureCheckedAt());
+        }
+
+        // UTCID03d - Normal: story bi tu choi sua lai, du PASS van phai cho admin duyet lai
+        @Test
+        void updateStory_rejectedThenPasses_goesBackToPendingReview() {
+            StoryRequest request = storyRequest();
+            Story story = storyOf(10L, "Su tich Ho Guom", ContentStatus.REJECTED);
+            story.setRejectReason("Không liên quan văn hóa");
+            when(storyRepository.findById(10L)).thenReturn(Optional.of(story));
+            when(tagRepository.findById(1L)).thenReturn(Optional.of(tagLichSu()));
+            when(hotspotService.getById(2L)).thenReturn(hoGuom());
+            when(storyRepository.save(any(Story.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(storyMapper.toResponse(any(Story.class))).thenReturn(new StoryResponse());
+
+            storyService.update(10L, request);
+
+            assertEquals(ContentStatus.PENDING_REVIEW, story.getStatus());
+            assertNull(story.getRejectReason());
         }
 
         // UTCID04 - Normal: có kèm file media -> upload và gắn vào response
@@ -287,6 +356,73 @@ class StoryServiceImplTest {
             storyService.update(10L, storyRequest());
 
             verify(mediaService, never()).uploadAndSaveMedias(any(), any(), anyLong());
+        }
+    }
+
+    // =====================================================================
+    // Function: updateStatus
+    // =====================================================================
+    @Nested
+    @DisplayName("updateStatus")
+    class UpdateStatusTest {
+
+        private Story storyWithStatus(ContentStatus status) {
+            Story story = storyOf(10L, "Su tich Ho Guom", status);
+            when(storyRepository.findById(10L)).thenReturn(Optional.of(story));
+            return story;
+        }
+
+        // UTCID01 - Abnormal: story bi tu choi khong duoc tu publish, day la lo hong lach kiem duyet
+        @Test
+        void updateStatus_rejectedToPublished_isBlocked() {
+            Story story = storyWithStatus(ContentStatus.REJECTED);
+
+            assertThrows(BusinessException.class,
+                    () -> storyService.updateStatus(10L, ContentStatus.PUBLISHED));
+
+            assertEquals(ContentStatus.REJECTED, story.getStatus());
+            verify(storyRepository, never()).save(any());
+        }
+
+        // UTCID02 - Abnormal: story dang cho duyet cung khong duoc tu thoat
+        @Test
+        void updateStatus_pendingReviewToPublished_isBlocked() {
+            Story story = storyWithStatus(ContentStatus.PENDING_REVIEW);
+
+            assertThrows(BusinessException.class,
+                    () -> storyService.updateStatus(10L, ContentStatus.PUBLISHED));
+
+            assertEquals(ContentStatus.PENDING_REVIEW, story.getStatus());
+        }
+
+        // UTCID03 - Abnormal: khong ai duoc tu dat PENDING_REVIEW bang tay
+        @Test
+        void updateStatus_toPendingReview_isBlocked() {
+            storyWithStatus(ContentStatus.DRAFT);
+
+            assertThrows(BusinessException.class,
+                    () -> storyService.updateStatus(10L, ContentStatus.PENDING_REVIEW));
+        }
+
+        // UTCID04 - Abnormal: khong ai duoc tu dat REJECTED bang tay
+        @Test
+        void updateStatus_toRejected_isBlocked() {
+            storyWithStatus(ContentStatus.DRAFT);
+
+            assertThrows(BusinessException.class,
+                    () -> storyService.updateStatus(10L, ContentStatus.REJECTED));
+        }
+
+        // UTCID05 - Normal: DRAFT -> PUBLISHED van chay binh thuong
+        @Test
+        void updateStatus_draftToPublished_isAllowed() {
+            Story story = storyWithStatus(ContentStatus.DRAFT);
+            when(storyRepository.save(any(Story.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(storyMapper.toResponse(any(Story.class))).thenReturn(new StoryResponse());
+
+            storyService.updateStatus(10L, ContentStatus.PUBLISHED);
+
+            assertEquals(ContentStatus.PUBLISHED, story.getStatus());
         }
     }
 

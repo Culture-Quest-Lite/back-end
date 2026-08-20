@@ -7,9 +7,14 @@ import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 public class StorySpecification {
+
+    private static final Set<ContentStatus> MODERATION_ONLY =
+            EnumSet.of(ContentStatus.PENDING_REVIEW, ContentStatus.REJECTED);
 
     private StorySpecification() {}
 
@@ -35,10 +40,13 @@ public class StorySpecification {
                 predicates.add(cb.equal(root.get("hotspot").get("hotspotId"), filter.getHotspotId()));
             }
 
-            if (filter.getStatus() != null) {
+            // /api/v1/stories/** là endpoint công khai, không được để lộ nội dung
+            // đang chờ duyệt hoặc đã bị từ chối dù client tự truyền status.
+            if (filter.getStatus() != null && !MODERATION_ONLY.contains(filter.getStatus())) {
                 predicates.add(cb.equal(root.get("status"), filter.getStatus()));
             } else {
-                predicates.add(cb.notEqual(root.get("status"), ContentStatus.DELETED));
+                predicates.add(cb.not(root.get("status").in(
+                        ContentStatus.DELETED, ContentStatus.PENDING_REVIEW, ContentStatus.REJECTED)));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

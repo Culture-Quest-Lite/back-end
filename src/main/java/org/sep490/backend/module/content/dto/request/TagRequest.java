@@ -14,6 +14,7 @@ public class TagRequest {
     @NotBlank(message = "Tên tag không được để trống")
     @Size(max = 50, message = "Tên tag không được vượt quá 50 ký tự")
     String tagName;
-    /** Ảnh đại diện của tag. Null hoặc rỗng khi update = giữ nguyên ảnh cũ. */
     MultipartFile imageFile;
+
+    Boolean confirmCultural;
 }

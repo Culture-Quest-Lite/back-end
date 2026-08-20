@@ -18,6 +18,9 @@ public class TagResponse {
     Long routeCount;
     Long hotspotCount;
     Long storyCount;
+    Double cultureScore;
+    String cultureReason;
+    String rejectReason;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     List<TagUsageResponse> usages;

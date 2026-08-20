@@ -40,6 +40,24 @@ public class Tag implements Serializable {
     @Column(name = "status")
     TagStatus tagStatus;
 
+    @Column(name = "culture_score")
+    Double cultureScore;
+
+    @Column(name = "culture_reason", columnDefinition = "TEXT")
+    String cultureReason;
+
+    @Column(name = "culture_checked_at")
+    LocalDateTime cultureCheckedAt;
+
+    @Column(name = "moderate_by")
+    Long moderateBy;
+
+    @Column(name = "moderate_at")
+    LocalDateTime moderateAt;
+
+    @Column(name = "reject_reason", columnDefinition = "TEXT")
+    String rejectReason;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt;
