@@ -8,6 +8,7 @@ import lombok.experimental.FieldDefaults;
 import org.locationtech.jts.geom.Point;
 import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.common.utils.SpatialUtils;
+import org.sep490.backend.module.admin.service.CheckInRadiusConfigService;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.repository.HotspotRepository;
@@ -39,6 +40,7 @@ public class UserHotspotProgressServiceImpl implements UserHotspotProgressServic
     UserService userService;
     ApplicationEventPublisher eventPublisher;
     CheckInStatusService checkInStatusService;
+    CheckInRadiusConfigService checkInRadiusConfigService;
 
     @Override
     @Transactional
@@ -150,7 +152,8 @@ public class UserHotspotProgressServiceImpl implements UserHotspotProgressServic
 
         Point userLocation = SpatialUtils.fromCoordinates(longitude, latitude);
         double distance = SpatialUtils.calculateDistanceInMeters(hotspotLocation, userLocation);
-        double required = CheckInPolicy.effectiveRadius(hotspot.getCheckInRadius()) + tolerance;
+        double required = CheckInPolicy.effectiveRadius(
+                hotspot.getCheckInRadius(), checkInRadiusConfigService.getDefaultRadius()) + tolerance;
 
         return new CheckInEvaluation(distance <= required, distance, required);
     }

@@ -44,4 +44,5 @@ public final class PermissionCode {
     public static final String DASHBOARD_PARTNER_VIEW = "DASHBOARD_PARTNER_VIEW";
     public static final String AUDIT_LOG_VIEW         = "AUDIT_LOG_VIEW";
     public static final String PERMISSION_MANAGE      = "PERMISSION_MANAGE";
+    public static final String SYSTEM_CONFIG_MANAGE   = "SYSTEM_CONFIG_MANAGE";
 }
