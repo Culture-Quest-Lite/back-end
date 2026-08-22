@@ -1,5 +1,6 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.common.utils.RewardUtils;
 import org.sep490.backend.module.content.service.inter.CheckInStatusService;
 
 import org.sep490.backend.module.content.service.inter.RatingSummaryService;
@@ -48,7 +49,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -100,8 +104,8 @@ public class RouteServiceImpl implements RouteService {
 
         List<Story> stories = processRouteStories(route, request.getHotspotIds());
 
-        route.setXp(calculateXpOrPoint(request.getDifficulty(), stories.size(), true));
-        route.setPoint(calculateXpOrPoint(request.getDifficulty(), stories.size(), false));
+        route.setXp(RewardUtils.calculateXpOrPoint(request.getDifficulty(), stories.size(), true));
+        route.setPoint(RewardUtils.calculateXpOrPoint(request.getDifficulty(), stories.size(), false));
         route = routeRepository.save(route);
 
         return buildRouteResponse(route, stories);
@@ -136,8 +140,8 @@ public class RouteServiceImpl implements RouteService {
 
         List<Story> stories = processRouteStoriesV2(route, request.getStoryIds());
 
-        route.setXp(calculateXpOrPoint(request.getDifficulty(), stories.size(), true));
-        route.setPoint(calculateXpOrPoint(request.getDifficulty(), stories.size(), false));
+        route.setXp(RewardUtils.calculateXpOrPoint(request.getDifficulty(), stories.size(), true));
+        route.setPoint(RewardUtils.calculateXpOrPoint(request.getDifficulty(), stories.size(), false));
         route = routeRepository.save(route);
 
         return buildRouteResponse(route, stories);
@@ -172,8 +176,8 @@ public class RouteServiceImpl implements RouteService {
 
         List<Story> updatedStories = processRouteStories(currRoute, request.getHotspotIds());
 
-        currRoute.setXp(calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), true));
-        currRoute.setPoint(calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), false));
+        currRoute.setXp(RewardUtils.calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), true));
+        currRoute.setPoint(RewardUtils.calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), false));
         currRoute = routeRepository.save(currRoute);
 
         return buildRouteResponse(currRoute, updatedStories);
@@ -207,8 +211,8 @@ public class RouteServiceImpl implements RouteService {
 
         List<Story> updatedStories = processRouteStoriesV2(currRoute, request.getStoryIds());
 
-        currRoute.setXp(calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), true));
-        currRoute.setPoint(calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), false));
+        currRoute.setXp(RewardUtils.calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), true));
+        currRoute.setPoint(RewardUtils.calculateXpOrPoint(request.getDifficulty(), updatedStories.size(), false));
         currRoute = routeRepository.save(currRoute);
 
         return buildRouteResponse(currRoute, updatedStories);
@@ -354,6 +358,51 @@ public class RouteServiceImpl implements RouteService {
         return path;
     }
 
+    @Override
+    @Transactional
+    public void processRouteWithInvalidTempStory(List<Story> invalidStories) {
+
+        if (invalidStories == null || invalidStories.isEmpty()) return;
+
+        Map<Long, List<Long>> routeToInvalidStoryIds = new HashMap<>();
+        List<Story> storiesToUnlink = new ArrayList<>();
+
+        // 1. Gom nhóm ID story theo Route và thực hiện gỡ liên kết (unlink)
+        for (Story s : invalidStories) {
+            if (s.getRoute() != null) {
+                // Lưu lại ID để xử lý Route sau
+                routeToInvalidStoryIds.computeIfAbsent(s.getRoute().getRouteId(), k -> new ArrayList<>())
+                        .add(s.getStoryId());
+
+                // Gỡ bỏ liên kết với Route
+                s.setRoute(null);
+                s.setOrderIndex(null);
+                s.setDistanceToNext(null);
+
+                storiesToUnlink.add(s);
+            }
+        }
+
+        // 2. Lưu lại các Story đã được gỡ liên kết xuống Database
+        if (!storiesToUnlink.isEmpty()) {
+            storyRepository.saveAll(storiesToUnlink);
+        }
+
+        // 3. Cập nhật lại các Route bị ảnh hưởng (tính toán lại khoảng cách, order_index, xp, point)
+        for (Map.Entry<Long, List<Long>> entry : routeToInvalidStoryIds.entrySet()) {
+            Route route = routeRepository.findById(entry.getKey()).orElse(null);
+            if (route == null) continue;
+
+            // Lọc ra các Story còn sống (không nằm trong danh sách bị invalid)
+            List<Long> remainingStoryIds = route.getStories().stream()
+                    .map(Story::getStoryId)
+                    .filter(id -> !entry.getValue().contains(id))
+                    .toList();
+
+            processRouteStoriesV3(route, remainingStoryIds);
+        }
+    }
+
     private List<Story> processRouteStories(Route route, List<Long> hotspotIds) {
 
         if (hotspotIds == null || hotspotIds.isEmpty()) {
@@ -406,7 +455,20 @@ public class RouteServiceImpl implements RouteService {
             return new ArrayList<>();
         }
 
-        List<Story> stories = storyRepository.findAllById(storyIds);
+        List<Story> fetchedStories = storyRepository.findAllById(storyIds);
+
+        if (fetchedStories.size() != storyIds.size()) {
+            throw new BusinessException("Một số Cốt truyện không tồn tại trong hệ thống");
+        }
+
+        Map<Long, Story> storyMap = fetchedStories.stream()
+                .collect(Collectors.toMap(Story::getStoryId, s -> s));
+
+        List<Story> stories = new ArrayList<>();
+        for (Long id : storyIds) {
+            stories.add(storyMap.get(id));
+        }
+
         List<Long> hotspotIds = new ArrayList<>();
         for (int i = 0; i < stories.size(); i++) {
             hotspotIds.add(stories.get(i).getHotspot().getHotspotId());
@@ -612,6 +674,9 @@ public class RouteServiceImpl implements RouteService {
                 .audioScript(null)
                 .medias(null)
                 .status(ContentStatus.DRAFT)
+                .contentType(hotspot.getContentType())
+                .validFrom(hotspot.getValidFrom())
+                .validTo(hotspot.getValidTo())
                 .build();
 
         storyRepository.save(story);
@@ -643,24 +708,67 @@ public class RouteServiceImpl implements RouteService {
         storyRepository.save(storyToAdd);
     }
 
-    private long calculateXpOrPoint(RouteDifficulty difficulty, int size, boolean isXp) {
-        double rate = 1.0;
-        switch (difficulty) {
-            case EASY:
-                rate = 1.15;
-                break;
-            case MEDIUM:
-                rate = 1.2;
-                break;
-            case HARD:
-                rate = 1.25;
-                break;
-            default:
-                rate = 1.0;
+    private void processRouteStoriesV3(Route route, List<Long> storyIds) {
+
+        if (storyIds == null || storyIds.isEmpty()) { // deleted nếu route này chứa toàn bộ các hotspot tạm thời
+            route.setXp(0L);
+            route.setPoint(0L);
+            route.setTotalStops(0);
+            route.setStatus(RouteStatus.DELETED);
+            routeRepository.save(route);
+            return;
         }
 
-        return isXp
-                ? Math.round((size * 100 * rate))
-                : Math.round((size * 10 * rate));
+        List<Story> stories = storyRepository.findAllById(storyIds);
+        List<Long> hotspotIds = new ArrayList<>();
+        for (int i = 0; i < stories.size(); i++) {
+            hotspotIds.add(stories.get(i).getHotspot().getHotspotId());
+        }
+        List<Hotspot> hotspots = hotspotRepository.findAllById(hotspotIds);
+
+        long uniqueHotspotCount = hotspots.stream()
+                .map(Hotspot::getHotspotId)
+                .distinct()
+                .count();
+
+        if(uniqueHotspotCount < hotspots.size()) {
+            throw new BusinessException("KHông thể chọn 2 Câu chuyện trong cùng 1 địa điểm");
+        }
+
+        // update index
+        for (int i = 0; i < storyIds.size(); i++) {
+            Story story = stories.get(i);
+
+            if(story.getRoute() != null && !story.getRoute().equals(route)) {
+                throw new BusinessException("Cốt truyện #" + story.getStoryId()+ " - " + story.getTitle() + " đã thuộc về tuyến đường khác!");
+            }
+
+            if (story.getHotspot() == null) {
+                throw new BusinessException("Cốt truyện #" + story.getStoryId()+ " - " + story.getTitle() + " không thuộc về địa điểm nào!");
+            }
+
+            story.setRoute(route);
+            story.setOrderIndex(i + 1);
+        }
+
+        // update distance to next
+        for (int i = 0; i < stories.size(); i++) {
+            Story story = stories.get(i);
+            if (i < stories.size() - 1) {
+                Story nextStory = stories.get(i + 1);
+                double distanceInMeters = SpatialUtils.calculateDistanceInMeters(
+                        story.getHotspot().getLocation(),
+                        nextStory.getHotspot().getLocation());
+                story.setDistanceToNext(distanceInMeters);
+            } else {
+                story.setDistanceToNext(0.0);
+            }
+        }
+
+        storyRepository.saveAll(stories);
+        route.setXp(RewardUtils.calculateXpOrPoint(route.getDifficulty(), stories.size(), true));
+        route.setPoint(RewardUtils.calculateXpOrPoint(route.getDifficulty(), stories.size(), false));
+        route.setTotalStops(stories.size());
+        routeRepository.save(route);
     }
 }

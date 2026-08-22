@@ -1,5 +1,6 @@
 package org.sep490.backend.module.content.service.impl;
 
+import org.sep490.backend.module.content.entity.enumeration.ContentType;
 import org.sep490.backend.module.content.service.inter.RatingSummaryService;
 
 import lombok.AccessLevel;
@@ -36,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -70,6 +72,9 @@ public class StoryServiceImpl implements StoryService {
         story.setStatus(culture.decision() == CultureDecision.REVIEW
                 ? ContentStatus.PENDING_REVIEW
                 : ContentStatus.DRAFT);
+        story.setContentType(hotspot.getContentType());
+        story.setValidFrom(hotspot.getValidFrom());
+        story.setValidTo(hotspot.getValidTo());
         applyCulture(story, culture);
 
         story = storyRepository.save(story);
@@ -103,6 +108,9 @@ public class StoryServiceImpl implements StoryService {
         storyMapper.updateFromRequest(story, storyRequest);
         story.setTag(tag);
         story.setHotspot(hotspot);
+        story.setContentType(hotspot.getContentType());
+        story.setValidFrom(hotspot.getValidFrom());
+        story.setValidTo(hotspot.getValidTo());
         // Story từng bị admin từ chối thì dù bộ lọc PASS vẫn phải để admin duyệt lại.
         if (culture.decision() == CultureDecision.REVIEW || story.getStatus() == ContentStatus.REJECTED) {
             story.setStatus(ContentStatus.PENDING_REVIEW);
@@ -225,6 +233,27 @@ public class StoryServiceImpl implements StoryService {
         storyRepository.save(story);
 
         return ratingSummaryService.applyToStory(storyMapper.toResponse(story));
+    }
+
+    @Override
+    @Transactional
+    public List<Story> processInvalidTempStory(List<Long> storyIds) {
+
+        if (storyIds == null || storyIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<Story> stories = storyRepository.getAllByStoryIdIn(storyIds);
+        List<Story> belongToRoute = new ArrayList<>();
+        for(Story temp : stories) {
+            if(temp.getRoute() != null) {
+                belongToRoute.add(temp);
+            }
+            temp.setStatus(ContentStatus.INVALID);
+        }
+
+        storyRepository.saveAll(stories);
+        return belongToRoute;
     }
 
     /**

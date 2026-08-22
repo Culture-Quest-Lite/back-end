@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.utils.RewardUtils;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authorization.service.EntitlementService;
 import org.sep490.backend.module.content.dto.request.FinalizeCustomRouteRequest;
@@ -14,6 +15,7 @@ import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.Tag;
+import org.sep490.backend.module.content.entity.enumeration.ContentType;
 import org.sep490.backend.module.content.entity.enumeration.RouteDifficulty;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteType;
@@ -95,15 +97,21 @@ public class CustomRouteServiceImpl implements CustomRouteService {
 
         User user = userService.getCurrentUser();
         Route route = routeService.findRecordingCustomRouteByUserId(user.getUserId());
+        List<Story> stories = route.getStories();
+        int count = 0;
 
-        if(route.getStories().size() < 4) {
+        for (Story story : stories) {
+            if(story.getContentType().equals(ContentType.PERMANENT)) {
+                count++;
+            }
+        }
+
+        if(count < 4) {
             throw new BusinessException("Hành trình cá nhân phải có ít nhất 4 điểm dừng (Hotspot)");
         }
 
         route.setStatus(RouteStatus.DRAFT); // wait for user to finalize their custom route
         route = routeRepository.save(route);
-
-        List<Story> stories = route.getStories();
 
         return buildRouteResponse(route, stories);
     }
@@ -116,12 +124,19 @@ public class CustomRouteServiceImpl implements CustomRouteService {
         User user = userService.getCurrentUser();
 
         List<Story> stories = route.getStories();
+        int count = 0;
+
+        for(Story story : stories) {
+            if(story.getContentType().equals(ContentType.PERMANENT)) {
+                count++;
+            }
+        }
 
         int totalStops = stories.size();
         long totalDistance;
         long estimateTime;
 
-        if(totalStops < 4) {
+        if(count < 4) {
             throw new BusinessException("Hành trình cá nhân phải có ít nhất 4 điểm dừng (Hotspot) để hoàn tất");
         }
 
@@ -140,8 +155,8 @@ public class CustomRouteServiceImpl implements CustomRouteService {
         route.setStatus(RouteStatus.PUBLISHED);
         route.setDescription(request.getDescription());
         route.setTotalStops(totalStops);
-        route.setXp(calculateXpOrPoint(RouteDifficulty.EASY, totalStops, true));
-        route.setPoint(calculateXpOrPoint(RouteDifficulty.EASY, totalStops, false));
+        route.setXp(RewardUtils.calculateXpOrPoint(RouteDifficulty.EASY, totalStops, true));
+        route.setPoint(RewardUtils.calculateXpOrPoint(RouteDifficulty.EASY, totalStops, false));
         route = routeRepository.save(route);
 
         return buildRouteResponse(route, route.getStories());
@@ -209,26 +224,5 @@ public class CustomRouteServiceImpl implements CustomRouteService {
         response.setStories(storyResponses);
 
         return response;
-    }
-
-    private long calculateXpOrPoint(RouteDifficulty difficulty, int size, boolean isXp) {
-        double rate = 1.0;
-        switch (difficulty) {
-            case EASY:
-                rate = 1.15;
-                break;
-            case MEDIUM:
-                rate = 1.2;
-                break;
-            case HARD:
-                rate = 1.25;
-                break;
-            default:
-                rate = 1.0;
-        }
-
-        return isXp
-                ? Math.round((size * 100 * rate))
-                : Math.round((size * 10 * rate));
     }
 }

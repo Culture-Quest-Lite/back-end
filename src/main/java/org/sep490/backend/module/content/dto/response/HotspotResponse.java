@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentType;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -55,4 +56,8 @@ public class HotspotResponse {
     Boolean isCheckIn;
     Double averageRating;
     Long totalReviews;
+
+    ContentType contentType;
+    LocalDateTime validFrom;
+    LocalDateTime validTo;
 }
