@@ -367,14 +367,11 @@ public class RouteServiceImpl implements RouteService {
         Map<Long, List<Long>> routeToInvalidStoryIds = new HashMap<>();
         List<Story> storiesToUnlink = new ArrayList<>();
 
-        // 1. Gom nhóm ID story theo Route và thực hiện gỡ liên kết (unlink)
         for (Story s : invalidStories) {
             if (s.getRoute() != null) {
-                // Lưu lại ID để xử lý Route sau
                 routeToInvalidStoryIds.computeIfAbsent(s.getRoute().getRouteId(), k -> new ArrayList<>())
                         .add(s.getStoryId());
 
-                // Gỡ bỏ liên kết với Route
                 s.setRoute(null);
                 s.setOrderIndex(null);
                 s.setDistanceToNext(null);
@@ -383,17 +380,14 @@ public class RouteServiceImpl implements RouteService {
             }
         }
 
-        // 2. Lưu lại các Story đã được gỡ liên kết xuống Database
         if (!storiesToUnlink.isEmpty()) {
             storyRepository.saveAll(storiesToUnlink);
         }
 
-        // 3. Cập nhật lại các Route bị ảnh hưởng (tính toán lại khoảng cách, order_index, xp, point)
         for (Map.Entry<Long, List<Long>> entry : routeToInvalidStoryIds.entrySet()) {
             Route route = routeRepository.findById(entry.getKey()).orElse(null);
             if (route == null) continue;
 
-            // Lọc ra các Story còn sống (không nằm trong danh sách bị invalid)
             List<Long> remainingStoryIds = route.getStories().stream()
                     .map(Story::getStoryId)
                     .filter(id -> !entry.getValue().contains(id))

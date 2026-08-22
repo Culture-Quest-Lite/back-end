@@ -11,6 +11,7 @@ import org.sep490.backend.module.content.entity.enumeration.ContentType;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -82,8 +83,12 @@ public class HotspotRequest {
     //ContentStatus status;
 
     ContentType contentType;
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-    LocalDateTime validFrom;
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-    LocalDateTime validTo;
+    @JsonFormat(pattern = "dd/MM/yyyy")
+    @DateTimeFormat(pattern = "dd/MM/yyyy")
+    @Schema(type = "string", example = "22/08/2026")
+    LocalDate validFrom;
+    @JsonFormat(pattern = "dd/MM/yyyy")
+    @DateTimeFormat(pattern = "dd/MM/yyyy")
+    @Schema(type = "string", example = "23/08/2026")
+    LocalDate validTo;
 }
