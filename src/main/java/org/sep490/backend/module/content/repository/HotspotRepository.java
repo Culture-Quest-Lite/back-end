@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -92,5 +93,5 @@ public interface HotspotRepository extends JpaRepository<Hotspot, Long>, JpaSpec
     @Query("SELECT h.createdBy.userId FROM Hotspot h WHERE h.hotspotId = :id")
     Optional<Long> findOwnerId(@Param("id") Long id);
 
-    List<Hotspot> findByContentTypeAndValidToBefore(ContentType contentType, LocalDateTime validToBefore);
+    List<Hotspot> findByContentTypeAndValidToBefore(ContentType contentType, LocalDate validToBefore);
 }

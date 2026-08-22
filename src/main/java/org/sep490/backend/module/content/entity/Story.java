@@ -10,6 +10,7 @@ import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.entity.enumeration.ContentType;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
@@ -99,8 +100,8 @@ public class Story {
     ContentType contentType;
 
     @Column(name = "valid_from")
-    LocalDateTime validFrom;
+    LocalDate validFrom;
 
     @Column(name = "valid_to")
-    LocalDateTime validTo;
+    LocalDate validTo;
 }
