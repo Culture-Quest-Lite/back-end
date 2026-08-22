@@ -52,6 +52,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -454,7 +455,20 @@ public class RouteServiceImpl implements RouteService {
             return new ArrayList<>();
         }
 
-        List<Story> stories = storyRepository.findAllById(storyIds);
+        List<Story> fetchedStories = storyRepository.findAllById(storyIds);
+
+        if (fetchedStories.size() != storyIds.size()) {
+            throw new BusinessException("Một số Cốt truyện không tồn tại trong hệ thống");
+        }
+
+        Map<Long, Story> storyMap = fetchedStories.stream()
+                .collect(Collectors.toMap(Story::getStoryId, s -> s));
+
+        List<Story> stories = new ArrayList<>();
+        for (Long id : storyIds) {
+            stories.add(storyMap.get(id));
+        }
+
         List<Long> hotspotIds = new ArrayList<>();
         for (int i = 0; i < stories.size(); i++) {
             hotspotIds.add(stories.get(i).getHotspot().getHotspotId());
