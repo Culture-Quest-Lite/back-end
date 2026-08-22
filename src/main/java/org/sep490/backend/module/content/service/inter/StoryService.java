@@ -18,4 +18,5 @@ public interface StoryService {
     Story getById(Long id);
     Page<StoryResponse> getAll(StoryFilterRequest filter);
     StoryResponse updateStatus(Long id, ContentStatus status);
+    List<Story> processInvalidTempStory(List<Long> storyIds);
 }

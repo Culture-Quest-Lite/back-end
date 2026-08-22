@@ -1,12 +1,20 @@
 package org.sep490.backend.module.authentication.repository;
 
+import org.sep490.backend.module.admin.dto.projection.MonthlyCountProjection;
+import org.sep490.backend.module.admin.dto.projection.UserSummaryProjection;
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificationExecutor<User> {
@@ -19,4 +27,44 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     @Modifying
     @Query("UPDATE User u SET u.totalPoints = u.totalPoints - :points WHERE u.userId = :userId AND u.totalPoints >= :points")
     int deductPoints(@Param("userId") Long userId, @Param("points") Integer points);
+
+    @Query(value = "SELECT u FROM User u LEFT JOIN FETCH u.level " +
+            "WHERE u.status = :status AND u.role = :role " +
+            "ORDER BY COALESCE(u.totalXp, 0) DESC, u.createdAt ASC, u.userId ASC",
+            countQuery = "SELECT COUNT(u) FROM User u WHERE u.status = :status AND u.role = :role")
+    Page<User> findLeaderboardByXp(@Param("status") UserStatus status,
+                                   @Param("role") UserRole role,
+                                   Pageable pageable);
+
+    long countByStatusAndRole(UserStatus status, UserRole role);
+
+    @Query("SELECT year(u.createdAt) AS bucketYear, " +
+            "month(u.createdAt) AS bucketMonth, " +
+            "COUNT(u) AS total " +
+            "FROM User u " +
+            "WHERE u.createdAt >= :from AND u.createdAt < :to " +
+            "GROUP BY year(u.createdAt), month(u.createdAt)")
+    List<MonthlyCountProjection> countNewUsersPerMonth(@Param("from") LocalDateTime from,
+                                                       @Param("to") LocalDateTime to);
+
+    @Query("SELECT COUNT(u) AS totalUsers, " +
+            "COALESCE(SUM(CASE WHEN u.status = :activeStatus THEN 1L ELSE 0L END), 0L) AS activeUsers, " +
+            "COALESCE(SUM(CASE WHEN u.createdAt >= :monthStart THEN 1L ELSE 0L END), 0L) AS newUsersThisMonth " +
+            "FROM User u")
+    UserSummaryProjection summarizeUsers(@Param("activeStatus") UserStatus activeStatus,
+                                         @Param("monthStart") LocalDateTime monthStart);
+
+    @Query("SELECT COUNT(u) FROM User u " +
+            "WHERE u.status = :status AND u.role = :role " +
+            "AND (COALESCE(u.totalXp, 0) > :xp " +
+            "  OR (COALESCE(u.totalXp, 0) = :xp AND u.createdAt < :createdAt) " +
+            "  OR (COALESCE(u.totalXp, 0) = :xp AND u.createdAt = :createdAt AND u.userId < :userId))")
+    long countUsersRankedAbove(@Param("status") UserStatus status,
+                               @Param("role") UserRole role,
+                               @Param("xp") Integer xp,
+                               @Param("createdAt") LocalDateTime createdAt,
+                               @Param("userId") Long userId);
+
+    List<User> findByRoleAndStatus(UserRole role, UserStatus status);
+    List<User> findByIsPremiumTrueAndStatus(UserStatus status);
 }

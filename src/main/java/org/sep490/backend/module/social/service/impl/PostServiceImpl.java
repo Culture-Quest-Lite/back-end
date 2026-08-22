@@ -1,14 +1,33 @@
 package org.sep490.backend.module.social.service.impl;
 
+import jakarta.ws.rs.POST;
+import org.apache.tomcat.util.buf.ByteChunk;
+import org.sep490.backend.module.authentication.entity.enumeration.UserStatus;
+import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.NotificationService;
+import org.sep490.backend.module.social.dto.request.*;
+import org.sep490.backend.module.social.dto.response.ReportPostResponse;
+import org.sep490.backend.module.social.service.PostCounterService;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
+import org.sep490.backend.module.content.entity.Media;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.service.inter.MediaService;
+import org.sep490.backend.module.content.service.inter.S3Service;
+import org.sep490.backend.module.user.entity.UserFollow;
+import org.sep490.backend.module.user.entity.enumeration.UserRole;
+import org.sep490.backend.module.user.repository.UserFollowRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.service.TransactionCompensationService;
+import org.sep490.backend.common.utils.SecurityUtils;
+import org.sep490.backend.module.admin.entity.enumeration.AuditAction;
+import org.sep490.backend.module.admin.service.AuditLogService;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Route;
@@ -19,13 +38,7 @@ import org.sep490.backend.module.content.repository.TagRepository;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
 import org.sep490.backend.module.gamification.service.RewardTransactionService;
 import org.sep490.backend.module.gamification.dto.request.RewardTransactionRequest;
-import org.sep490.backend.module.social.dto.request.CommentRequest;
-import org.sep490.backend.module.social.dto.request.DeletePostRequest;
-import org.sep490.backend.module.social.dto.request.PostRequest;
-import org.sep490.backend.module.social.dto.request.ShareRequest;
 import org.sep490.backend.module.social.entity.enumeration.PostVisibility;
-import org.sep490.backend.module.social.dto.request.RejectPostRequest;
-import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
 import org.sep490.backend.module.social.dto.response.CommentResponse;
 import org.sep490.backend.module.social.dto.response.PostResponse;
 import org.sep490.backend.module.social.entity.PostAction;
@@ -43,9 +56,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -56,10 +74,17 @@ public class PostServiceImpl implements PostService {
     HotspotRepository hotspotRepository;
     RouteRepository routeRepository;
     TagRepository tagRepository;
+    UserRepository userRepository;
     PostMapper postMapper;
     UserService userService;
     RewardTransactionService rewardTransactionService;
     MediaService mediaService;
+    S3Service s3Service;
+    TransactionCompensationService txCompensation;
+    AuditLogService auditLogService;
+    PostCounterService postCounterService;
+    NotificationService notificationService;
+    UserFollowRepository userFollowRepository;
 
     @NonFinal
     @Value("${app.points.create-post:20}")
@@ -72,41 +97,21 @@ public class PostServiceImpl implements PostService {
 
         Post post = postMapper.toEntity(request);
         post.setUser(user);
-        post.setStatus(PostStatus.PENDING);
 
-        if (request.getHotspotIds() != null && !request.getHotspotIds().isEmpty()) {
-            List<Hotspot> hotspots = hotspotRepository.findAllById(request.getHotspotIds());
-            if (hotspots.size() != request.getHotspotIds().size()) {
-                throw new BusinessException("Một số địa điểm được tag không tồn tại");
-            }
-            post.setTaggedHotspots(new HashSet<>(hotspots));
-            post.setIsTaggedHotspot(true);
+        if(request.getVisibility().equals(PostVisibility.PUBLIC)) {
+            post.setStatus(PostStatus.PENDING);
         } else {
-            post.setIsTaggedHotspot(false);
+            post.setStatus(PostStatus.APPROVED);
         }
 
-        if (request.getRouteIds() != null && !request.getRouteIds().isEmpty()) {
-            List<Route> routes = routeRepository.findAllById(request.getRouteIds());
-            if (routes.size() != request.getRouteIds().size()) {
-                throw new BusinessException("Một số tuyến đường được tag không tồn tại");
-            }
-            post.setTaggedRoutes(new HashSet<>(routes));
-            post.setIsTaggedRoute(true);
-        } else {
-            post.setIsTaggedRoute(false);
-        }
-
-        if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
-            List<Tag> tags = tagRepository.findAllById(request.getTagIds());
-            if (tags.size() != request.getTagIds().size()) {
-                throw new BusinessException("Một số thẻ phân loại không tồn tại");
-            }
-            post.setTags(new HashSet<>(tags));
-        }
+        applyTaggedHotspots(post, request.getHotspotIds());
+        applyTaggedRoutes(post, request.getRouteIds());
+        applyTags(post, request.getTagIds());
 
         post = postRepository.saveAndFlush(post);
 
-        PostResponse response = postMapper.toResponse(post);
+        PostResponse response = toResponseWithLiked(post, user.getUserId());
+        response.setPointEarned((int) createPostPoints);
         if (request.getFiles() != null && request.getFiles().length > 0) {
             try {
                 List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
@@ -122,9 +127,19 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional(readOnly = true)
     public Slice<PostResponse> getPosts(PostStatus status, int page, int size) {
+        Long currentUserId = findCurrentUserIdOrNull();
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Slice<Post> postSlice = postRepository.findByStatusOptional(status, pageable);
-        return postSlice.map(postMapper::toResponse);
+        Slice<Post> postSlice = status != null
+                ? postRepository.findByStatusAndVisibility(status, PostVisibility.PUBLIC, pageable)
+                : postRepository.findByStatusOptional(null, pageable);
+        return postSlice.map(post -> toResponseWithLiked(post, currentUserId));
+    }
+
+    private Long findCurrentUserIdOrNull() {
+        if (SecurityUtils.getCurrentUserKeyCloakId().isEmpty()) {
+            return null;
+        }
+        return userService.getCurrentUser().getUserId();
     }
 
     @Override
@@ -132,8 +147,7 @@ public class PostServiceImpl implements PostService {
     public PostResponse getPostById(Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
-
-        return postMapper.toResponse(post);
+        return toResponseWithLiked(post, findCurrentUserIdOrNull());
     }
 
     @Override
@@ -149,16 +163,119 @@ public class PostServiceImpl implements PostService {
 
         post.setContent(request.getContent());
         if (request.getVisibility() != null) {
+            if (post.getStatus().equals(PostStatus.PENDING)) {
+                if(!request.getVisibility().equals(PostVisibility.PUBLIC)) {
+                    post.setStatus(PostStatus.APPROVED);
+                }
+            } else if (post.getStatus().equals(PostStatus.APPROVED)) {
+                if (request.getVisibility().equals(PostVisibility.PUBLIC) && !post.getVisibility().equals(PostVisibility.PUBLIC)) {
+                    post.setStatus(PostStatus.PENDING);
+                }
+            } else if (post.getStatus().equals(PostStatus.REJECTED) || post.getStatus().equals(PostStatus.REPORTED)) {
+                post.setReason(null);
+                if (request.getVisibility().equals(PostVisibility.PUBLIC)) {
+                    post.setStatus(PostStatus.PENDING);
+                } else {
+                    post.setStatus(PostStatus.APPROVED);
+                }
+            }
             post.setVisibility(request.getVisibility());
         }
 
-        post.getMedias().clear();
-        if (request.getMedias() != null && !request.getMedias().isEmpty()) {
-            post.getMedias().addAll(request.getMedias());
+        if (request.getHotspotIds() != null) {
+            applyTaggedHotspots(post, request.getHotspotIds());
+        }
+        if (request.getRouteIds() != null) {
+            applyTaggedRoutes(post, request.getRouteIds());
+        }
+        if (request.getTagIds() != null) {
+            applyTags(post, request.getTagIds());
         }
 
-        Post updatedPost = postRepository.save(post);
-        return postMapper.toResponse(updatedPost);
+        if (request.getRemovedMediaIds() != null && !request.getRemovedMediaIds().isEmpty()) {
+            removeMedias(post, request.getRemovedMediaIds());
+        }
+
+        Post updatedPost = postRepository.saveAndFlush(post);
+
+        if (request.getFiles() != null && request.getFiles().length > 0) {
+            try {
+                mediaService.uploadAndSaveMedias(
+                        request.getFiles(), MediaTargetType.POST, updatedPost.getPostId());
+            } catch (IOException e) {
+                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
+            }
+        }
+
+        return toResponseWithLiked(updatedPost, user.getUserId());
+    }
+
+    private void applyTaggedHotspots(Post post, List<Long> hotspotIds) {
+        if (hotspotIds == null || hotspotIds.isEmpty()) {
+            post.setTaggedHotspots(new HashSet<>());
+            post.setIsTaggedHotspot(false);
+            return;
+        }
+
+        List<Hotspot> hotspots = hotspotRepository.findAllById(hotspotIds);
+        if (hotspots.size() != new HashSet<>(hotspotIds).size()) {
+            throw new BusinessException("Địa điểm được gắn thẻ không tồn tại");
+        }
+        post.setTaggedHotspots(new HashSet<>(hotspots));
+        post.setIsTaggedHotspot(true);
+    }
+
+    private void applyTaggedRoutes(Post post, List<Long> routeIds) {
+        if (routeIds == null || routeIds.isEmpty()) {
+            post.setTaggedRoutes(new HashSet<>());
+            post.setIsTaggedRoute(false);
+            return;
+        }
+
+        List<Route> routes = routeRepository.findAllById(routeIds);
+        if (routes.size() != new HashSet<>(routeIds).size()) {
+            throw new BusinessException("Tuyến đường được gắn thẻ không tồn tại");
+        }
+        post.setTaggedRoutes(new HashSet<>(routes));
+        post.setIsTaggedRoute(true);
+    }
+
+    private void applyTags(Post post, List<Long> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            post.setTags(new HashSet<>());
+            return;
+        }
+
+        List<Tag> tags = tagRepository.findAllById(tagIds);
+        if (tags.size() != new HashSet<>(tagIds).size()) {
+            throw new BusinessException("Một số thẻ phân loại không tồn tại");
+        }
+        post.setTags(new HashSet<>(tags));
+    }
+
+    private void removeMedias(Post post, List<Long> removedMediaIds) {
+        Set<Long> ownedMediaIds = post.getMedias().stream()
+                .map(Media::getMediaId)
+                .collect(Collectors.toSet());
+
+        List<Long> notOwned = removedMediaIds.stream()
+                .filter(mediaId -> !ownedMediaIds.contains(mediaId))
+                .toList();
+        if (!notOwned.isEmpty()) {
+            throw new BusinessException("Media không thuộc bài viết này: " + notOwned);
+        }
+
+        List<String> removedFileUrls = post.getMedias().stream()
+                .filter(media -> removedMediaIds.contains(media.getMediaId()))
+                .map(Media::getFileUrl)
+                .filter(Objects::nonNull)
+                .toList();
+
+        post.getMedias().removeIf(media -> removedMediaIds.contains(media.getMediaId()));
+
+        removedFileUrls.forEach(fileUrl -> txCompensation.runAfterCommit(
+                "Xóa file media của bài viết " + fileUrl,
+                () -> s3Service.safeDeleteByUrl(fileUrl)));
     }
 
     @Override
@@ -172,8 +289,18 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException("Bạn không có quyền xóa bài viết này!");
         }
 
-        post.setStatus(PostStatus.DELETED);
-        postRepository.save(post);
+        PostStatus status = post.getStatus();
+
+        switch (status) {
+            case APPROVED:
+                post.setStatus(PostStatus.DELETED);
+                postRepository.save(post);
+                break;
+            case REPORTING:
+                throw new BusinessException("Không thể xóa bài viết đang trong quá trình xử lý báo cáo vi phạm");
+            default:
+                postRepository.delete(post);
+        }
     }
 
     @Override
@@ -193,11 +320,45 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     public Slice<PostResponse> getNewsfeed(int page, int size) {
-        User currentUser = userService.getCurrentUser();
-        Pageable pageable = PageRequest.of(page, size);
-        PostStatus status = PostStatus.APPROVED;
-        Slice<Post> newsfeedSlice = postRepository.findNewsfeed(currentUser, status, pageable);
-        return newsfeedSlice.map(postMapper::toResponse);
+        Long currentUserId = findCurrentUserIdOrNull();
+
+        int offset = page * size;
+        int need = offset + size + 1;
+        Pageable limit = PageRequest.of(0, need);
+
+        List<Post> merged = new ArrayList<>(need);
+
+        if (currentUserId == null) { // guest
+            merged.addAll(postRepository.findByStatusAndVisibility(
+                    PostStatus.APPROVED, PostVisibility.PUBLIC, limit).getContent());
+        } else {
+            List<Long> followingIds = postRepository.findFollowingIds(currentUserId);
+            List<Long> mutualFriendIds = userFollowRepository.findMutualFollowers(currentUserId)
+                    .stream().map(User::getUserId).toList();
+
+            List<Long> safeMutualFriendIds = mutualFriendIds.isEmpty() ? List.of(-1L) : mutualFriendIds;
+
+            if (!followingIds.isEmpty()) {
+                merged.addAll(postRepository.findFeedByAuthorsWithFriends(
+                        PostStatus.APPROVED, followingIds, safeMutualFriendIds, null, limit));
+            }
+
+            if (merged.size() < need) {
+                Pageable remaining = PageRequest.of(0, need - merged.size());
+                List<Long> excluded = followingIds.isEmpty() ? List.of(-1L) : followingIds;
+                merged.addAll(postRepository.findFeedExcludingAuthors(
+                        PostStatus.APPROVED, PostVisibility.PUBLIC, excluded, null, remaining));
+            }
+        }
+
+        boolean hasNext = merged.size() > offset + size;
+        List<PostResponse> content = merged.stream()
+                .skip(offset)
+                .limit(size)
+                .map(post -> toResponseWithLiked(post, currentUserId))
+                .toList();
+
+        return new SliceImpl<>(content, PageRequest.of(page, size), hasNext);
     }
 
     @Override
@@ -213,7 +374,7 @@ public class PostServiceImpl implements PostService {
         RewardTransactionRequest rewardRequest = RewardTransactionRequest.builder()
                 .userId(post.getUser().getUserId())
                 .pointsAmount(createPostPoints)
-                .xpAmount(0L)
+                .pointsAmount(20L)
                 .transactionType(TransactionType.POST_CREATION)
                 .description("Bài viết của " + post.getUser().getUsername() + " đã được duyệt")
                 .referenceId(post.getPostId())
@@ -225,6 +386,20 @@ public class PostServiceImpl implements PostService {
         post.setModerateAt(LocalDateTime.now());
         post.setStatus(PostStatus.APPROVED);
         Post savedPost = postRepository.save(post);
+
+        List<User> followers = userFollowRepository.findAllByFollowing(post.getUser()).stream()
+                .map(UserFollow::getFollower).toList();
+
+        if (!followers.isEmpty()) {
+            notificationService.sendToMultipleUsers(
+                    followers,
+                    "Bài viết mới",
+                    post.getUser().getDisplayName() + " vừa đăng một bài viết mới.",
+                    NotificationType.POST,
+                    post.getPostId()
+            );
+        }
+
         return postMapper.toResponse(savedPost);
     }
 
@@ -253,26 +428,60 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại hoặc đã bị xóa"));
 
+        if (post.getStatus() == PostStatus.DELETED) {
+            throw new BusinessException("Bài viết không tồn tại hoặc đã bị xóa");
+        }
+
+        PostStatus oldStatus = post.getStatus();
         post.setStatus(PostStatus.DELETED);
         post.setReason(request.getReason());
         Post savedPost = postRepository.save(post);
+
+        auditLogService.log(AuditAction.BAN_POST, "posts", String.valueOf(id),
+                Map.of("status", oldStatus),
+                Map.of("status", PostStatus.DELETED, "reason", String.valueOf(request.getReason())));
+
         return postMapper.toResponse(savedPost);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<PostResponse> getMyPosts(Pageable pageable) {
+    public Slice<PostResponse> getMyPosts(Pageable pageable, PostStatus status) {
         User currentUser = userService.getCurrentUser();
-        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), PostStatus.APPROVED,
+        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(currentUser.getUserId(), status,
                 pageable);
-        return posts.map(postMapper::toResponse);
+        return posts.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable) {
-        Slice<Post> posts = postRepository.findByUser_UserIdAndStatus(userId, PostStatus.APPROVED, pageable);
-        return posts.map(postMapper::toResponse);
+    public Slice<PostResponse> getPostsByUserId(Long targetUserId, Pageable pageable) {
+        Long currentUserId = findCurrentUserIdOrNull();
+        List<PostVisibility> allowedVisibilities;
+
+        if (currentUserId == null) { // guest view
+            allowedVisibilities = List.of(PostVisibility.PUBLIC);
+        } else if (currentUserId.equals(targetUserId)) { // owner view
+            allowedVisibilities = List.of(PostVisibility.PUBLIC, PostVisibility.FRIENDS, PostVisibility.PRIVATE);
+        } else {
+            User currentUser = userService.getUserById(currentUserId);
+            User targetUser = userRepository.findById(targetUserId)
+                    .orElseThrow(() -> new BusinessException("Người dùng không tồn tại"));
+
+            boolean isMutual = userFollowRepository.existsByFollowerAndFollowing(currentUser, targetUser) &&
+                    userFollowRepository.existsByFollowerAndFollowing(targetUser, currentUser);
+
+            if (isMutual) { // friend view
+                allowedVisibilities = List.of(PostVisibility.PUBLIC, PostVisibility.FRIENDS);
+            } else { // non-friend view
+                allowedVisibilities = List.of(PostVisibility.PUBLIC);
+            }
+        }
+
+        Slice<Post> posts = postRepository.findByUser_UserIdAndStatusAndVisibilityIn(
+                targetUserId, PostStatus.APPROVED, allowedVisibilities, pageable);
+
+        return posts.map(post -> toResponseWithLiked(post, currentUserId));
     }
 
     @Override
@@ -281,13 +490,14 @@ public class PostServiceImpl implements PostService {
         if (!hotspotRepository.existsById(hotspotId)) {
             throw new BusinessException("Địa điểm không tồn tại với ID: " + hotspotId);
         }
+        User currentUser = userService.getCurrentUser();
         Slice<Post> posts = postRepository.findByHotspotIdAndStatus(hotspotId, PostStatus.APPROVED, pageable);
-        return posts.map(postMapper::toResponse);
+        return posts.map(post -> toResponseWithLiked(post, currentUser.getUserId()));
     }
 
     @Override
     @Transactional
-    public void toggleLikePost(Long id) {
+    public PostResponse toggleLikePost(Long id) {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
         User currentUser = userService.getCurrentUser();
@@ -295,16 +505,28 @@ public class PostServiceImpl implements PostService {
         Optional<PostAction> existingLike = postActionRepository.findByPost_PostIdAndUser_UserIdAndActionType(
                 id, currentUser.getUserId(), PostActionType.LIKE);
 
+        boolean isLiked = false;
         if (existingLike.isPresent()) {
-            postActionRepository.delete(existingLike.get());
+            Long likeActionId = existingLike.get().getPostActionId();
+            post.getPostActions().removeIf(action -> likeActionId.equals(action.getPostActionId()));
         } else {
             PostAction likeAction = PostAction.builder()
                     .post(post)
                     .user(currentUser)
                     .actionType(PostActionType.LIKE)
                     .build();
-            postActionRepository.save(likeAction);
+            post.getPostActions().add(likeAction);
+            isLiked = true;
         }
+
+        postRepository.save(post);
+        postCounterService.evict(id);
+
+        if (isLiked) {
+            notifyPostInteraction(currentUser, post);
+        }
+
+        return toResponseWithLiked(post, currentUser.getUserId());
     }
 
     @Override
@@ -330,8 +552,12 @@ public class PostServiceImpl implements PostService {
         }
 
         postActionRepository.save(commentActionBuilder.build());
+        postCounterService.evict(id);
+
+        notifyPostInteraction(currentUser, post);
+
         post = postRepository.findById(id).orElse(post);
-        return postMapper.toResponse(post);
+        return toResponseWithLiked(post, currentUser.getUserId());
     }
 
     @Override
@@ -351,6 +577,7 @@ public class PostServiceImpl implements PostService {
                 .actionType(PostActionType.SHARE)
                 .build();
         postActionRepository.save(shareAction);
+        postCounterService.evict(id);
 
         Post sharedPost = Post.builder()
                 .user(currentUser)
@@ -361,7 +588,10 @@ public class PostServiceImpl implements PostService {
                 .build();
 
         Post savedPost = postRepository.save(sharedPost);
-        return postMapper.toResponse(savedPost);
+
+        notifyPostInteraction(currentUser, post);
+
+        return toResponseWithLiked(savedPost, currentUser.getUserId());
     }
 
     @Override
@@ -376,6 +606,244 @@ public class PostServiceImpl implements PostService {
                 .findByPost_PostIdAndActionTypeAndParentActionIsNullOrderByCreatedAtAsc(id, PostActionType.COMMENT, pageable);
 
         return rootComments.map(this::mapToCommentResponse);
+    }
+
+    @Override
+    @Transactional
+    public ReportPostResponse reportPost(Long id, ReportPostRequest request) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+        User currentUser = userService.getCurrentUser();
+
+        Optional<PostAction> existingReport = postActionRepository.findByPost_PostIdAndUser_UserIdAndActionType(
+                id, currentUser.getUserId(), PostActionType.REPORT);
+
+        if (existingReport.isPresent() && !existingReport.get().getIsReportResolved()) {
+            throw new BusinessException("Bài viết này đã được bạn báo cáo trước đó");
+        }
+
+        Integer reportCount = postActionRepository.countByActionTypeAndPost_PostIdAndIsReportResolved(
+                PostActionType.REPORT, id, false);
+
+        if (reportCount + 1 >= 3) {
+            post.setStatus(PostStatus.REPORTING);
+            postRepository.save(post);
+        }
+
+        PostAction reportAction = PostAction.builder()
+                .post(post)
+                .user(currentUser)
+                .actionType(PostActionType.REPORT)
+                .comment(request.getComment())
+                .isReportResolved(false)
+                .build();
+        reportAction = postActionRepository.save(reportAction);
+
+        // noti admin at 10 pending REPORT action
+        if (reportCount + 1 == 10) {
+            List<User> admins = userRepository.findByRoleAndStatus(UserRole.ADMIN, UserStatus.ACTIVE);
+            if (!admins.isEmpty()) {
+                notificationService.sendToMultipleUsers(
+                        admins,
+                        "Cảnh báo bài viết bị báo cáo nhiều",
+                        "Bài viết #" + id + " đã nhận được 10 lượt báo cáo. Vui lòng kiểm tra và xử lý.",
+                        NotificationType.POST,
+                        id
+                );
+            }
+        }
+
+        return toReportPostResponse(reportAction);
+    }
+
+    @Override
+    public List<ReportPostResponse> getAllReportPosts() {
+
+        User user = userService.getCurrentUser();
+
+        if(user.getRole().equals(UserRole.EXPLORER)) {
+            return postActionRepository.findByActionTypeAndUser_UserIdAndIsReportResolved(PostActionType.REPORT, user.getUserId(), false)
+                    .stream()
+                    .map(this::toReportPostResponse)
+                    .toList();
+        } else if (user.getRole().equals(UserRole.ADMIN)) {
+            return postActionRepository.findByActionTypeAndIsReportResolved(PostActionType.REPORT, false)
+                    .stream()
+                    .map(this::toReportPostResponse)
+                    .sorted((r1, r2) -> r2.getPostId().compareTo(r1.getPostId()))
+                    .toList();
+        } else {
+            throw new BusinessException("Người dùng không có quyền truy cập danh sách báo cáo bài viết");
+        }
+    }
+
+    @Override
+    public PostResponse handleReport(Long postId, HandleReportPostRequest request) {
+
+        User admin = userService.getCurrentUser();
+
+        if(!admin.getRole().equals(UserRole.ADMIN)) {
+            throw new BusinessException("Người dùng không có quyền xử lý báo cáo bài viết");
+        }
+
+        List<PostAction> actions = postActionRepository.findAllById(request.getPostActionIds());
+        List<PostAction> savedActions = new ArrayList<>();
+        Post currentPost = postRepository.findById(postId)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+
+        if(currentPost.getStatus().equals(PostStatus.REPORTED)) {
+            throw new BusinessException("Bài viết đã bị báo cáo và xử lý trước đó");
+        }
+
+        for(PostAction action : actions) {
+            if(!action.getPost().equals(currentPost)) {
+                throw new BusinessException("Báo cáo #" + action.getPostActionId() + " không thuộc bài viết này");
+            }
+
+            if(action.getIsReportResolved() != null && action.getIsReportResolved()) {
+                throw new BusinessException("Báo cáo bài viết đã được xử lý trước đó");
+            }
+
+            action.setIsReportResolved(true);
+            savedActions.add(action);
+        }
+
+        String reason;
+
+        if(request.getIsApproveReport()) {
+            reason = "ADMIN approve report: " + request.getReason();
+            currentPost.setStatus(PostStatus.REPORTED);
+        } else {
+            reason = "ADMIN reject report: " + request.getReason();
+            currentPost.setStatus(PostStatus.APPROVED);
+        }
+
+        // create latest action for post
+        PostAction resolvedAction = PostAction.builder()
+                .post(currentPost)
+                .user(admin)
+                .actionType(PostActionType.RESOLVE_REPORT)
+                .comment(reason)
+                .build();
+
+
+        savedActions.add(resolvedAction);
+
+        postActionRepository.saveAll(savedActions);
+        postRepository.save(currentPost);
+
+        notificationService.sendAndSave(
+                currentPost.getUser(),
+                "Bài viết bị xử lý",
+                "Bài viết của bạn đã bị admin xử lý với lý do: " + request.getReason(),
+                NotificationType.POST,
+                postId);
+
+        List<User> reporters = actions.stream().map(PostAction::getUser).distinct().toList();
+        notificationService.sendToMultipleUsers(
+                reporters,
+                "Kết quả báo cáo",
+                "Báo cáo của bạn về bài viết #" + postId + " đã được admin xử lý.",
+                NotificationType.POST,
+                postId);
+
+        return PostResponse.builder()
+                .postId(currentPost.getPostId())
+                .content(currentPost.getContent())
+                .visibility(currentPost.getVisibility())
+                .status(currentPost.getStatus())
+                .createdAt(currentPost.getCreatedAt())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public PostResponse approvePendingPost(Long postId, PostStatus status) {
+        User user = userService.getCurrentUser();
+
+        if(!user.getRole().equals(UserRole.ADMIN)) {
+            throw new BusinessException("Người dùng không có quyền cập nhật trạng thái bài viết");
+        }
+
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+
+        if(!post.getStatus().equals(PostStatus.PENDING)) {
+            throw new BusinessException("Chỉ có thể cập nhật trạng thái bài viết đang chờ phê duyệt");
+        }
+
+        post.setStatus(status);
+        postRepository.save(post);
+
+        if(status.equals(PostStatus.APPROVED)) {
+            List<User> followers = userFollowRepository.findAllByFollowing(post.getUser()).stream()
+                    .map(UserFollow::getFollower).toList();
+
+            if (!followers.isEmpty()) {
+                notificationService.sendToMultipleUsers(
+                        followers,
+                        "Bài viết mới",
+                        post.getUser().getDisplayName() + " vừa đăng một bài viết mới.",
+                        NotificationType.POST,
+                        post.getPostId()
+                );
+            }
+        }
+
+        return toResponseWithLiked(post, post.getUser().getUserId());
+    }
+
+    @Override
+    @Transactional
+    public PostResponse restorePost(Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BusinessException("Bài viết không tồn tại"));
+
+        if(!post.getStatus().equals(PostStatus.DELETED)) {
+            throw new BusinessException("Chỉ có thể khôi phục bài viết đã bị xóa");
+        }
+
+        User user = userService.getCurrentUser();
+
+        if(!post.getUser().equals(user)) {
+            throw new BusinessException("Bạn không có quyền khôi phục bài viết này");
+        }
+
+        post.setStatus(PostStatus.APPROVED);
+        post = postRepository.save(post);
+
+        return postMapper.toResponse(post);
+    }
+
+    @Override
+    @Transactional
+    public void deleteDeletedPosts() {
+        LocalDateTime deletedTime = LocalDateTime.now().minusDays(30);
+        List<Post> deletedPosts = postRepository.findByStatusAndUpdatedAtBefore(PostStatus.DELETED, deletedTime);
+        for (Post post : deletedPosts) {
+            postRepository.delete(post);
+        }
+    }
+
+    private PostResponse toResponseWithLiked(Post post, Long currentUserId) {
+        PostResponse response = postMapper.toResponse(post);
+        postCounterService.apply(response, post.getPostId());
+        response.setIsLiked(isLikedBy(post.getPostId(), currentUserId));
+
+        if (response.getSharedPost() != null && post.getSharedPost() != null) {
+            Long sharedPostId = post.getSharedPost().getPostId();
+            postCounterService.apply(response.getSharedPost(), sharedPostId);
+            response.getSharedPost().setIsLiked(isLikedBy(sharedPostId, currentUserId));
+        }
+        return response;
+    }
+
+    private boolean isLikedBy(Long postId, Long userId) {
+        if (postId == null || userId == null) {
+            return false;
+        }
+        return postActionRepository.existsByPost_PostIdAndUser_UserIdAndActionType(
+                postId, userId, PostActionType.LIKE);
     }
 
     private CommentResponse mapToCommentResponse(PostAction action) {
@@ -398,5 +866,28 @@ public class PostServiceImpl implements PostService {
                 .createdAt(action.getCreatedAt())
                 .replies(childReplies)
                 .build();
+    }
+
+    private ReportPostResponse toReportPostResponse(PostAction action) {
+        return ReportPostResponse.builder()
+                .postActionId(action.getPostActionId())
+                .postId(action.getPost().getPostId())
+                .createdUserId(action.getUser().getUserId())
+                .createdDisplayName(action.getUser().getDisplayName())
+                .comment(action.getComment())
+                .createdAt(action.getCreatedAt())
+                .build();
+    }
+
+    private void notifyPostInteraction(User sender, Post post) {
+        long totalInteractions = postActionRepository.countActionsByPostId(post.getPostId()).stream()
+                .filter(row -> {
+                    PostActionType type = (PostActionType) row[0];
+                    return type == PostActionType.LIKE || type == PostActionType.COMMENT || type == PostActionType.SHARE;
+                })
+                .mapToLong(row -> ((Number) row[1]).longValue())
+                .sum();
+
+        notificationService.sendOrUpdateInteractionNotification(sender, post.getUser(), post.getPostId(), totalInteractions);
     }
 }

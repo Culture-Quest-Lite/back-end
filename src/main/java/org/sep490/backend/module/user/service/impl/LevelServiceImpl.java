@@ -2,6 +2,7 @@ package org.sep490.backend.module.user.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.config.redis.CacheNames;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.user.dto.request.LevelRequest;
 import org.sep490.backend.module.user.dto.response.LevelResponse;
@@ -16,6 +17,9 @@ import org.sep490.backend.module.user.service.LevelService;
 import org.sep490.backend.module.user.service.UserService;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.user.entity.LevelProgress;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +43,10 @@ public class LevelServiceImpl implements LevelService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.LEVELS, allEntries = true),
+            @CacheEvict(value = CacheNames.LEVEL_BY_XP, allEntries = true)
+    })
     public LevelResponse createLevel(LevelRequest request) {
         String name = request.getName().trim();
         if (levelRepository.existsByNameAndStatusNot(name, LevelStatus.DELETED)) {
@@ -57,6 +65,10 @@ public class LevelServiceImpl implements LevelService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.LEVELS, allEntries = true),
+            @CacheEvict(value = CacheNames.LEVEL_BY_XP, allEntries = true)
+    })
     public LevelResponse updateLevel(Long levelId, LevelRequest request) {
         Level level = levelRepository.findByLevelIdAndStatusNot(levelId, LevelStatus.DELETED)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy cấp bậc"));
@@ -77,6 +89,10 @@ public class LevelServiceImpl implements LevelService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.LEVELS, allEntries = true),
+            @CacheEvict(value = CacheNames.LEVEL_BY_XP, allEntries = true)
+    })
     public void deleteLevel(Long levelId) {
         Level level = levelRepository.findByLevelIdAndStatusNot(levelId, LevelStatus.DELETED)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy cấp bậc"));
@@ -91,6 +107,7 @@ public class LevelServiceImpl implements LevelService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.LEVELS, key = "'all'")
     public List<LevelResponse> getAllLevels() {
         return levelRepository.findAllByStatusNot(LevelStatus.DELETED).stream()
                 .map(levelMapper::toResponse)
@@ -99,6 +116,7 @@ public class LevelServiceImpl implements LevelService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheNames.LEVELS, key = "#levelId")
     public LevelResponse getLevelById(Long levelId) {
         Level level = levelRepository.findByLevelIdAndStatusNot(levelId, LevelStatus.DELETED)
                 .orElseThrow(() -> new BusinessException("Không tìm thấy cấp bậc"));

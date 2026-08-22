@@ -4,5 +4,12 @@ public enum NotificationType {
     REDEEM_VOUCHER,
     REFUND,
     EARN,
-    LOGIN
+    LOGIN,
+    LEVEL_UP,
+    GROUP,
+    SUBSCRIPTION,
+    POST,
+    USER,
+    CONTENT, // route, hotspot, story
+    FOLLOW,
 }

@@ -3,13 +3,17 @@ package org.sep490.backend.module.content.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentType;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -55,6 +59,13 @@ public class Hotspot implements Serializable {
     @Column(name = "location", nullable = false)
     Point location;
 
+    @Column(name = "check_in_radius")
+    Integer checkInRadius;
+
+    // Ranh giới thật của địa điểm. Khi có polygon thì nó được ưu tiên hơn bán kính.
+    @Column(name = "boundary", columnDefinition = "geometry(Polygon, 4326)")
+    Polygon boundary;
+
     @Column(name = "estimated_duration_min", nullable = false)
     Long estimatedDurationMin;
 
@@ -95,4 +106,14 @@ public class Hotspot implements Serializable {
 
     @Column(name = "published_at")
     LocalDateTime publishedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "content_type", nullable = false)
+    ContentType contentType;
+
+    @Column(name = "valid_from")
+    LocalDate validFrom;
+
+    @Column(name = "valid_to")
+    LocalDate validTo;
 }

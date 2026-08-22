@@ -32,6 +32,10 @@ public class PartnerInfo {
     @JoinColumn(name = "user_id", nullable = false)
     User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "shop_account_user_id")
+    User shopAccount;
+
     @Column(name = "shop_name", nullable = false, length = 100)
     String shopName;
 
@@ -63,4 +67,8 @@ public class PartnerInfo {
     @OrderBy("displayOrder ASC")
     @Builder.Default
     List<Media> medias = new ArrayList<>();
+
+    public User getOperatingUser() {
+        return shopAccount != null ? shopAccount : user;
+    }
 }

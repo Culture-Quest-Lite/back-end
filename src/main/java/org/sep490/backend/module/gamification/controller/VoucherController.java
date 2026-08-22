@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.module.partner.dto.filter.AdvanceVoucherFilter;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
 import org.sep490.backend.module.partner.dto.response.VoucherUsageResponse;
 import org.sep490.backend.module.partner.dto.response.VoucherResponse;
@@ -35,6 +36,13 @@ public class VoucherController {
     @PostMapping("/{id}/redeem")
     public ResponseEntity<VoucherUsageResponse> redeemVoucher(@PathVariable Long id) {
         return ResponseEntity.ok(voucherService.redeemVoucher(id));
+    }
+
+    @GetMapping("/filter")
+    public ResponseEntity<Page<VoucherResponse>> get(
+            @Valid @ParameterObject @ModelAttribute AdvanceVoucherFilter filter
+    ) {
+        return ResponseEntity.ok(voucherService.getByFilter(filter));
     }
 }
 

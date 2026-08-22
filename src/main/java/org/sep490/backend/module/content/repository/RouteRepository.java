@@ -1,9 +1,12 @@
 package org.sep490.backend.module.content.repository;
 
 import org.sep490.backend.module.authentication.entity.User;
+import org.sep490.backend.module.content.dto.projection.TagRouteCountProjection;
+import org.sep490.backend.module.content.dto.projection.TagUsageProjection;
 import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.sep490.backend.module.content.entity.enumeration.RouteType;
+import org.sep490.backend.module.curator.dto.projection.RouteStatusCountProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -23,4 +26,25 @@ public interface RouteRepository extends JpaRepository<Route, Long>, JpaSpecific
 
     @Query("SELECT DISTINCT s.route FROM Story s WHERE s.hotspot.hotspotId = :hotspotId AND s.route.status = :status AND s.route IS NOT NULL")
     List<Route> findRoutesByHotspotIdAndStatus(@Param("hotspotId") Long hotspotId, @Param("status") RouteStatus status);
+
+    long countByTag_TagIdAndStatusNot(Long tagId, RouteStatus status);
+
+    @Query("SELECT r.tag.tagId AS tagId, COUNT(r) AS routeCount FROM Route r " +
+            "WHERE r.tag.tagId IN :tagIds AND r.status <> :excludedStatus " +
+            "GROUP BY r.tag.tagId")
+    List<TagRouteCountProjection> countRoutesByTagIds(@Param("tagIds") List<Long> tagIds,
+                                                      @Param("excludedStatus") RouteStatus excludedStatus);
+
+    @Query("SELECT r.tag.tagId AS tagId, r.routeId AS refId FROM Route r " +
+            "WHERE r.tag.tagId IN :tagIds AND r.status = :includeStatus")
+    List<TagUsageProjection> findRouteUsagesByTagIds(
+            @Param("tagIds") List<Long> tagIds,
+            @Param("includeStatus") RouteStatus includeStatus);
+    @Query("SELECT r.status AS status, COUNT(r) AS total FROM Route r " +
+            "WHERE r.status <> :excludedStatus " +
+            "GROUP BY r.status")
+    List<RouteStatusCountProjection> countRoutesByStatus(@Param("excludedStatus") RouteStatus excludedStatus);
+
+    @Query("SELECT r.createdBy.userId FROM Route r WHERE r.routeId = :id")
+    Optional<Long> findOwnerId(@Param("id") Long id);
 }

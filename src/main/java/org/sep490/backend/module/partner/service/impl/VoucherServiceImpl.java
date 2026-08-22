@@ -3,12 +3,21 @@ package org.sep490.backend.module.partner.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.locationtech.jts.geom.Point;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.utils.SpatialUtils;
+import org.sep490.backend.common.utils.VoucherUsageUtils;
+import org.sep490.backend.module.admin.entity.PartnerInfo;
+import org.sep490.backend.module.admin.repository.PartnerInfoRepository;
+import org.sep490.backend.module.admin.specification.PartnerInfoSpecification;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.repository.UserRepository;
+import org.sep490.backend.module.content.entity.Hotspot;
+import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.gamification.entity.RewardTransaction;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
 import org.sep490.backend.module.gamification.repository.RewardTransactionRepository;
+import org.sep490.backend.module.partner.dto.filter.AdvanceVoucherFilter;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
 import org.sep490.backend.module.partner.dto.request.VoucherRequest;
 import org.sep490.backend.module.partner.dto.response.VoucherUsageResponse;
@@ -23,9 +32,7 @@ import org.sep490.backend.module.partner.service.VoucherService;
 import org.sep490.backend.module.user.service.UserService;
 import org.sep490.backend.module.partner.entity.enumeration.VoucherStatus;
 import org.sep490.backend.module.partner.specification.VoucherSpecification;
-import org.sep490.backend.module.content.service.inter.MediaService;
-import org.sep490.backend.module.content.dto.response.MediaResponse;
-import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
+import org.sep490.backend.module.content.service.inter.ImageService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,15 +41,19 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.io.IOException;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class VoucherServiceImpl implements VoucherService {
+
+    static final String IMAGE_FOLDER = "vouchers";
 
     VoucherRepository voucherRepository;
     VoucherMapper voucherMapper;
@@ -50,10 +61,12 @@ public class VoucherServiceImpl implements VoucherService {
     VoucherUsageRepository voucherUsageRepository;
     VoucherUsageMapper voucherUsageMapper;
     RewardTransactionRepository rewardTransactionRepository;
-    MediaService mediaService;
+    ImageService imageService;
+    PartnerInfoRepository partnerInfoRepository;
 
     static SecureRandom random = new SecureRandom();
     private final UserRepository userRepository;
+    private final HotspotService hotspotService;
 
     @Override
     @Transactional
@@ -73,23 +86,21 @@ public class VoucherServiceImpl implements VoucherService {
 
         User partner = userService.getCurrentUser();
 
+        PartnerInfo partnerInfo = partnerInfoRepository.findByOwnerOrShopAccount(partner.getUserId())
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("Thông tin đối tác không tồn tại"));
+
         Voucher voucher = voucherMapper.toEntity(request);
         voucher.setPartner(partner);
         voucher.setVoucherCode(generateCode);
         voucher.setStatus(VoucherStatus.PENDING);
+        voucher.setImageUrl(imageService.resolveImageUrl(
+                null, request.getImageFile(), IMAGE_FOLDER));
+        voucher.setLocation(partnerInfo.getLocation());
         voucher = voucherRepository.save(voucher);
 
-        VoucherResponse response = voucherMapper.toResponse(voucher);
-        if (request.getFiles() != null && request.getFiles().length > 0) {
-            try {
-                List<MediaResponse> mediaResponses = mediaService.uploadAndSaveMedias(
-                        request.getFiles(), MediaTargetType.VOUCHER, voucher.getVoucherId());
-                response.setMedias(mediaResponses);
-            } catch (IOException e) {
-                throw new BusinessException("Lỗi tải lên media: " + e.getMessage());
-            }
-        }
-        return response;
+        return voucherMapper.toResponse(voucher);
     }
 
     @Override
@@ -115,6 +126,8 @@ public class VoucherServiceImpl implements VoucherService {
         if (request.getStatus() == null) {
             voucher.setStatus(oldStatus);
         }
+        voucher.setImageUrl(imageService.resolveImageUrl(
+                voucher.getImageUrl(), request.getImageFile(), IMAGE_FOLDER));
         voucher = voucherRepository.save(voucher);
         return voucherMapper.toResponse(voucher);
     }
@@ -206,10 +219,13 @@ public class VoucherServiceImpl implements VoucherService {
             throw new BusinessException("Rất tiếc, voucher vừa mới hết số lượng!");
         }
 
+        String voucherUsageToken = VoucherUsageUtils.generateToken(voucherId, currentUser.getUserId());
+
         VoucherUsage voucherUsage = VoucherUsage.builder()
                 .user(currentUser)
                 .voucher(voucher)
                 .voucherCode(voucher.getVoucherCode())
+                .voucherUsageCode(voucherUsageToken)
                 .pointsRequired(voucher.getPointsRequired())
                 .isUsed(false)
                 .redeemedAt(LocalDateTime.now())
@@ -276,11 +292,57 @@ public class VoucherServiceImpl implements VoucherService {
         return voucherUsageMapper.toResponse(voucherUsage);
     }
 
+    @Override
+    public Page<VoucherResponse> getByFilter(AdvanceVoucherFilter filter) {
+        List<Hotspot> hotspots = new ArrayList<>();
+
+        // hotspots from route
+        if(filter.getRouteId() != null){
+            hotspots.addAll(hotspotService.getHotspotByRouteId(filter.getRouteId()));
+        }
+        // hotspots
+        if(filter.getHotspotIds() != null && !filter.getHotspotIds().isEmpty()){
+            hotspots.addAll(filter.getHotspotIds().stream()
+                    .map(hotspotService::getById)
+                    .toList());
+        }
+
+        hotspots = removeDuplicates(hotspots);
+
+        List<Point> hotspotPoints = hotspots.stream()
+                .map(Hotspot::getLocation)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        // user's current location
+        if(filter.getLongitude() == null && filter.getLatitude() == null){
+            hotspotPoints.add(SpatialUtils.fromCoordinates(filter.getLongitude(), filter.getLatitude()));
+        }
+
+        Specification<PartnerInfo> partnerSpec = PartnerInfoSpecification.isNearAnyLocation(hotspotPoints, filter.getDistanceMeters());
+
+        List<PartnerInfo> partnerInfos = partnerInfoRepository.findAll(partnerSpec);
+        List<Long> userIds = partnerInfos.stream()
+                .map(partnerInfo -> partnerInfo.getOperatingUser().getUserId())
+                .toList();
+
+        Specification<Voucher> voucherSpec = VoucherSpecification.filterByPartnersAndStatus(userIds, filter.getStatus());
+        Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize());
+        Page<Voucher> voucherPage = voucherRepository.findAll(voucherSpec, pageable);
+
+        return voucherPage.map(voucherMapper::toResponse);
+    }
+
     private String generateRandomHexCode(int length) {
         StringBuilder sb = new StringBuilder();
         while (sb.length() < length) {
             sb.append(Integer.toHexString(random.nextInt()).toUpperCase());
         }
         return sb.substring(0, length);
+    }
+
+    private List<Hotspot> removeDuplicates(List<Hotspot> hotspots) {
+        return hotspots.stream()
+                .distinct()
+                .toList();
     }
 }

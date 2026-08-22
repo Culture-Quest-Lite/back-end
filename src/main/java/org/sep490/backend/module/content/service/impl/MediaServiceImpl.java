@@ -4,26 +4,25 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.common.service.TransactionCompensationService;
 import org.sep490.backend.module.admin.entity.PartnerInfo;
 import org.sep490.backend.module.admin.repository.PartnerInfoRepository;
 import org.sep490.backend.module.content.dto.response.MediaResponse;
 import org.sep490.backend.module.content.entity.Hotspot;
 import org.sep490.backend.module.content.entity.Media;
+import org.sep490.backend.module.content.entity.Review;
 import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.MediaType;
 import org.sep490.backend.module.content.entity.enumeration.MediaTargetType;
 import org.sep490.backend.module.content.mapper.MediaMapper;
-import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.repository.HotspotRepository;
 import org.sep490.backend.module.content.repository.MediaRepository;
-import org.sep490.backend.module.content.repository.RouteRepository;
+import org.sep490.backend.module.content.repository.ReviewRepository;
 import org.sep490.backend.module.content.repository.StoryRepository;
 import org.sep490.backend.module.content.service.inter.MediaService;
 import org.sep490.backend.module.content.service.inter.S3Service;
 import org.sep490.backend.module.social.entity.Post;
 import org.sep490.backend.module.social.repository.PostRepository;
-import org.sep490.backend.module.partner.entity.Voucher;
-import org.sep490.backend.module.partner.repository.VoucherRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -42,10 +41,10 @@ public class MediaServiceImpl implements MediaService {
     HotspotRepository hotspotRepository;
     PostRepository postRepository;
     PartnerInfoRepository partnerInfoRepository;
-    VoucherRepository voucherRepository;
-    RouteRepository routeRepository;
+    ReviewRepository reviewRepository;
     S3Service s3Service;
     MediaMapper mediaMapper;
+    TransactionCompensationService txCompensation;
 
     @Override
     @Transactional
@@ -75,10 +74,8 @@ public class MediaServiceImpl implements MediaService {
                 return mediaRepository.findMaxDisplayOrderByPostId(entityId);
             case PARTNER_SUBSCRIPTION:
                 return mediaRepository.findMaxDisplayOrderByPartnerInfoId(entityId);
-            case VOUCHER:
-                return mediaRepository.findMaxDisplayOrderByVoucherId(entityId);
-            case ROUTE:
-                return mediaRepository.findMaxDisplayOrderByRouteId(entityId);
+            case REVIEW:
+                return mediaRepository.findMaxDisplayOrderByReviewId(entityId);
             default:
                 return 0;
         }
@@ -89,7 +86,13 @@ public class MediaServiceImpl implements MediaService {
     public void deleteMedia(Long mediaId) {
         Media media = mediaRepository.findById(mediaId)
                 .orElseThrow(() -> new BusinessException("Media không tồn tại với ID: " + mediaId));
+        String fileUrl = media.getFileUrl();
         mediaRepository.delete(media);
+
+        if (fileUrl != null) {
+            txCompensation.runAfterCommit("Xóa file media " + fileUrl,
+                    () -> s3Service.safeDeleteByUrl(fileUrl));
+        }
     }
 
     private String determineFolderAndSetEntityRelation(MediaTargetType entityType, Long entityId, Media media) {
@@ -121,16 +124,11 @@ public class MediaServiceImpl implements MediaService {
                                 () -> new BusinessException("Thông tin đối tác không tồn tại với ID: " + entityId));
                 media.setPartnerInfo(partnerInfo);
                 return "partner_subscriptions";
-            case VOUCHER:
-                Voucher voucher = voucherRepository.findById(entityId)
-                        .orElseThrow(() -> new BusinessException("Voucher không tồn tại với ID: " + entityId));
-                media.setVoucher(voucher);
-                return "vouchers";
-            case ROUTE:
-                Route route = routeRepository.findById(entityId)
-                        .orElseThrow(() -> new BusinessException("Route không tồn tại với ID: " + entityId));
-                media.setRoute(route);
-                return "routes";
+            case REVIEW:
+                Review review = reviewRepository.findById(entityId)
+                        .orElseThrow(() -> new BusinessException("Đánh giá không tồn tại với ID: " + entityId));
+                media.setReview(review);
+                return "reviews";
             default:
                 throw new BusinessException("Không hỗ trợ loại thực thể: " + entityType);
         }

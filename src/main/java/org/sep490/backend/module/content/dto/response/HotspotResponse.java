@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentType;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -23,6 +24,8 @@ public class HotspotResponse {
     String historyInformation;
     Double latitude;
     Double longitude;
+    Integer checkInRadius;
+    String boundaryGeoJson;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
     Long xp;
@@ -51,4 +54,10 @@ public class HotspotResponse {
     List<StoryResponse> stories;
 
     Boolean isCheckIn;
+    Double averageRating;
+    Long totalReviews;
+
+    ContentType contentType;
+    LocalDateTime validFrom;
+    LocalDateTime validTo;
 }

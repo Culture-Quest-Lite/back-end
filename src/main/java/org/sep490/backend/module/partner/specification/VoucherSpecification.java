@@ -34,4 +34,20 @@ public class VoucherSpecification {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
+
+    public static Specification<Voucher> filterByPartnersAndStatus(List<Long> userIds, VoucherStatus status) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (userIds != null && !userIds.isEmpty()) {
+                predicates.add(root.get("partner").get("userId").in(userIds));
+            }
+
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
 }

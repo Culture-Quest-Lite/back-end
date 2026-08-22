@@ -1,19 +1,15 @@
 package org.sep490.backend.module.social.service;
 
-import org.sep490.backend.module.social.dto.request.DeletePostRequest;
-import org.sep490.backend.module.social.dto.request.PostRequest;
-import org.sep490.backend.module.social.dto.request.RejectPostRequest;
-import org.sep490.backend.module.social.dto.request.UpdatePostRequest;
+import org.sep490.backend.module.social.dto.request.*;
 import org.sep490.backend.module.social.dto.response.PostResponse;
+import org.sep490.backend.module.social.dto.response.ReportPostResponse;
 import org.sep490.backend.module.social.entity.enumeration.PostStatus;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
-import org.sep490.backend.module.social.dto.request.CommentRequest;
-
 import org.sep490.backend.module.social.dto.response.CommentResponse;
 
-import org.sep490.backend.module.social.dto.request.ShareRequest;
+import java.util.List;
 
 public interface PostService {
     PostResponse createPost(PostRequest postRequest);
@@ -26,11 +22,17 @@ public interface PostService {
     PostResponse approvePost(Long id);
     PostResponse rejectPost(Long id, RejectPostRequest request);
     PostResponse banPostByAdmin(Long id, DeletePostRequest request);
-    Slice<PostResponse> getMyPosts(Pageable pageable);
+    Slice<PostResponse> getMyPosts(Pageable pageable, PostStatus status);
     Slice<PostResponse> getPostsByUserId(Long userId, Pageable pageable);
     Slice<PostResponse> getPostsByHotspotId(Long hotspotId, Pageable pageable);
-    void toggleLikePost(Long id);
+    PostResponse toggleLikePost(Long id);
     PostResponse commentPost(Long id, CommentRequest request);
     PostResponse sharePost(Long id, ShareRequest request);
     Slice<CommentResponse> getCommentsByPostId(Long id, int page, int size);
+    ReportPostResponse reportPost(Long id, ReportPostRequest request);
+    List<ReportPostResponse> getAllReportPosts();
+    PostResponse handleReport(Long postId, HandleReportPostRequest request);
+    PostResponse approvePendingPost(Long postId, PostStatus status);
+    PostResponse restorePost(Long postId);
+    void deleteDeletedPosts();
 }

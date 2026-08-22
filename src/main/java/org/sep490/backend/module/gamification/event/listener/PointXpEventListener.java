@@ -9,10 +9,13 @@ import org.sep490.backend.module.content.entity.Route;
 import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.sep490.backend.module.content.service.inter.RouteService;
 import org.sep490.backend.module.exploration.event.CheckInCompletedEvent;
+import org.sep490.backend.module.exploration.event.CheckInCustomRouteCompletedEvent;
 import org.sep490.backend.module.exploration.event.RouteProgressCompletedEvent;
 import org.sep490.backend.module.gamification.dto.request.RewardTransactionRequest;
 import org.sep490.backend.module.gamification.entity.enumeration.TransactionType;
 import org.sep490.backend.module.gamification.service.RewardTransactionService;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.NotificationService;
 import org.sep490.backend.module.user.service.UserService;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -30,6 +33,7 @@ public class PointXpEventListener {
     HotspotService hotspotService;
     RewardTransactionService rewardTransactionService;
     RouteService routeService;
+    NotificationService notificationService;
 
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -75,5 +79,45 @@ public class PointXpEventListener {
                 .referenceId(route.getRouteId())
                 .build();
         rewardTransactionService.createRewardTransaction(rewardRequest);
+
+        notificationService.sendAndSave(
+                user,
+                "Hoàn thành Hành trình",
+                "Chúc mừng bạn đã hoàn thành hành trình " + route.getRouteName() + "!",
+                NotificationType.CONTENT,
+                route.getRouteId()
+        );
+    }
+
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleRouteProgressCompleted(CheckInCustomRouteCompletedEvent event) {
+        User user = userService.getUserById(event.createdById());
+
+        Route route = routeService.getById(event.routeId());
+        // temp point and xp
+        Long earnedPoint = route.getPoint();
+        Long earnedXp =  route.getXp();
+
+        // Reward Transaction
+        RewardTransactionRequest rewardRequest = RewardTransactionRequest.builder()
+                .userId(event.createdById())
+                .pointsAmount(earnedPoint)
+                .xpAmount(earnedXp)
+                .transactionType(TransactionType.EARN)
+                .description("User #" + user.getUserId() + " earned base on custom route #" + route.getRouteId() + " was completed.")
+                .referenceId(route.getRouteId())
+                .build();
+        rewardTransactionService.createRewardTransaction(rewardRequest);
+
+        User creator = userService.getUserById(event.createdById());
+        notificationService.sendAndSave(
+                creator,
+                "Hành trình tự tạo được hoàn thành",
+                "Có một Explorer vừa hoàn thành hành trình tự tạo #" + route.getRouteId() + " của bạn!",
+                NotificationType.CONTENT,
+                route.getRouteId()
+        );
     }
 }

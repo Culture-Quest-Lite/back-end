@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.sep490.backend.module.admin.entity.enumeration.PlanType;
 import org.sep490.backend.module.admin.entity.enumeration.SubscriptionPlanStatus;
 
 import java.time.LocalDateTime;
@@ -20,6 +21,7 @@ public class SubscriptionPlanResponse {
     private Long priceMonthly;
     private Long priceYearly;
     private Map<String, Object> configLimit;
+    private PlanType planType;
     private SubscriptionPlanStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

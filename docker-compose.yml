@@ -6,6 +6,7 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:
 
 services:
 
@@ -43,9 +44,11 @@ services:
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME_STRICT: "false"
       KC_HEALTH_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME: ${KC_HOSTNAME}
     ports:
-      - "${KC_PORT}:8080"
-      - "9000:9000"
+      - "127.0.0.1:${KC_PORT}:8080"
+      - "127.0.0.1:9000:9000"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
     command:
@@ -63,6 +66,34 @@ services:
       retries: 15
       start_period: 120s
 
+  redis:
+    image: redis:7.4-alpine
+    container_name: culture-quest-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD}
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --appendonly
+      - "yes"
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - culture-quest-net
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
@@ -73,16 +104,19 @@ services:
     env_file:
       - .env
     environment:
+      REDIS_HOST: redis
       DB_HOST: postgres
       IDP_URL: http://keycloak:8080
-      ISSUER_URI: http://keycloak:8080/realms/${REALM}
+      ISSUER_URI: https://auth.culturequestlite.com/realms/${REALM}
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/${REALM:-culture-quest-lite}/protocol/openid-connect/certs
     ports:
-      - "${PORT}:8080"
+      - "127.0.0.1:${PORT}:8080"
     depends_on:
       postgres:
         condition: service_healthy
       keycloak:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - culture-quest-net

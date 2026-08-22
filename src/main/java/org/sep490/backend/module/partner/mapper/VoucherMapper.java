@@ -4,11 +4,9 @@ import org.mapstruct.*;
 import org.sep490.backend.module.partner.dto.request.VoucherRequest;
 import org.sep490.backend.module.partner.dto.response.VoucherResponse;
 import org.sep490.backend.module.partner.entity.Voucher;
-import org.sep490.backend.module.content.mapper.MediaMapper;
 
 @Mapper(
         componentModel = "spring",
-        uses = {MediaMapper.class},
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface VoucherMapper {
@@ -17,6 +15,7 @@ public interface VoucherMapper {
     @Mapping(target = "voucherCode", ignore = true)
     @Mapping(target = "voucherId", ignore = true)
     @Mapping(target = "partner", ignore = true)
+    @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Voucher toEntity(VoucherRequest request);
@@ -28,6 +27,7 @@ public interface VoucherMapper {
     @Mapping(target = "voucherId", ignore = true)
     @Mapping(target = "voucherCode", ignore = true)
     @Mapping(target = "partner", ignore = true)
+    @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "quantityRemaining", ignore = true)

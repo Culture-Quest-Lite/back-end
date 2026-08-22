@@ -3,11 +3,14 @@ package org.sep490.backend.module.content.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentType;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
@@ -62,6 +65,24 @@ public class Story {
     @Column(name = "status")
     ContentStatus status;
 
+    @Column(name = "culture_score")
+    Double cultureScore;
+
+    @Column(name = "culture_reason", columnDefinition = "TEXT")
+    String cultureReason;
+
+    @Column(name = "culture_checked_at")
+    LocalDateTime cultureCheckedAt;
+
+    @Column(name = "moderate_by")
+    Long moderateBy;
+
+    @Column(name = "moderate_at")
+    LocalDateTime moderateAt;
+
+    @Column(name = "reject_reason", columnDefinition = "TEXT")
+    String rejectReason;
+
     @OneToMany(mappedBy = "story", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     List<Media> medias = new ArrayList<>();
@@ -73,4 +94,14 @@ public class Story {
     @UpdateTimestamp
     @Column(name = "updated_at")
     LocalDateTime updatedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "content_type", nullable = false)
+    ContentType contentType;
+
+    @Column(name = "valid_from")
+    LocalDate validFrom;
+
+    @Column(name = "valid_to")
+    LocalDate validTo;
 }

@@ -25,4 +25,6 @@ public class StoryRequest {
     String content;
 
     String audioScript;
+
+    Boolean confirmCultural;
 }
