@@ -3,12 +3,14 @@ package org.sep490.backend.module.content.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentType;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -103,4 +105,14 @@ public class Hotspot implements Serializable {
 
     @Column(name = "published_at")
     LocalDateTime publishedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "content_type", nullable = false)
+    ContentType contentType;
+
+    @Column(name = "valid_from")
+    LocalDateTime validFrom;
+
+    @Column(name = "valid_to")
+    LocalDateTime validTo;
 }

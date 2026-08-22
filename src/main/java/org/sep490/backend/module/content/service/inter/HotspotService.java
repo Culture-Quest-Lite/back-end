@@ -22,4 +22,5 @@ public interface HotspotService {
                                             Double longitude, Double distanceInMeters);
     List<Hotspot> getHotspotByRouteId(Long routeId);
     List<HotspotResponse> getHotspotsByRouteId(Long routeId);
+    List<Long> processInvalidTempHotspot();
 }

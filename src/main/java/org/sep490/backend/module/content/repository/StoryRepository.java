@@ -116,4 +116,6 @@ public interface StoryRepository extends JpaRepository<Story, Long>, JpaSpecific
     Integer countByRoute_RouteId(Long routeId);
     @Query("SELECT s.createdBy.userId FROM Story s WHERE s.storyId = :id")
     Optional<Long> findOwnerId(@Param("id") Long id);
+
+    List<Story> getAllByStoryIdIn(Collection<Long> storyIds);
 }

@@ -2,6 +2,7 @@ package org.sep490.backend.module.content.service.impl;
 
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.Route;
+import org.sep490.backend.module.content.entity.enumeration.ContentType;
 import org.sep490.backend.module.content.repository.RouteRepository;
 import org.sep490.backend.module.content.service.inter.GeoQueryService;
 
@@ -48,6 +49,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -77,6 +79,12 @@ public class HotspotServiceImpl implements HotspotService {
 
         validateHotspotRequest(request);
 
+        if(request.getContentType().equals(ContentType.TEMP)) {
+            if(request.getValidFrom() == null || request.getValidTo() == null) {
+                throw new BusinessException("Địa điểm tạm thời phải có thời gian tồn tại giới hạn");
+            }
+        }
+
         Hotspot hotspot = hotspotMapper.toEntity(request);
         applyCheckInZone(hotspot, request);
         hotspot.setCreatedBy(userService.getCurrentUser());
@@ -105,6 +113,13 @@ public class HotspotServiceImpl implements HotspotService {
     @Transactional
     public HotspotResponse update(Long id, HotspotRequest request) {
         Hotspot hotspot = getById(id);
+
+        if(request.getContentType().equals(ContentType.TEMP)) {
+            if(request.getValidFrom() == null || request.getValidTo() == null) {
+                throw new BusinessException("Địa điểm tạm thời phải có thời gian tồn tại giới hạn");
+            }
+        }
+
         // Trước đây update không validate gì cả nên có thể sửa toạ độ ra ngoài Việt Nam.
         validateHotspotRequest(request);
         hotspotMapper.updateFromRequest(hotspot, request);
@@ -305,6 +320,19 @@ public class HotspotServiceImpl implements HotspotService {
                 .toList();
         applyRatingSummary(responses);
         return responses;
+    }
+
+    @Override
+    @Transactional
+    public List<Long> processInvalidTempHotspot() {
+        List<Hotspot> hotspots = hotspotRepository.findByContentTypeAndValidToBefore(ContentType.TEMP, LocalDateTime.now());
+        List<Story> stories = new ArrayList<>();
+        for(Hotspot h : hotspots) {
+            stories.addAll(h.getStories());
+            h.setStatus(ContentStatus.INVALID);
+        }
+        hotspotRepository.saveAll(hotspots);
+        return stories.stream().map(Story::getStoryId).toList();
     }
 
     @Override
