@@ -6,6 +6,7 @@ import org.sep490.backend.module.content.dto.request.RouteRequestV2;
 import org.sep490.backend.module.content.dto.request.RouteRequest;
 import org.sep490.backend.module.content.dto.response.RouteResponse;
 import org.sep490.backend.module.content.entity.Route;
+import org.sep490.backend.module.content.entity.Story;
 import org.sep490.backend.module.content.entity.enumeration.RouteStatus;
 import org.springframework.data.domain.Page;
 
@@ -26,4 +27,5 @@ public interface RouteService {
     List<RouteResponse> getByHotspotId(Long hotspotId, RouteStatus routeStatus);
     RouteResponse addHotspotToEndOfCustomRoute(Long routeId, Long hotspotId, Long userId);
     String generateInviteLink(Long routeId);
+    void processRouteWithInvalidTempStory(List<Story> invalidStories);
 }

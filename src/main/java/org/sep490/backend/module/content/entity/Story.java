@@ -3,10 +3,12 @@ package org.sep490.backend.module.content.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -91,4 +93,14 @@ public class Story {
     @UpdateTimestamp
     @Column(name = "updated_at")
     LocalDateTime updatedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "content_type", nullable = false)
+    ContentType contentType;
+
+    @Column(name = "valid_from")
+    LocalDateTime validFrom;
+
+    @Column(name = "valid_to")
+    LocalDateTime validTo;
 }

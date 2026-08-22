@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.scheduler.TempContentScheduler;
 import org.springframework.data.domain.Page;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
@@ -26,6 +27,7 @@ import java.util.List;
 public class HotspotController {
 
     HotspotService hotspotService;
+    TempContentScheduler scheduler;
 
     @GetMapping
     public ResponseEntity<List<HotspotResponse>> getHotspots() {
@@ -86,5 +88,11 @@ public class HotspotController {
     public ResponseEntity<String> deleteHotspot(@PathVariable Long id) {
         hotspotService.delete(id);
         return ResponseEntity.ok("Hotspot deleted successfully");
+    }
+
+    @PutMapping("/trigger-temp")
+    public ResponseEntity<Void> trigger() {
+        scheduler.processInvalidTempContent();
+        return ResponseEntity.ok(null);
     }
 }
