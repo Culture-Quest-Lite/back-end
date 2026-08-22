@@ -660,6 +660,9 @@ public class RouteServiceImpl implements RouteService {
                 .audioScript(null)
                 .medias(null)
                 .status(ContentStatus.DRAFT)
+                .contentType(hotspot.getContentType())
+                .validFrom(hotspot.getValidFrom())
+                .validTo(hotspot.getValidTo())
                 .build();
 
         storyRepository.save(story);
