@@ -6,6 +6,7 @@ import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
 import org.sep490.backend.module.content.entity.enumeration.ContentType;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -31,6 +32,6 @@ public class StoryResponse {
     Long totalReviews;
 
     ContentType contentType;
-    LocalDateTime validFrom;
-    LocalDateTime validTo;
+    LocalDate validFrom;
+    LocalDate validTo;
 }
