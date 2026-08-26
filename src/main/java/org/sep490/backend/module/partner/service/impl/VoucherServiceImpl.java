@@ -274,7 +274,7 @@ public class VoucherServiceImpl implements VoucherService {
     @Override
     @Transactional
     public VoucherUsageResponse useVoucher(String voucherCode) {
-        VoucherUsage voucherUsage = voucherUsageRepository.findByVoucherCode(voucherCode)
+        VoucherUsage voucherUsage = voucherUsageRepository.findByVoucherUsageCode(voucherCode)
                 .orElseThrow(() -> new BusinessException("Mã voucher không tồn tại hoặc không hợp lệ"));
 
         if (Boolean.TRUE.equals(voucherUsage.getIsUsed())) {

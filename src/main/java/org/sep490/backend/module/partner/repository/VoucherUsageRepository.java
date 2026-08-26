@@ -39,4 +39,5 @@ public interface VoucherUsageRepository extends JpaRepository<VoucherUsage, Long
     List<TopVoucherProjection> findTopRedeemedVouchers(@Param("partnerId") Long partnerId, Pageable pageable);
 
     List<VoucherUsage> findByExpiredAtBetweenAndIsUsedFalse(LocalDateTime start, LocalDateTime end);
+    Optional<VoucherUsage> findByVoucherUsageCode(String voucherUsageCode);
 }
