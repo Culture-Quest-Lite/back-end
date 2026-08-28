@@ -18,7 +18,7 @@ public class TempContentScheduler {
     private final StoryService storyService;
     private final RouteService routeService;
 
-    @Scheduled(cron = "0 0 2 * * *") // Run daily at midnight
+    @Scheduled(cron = "0 0 17 * * *") // Run daily at midnight
     public void processInvalidTempContent() {
         List<Long> storyIds = hotspotService.processInvalidTempHotspot();
 
