@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Table(name = "reward_transaction", indexes = {
+@Table(name = "reward_transactions", indexes = {
         @Index(name = "idx_reward_trans_user_created", columnList = "user_id, created_at")
 })
 public class RewardTransaction {

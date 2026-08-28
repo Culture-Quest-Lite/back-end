@@ -3,6 +3,7 @@ package org.sep490.backend.module.groupquest.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
@@ -37,11 +38,19 @@ public class Group {
     @Column(name = "total_members")
     Integer totalMembers;
 
+    @Column(name = "image_url", length = 500)
+    String imageUrl;
+
     @Column(name = "share_token", length = 10)
     String shareToken;
 
-    @Column(name = "expired_at", nullable = false)
+    @Column(name = "expired_at")
     LocalDateTime expireAt;
+
+    @Column(name = "required_approval", nullable = false)
+    @ColumnDefault("false")
+    @Builder.Default
+    Boolean requiredApproval = false;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status")

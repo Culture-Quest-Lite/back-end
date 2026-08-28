@@ -5,13 +5,16 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.exploration.dto.request.UserHotspotProgressRequest;
+import org.sep490.backend.module.exploration.dto.response.CheckInEligibilityResponse;
 import org.sep490.backend.module.exploration.dto.response.UserHotspotProgressResponse;
 import org.sep490.backend.module.exploration.service.inter.UserHotspotProgressService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -26,5 +29,17 @@ public class UserHotspotProgressController {
     public ResponseEntity<UserHotspotProgressResponse> checkIn(@Valid @RequestBody UserHotspotProgressRequest request) {
         UserHotspotProgressResponse response = userHotspotProgressService.checkIn(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping("/eligibility")
+    public ResponseEntity<CheckInEligibilityResponse> checkEligibility(
+            @RequestParam("hotspotId") Long hotspotId,
+            @RequestParam("latitude") Double latitude,
+            @RequestParam("longitude") Double longitude,
+            @RequestParam(value = "accuracy", required = false) Double accuracy) {
+
+        CheckInEligibilityResponse response =
+                userHotspotProgressService.checkEligibility(hotspotId, latitude, longitude, accuracy);
+        return ResponseEntity.ok(response);
     }
 }

@@ -32,6 +32,9 @@ public class VoucherUsage {
     @Column(name = "voucher_code", nullable = false)
     String voucherCode;
 
+    @Column(name = "voucher_usage_code", nullable = false, unique = true)
+    String voucherUsageCode;
+
     @Column(name = "points_required")
     Long pointsRequired;
 

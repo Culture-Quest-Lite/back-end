@@ -3,6 +3,7 @@ package org.sep490.backend.module.gamification.service.impl;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.common.exception.BusinessException;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.authentication.repository.UserRepository;
 import org.sep490.backend.module.gamification.dto.request.RewardTransactionRequest;
@@ -11,6 +12,8 @@ import org.sep490.backend.module.gamification.entity.RewardTransaction;
 import org.sep490.backend.module.gamification.mapper.RewardTransactionMapper;
 import org.sep490.backend.module.gamification.repository.RewardTransactionRepository;
 import org.sep490.backend.module.gamification.service.RewardTransactionService;
+import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
+import org.sep490.backend.module.notification.service.FcmService;
 import org.sep490.backend.module.partner.dto.filter.VoucherFilter;
 import org.sep490.backend.module.user.entity.Level;
 import org.sep490.backend.module.user.entity.LevelProgress;
@@ -32,16 +35,35 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class RewardTransactionServiceImpl implements RewardTransactionService {
 
+    /** Trần kích thước trang cho lịch sử điểm thưởng. */
+    static int MAX_PAGE_SIZE = 100;
+
     UserService userService;
     UserRepository userRepository;
     RewardTransactionRepository rewardTransactionRepository;
     RewardTransactionMapper rewardTransactionMapper;
     LevelRepository levelRepository;
     LevelProgressRepository levelProgressRepository;
+    FcmService fcmService;
 
     @Override
     @Transactional(readOnly = true)
     public Page<RewardTransactionResponse> getMyRewardHistory(VoucherFilter filter) {
+        if (filter == null) {
+            throw new BusinessException("Bộ lọc lịch sử điểm thưởng không được để trống");
+        }
+        if (filter.getPage() < 0) {
+            throw new BusinessException("Số trang không được nhỏ hơn 0");
+        }
+        if (filter.getSize() <= 0) {
+            throw new BusinessException("Kích thước trang phải lớn hơn 0");
+        }
+        if (filter.getSize() > MAX_PAGE_SIZE) {
+            throw new BusinessException("Kích thước trang không được vượt quá 100");
+        }
+        if (filter.getSortBy() == null || filter.getSortBy().isBlank()) {
+            throw new BusinessException("Trường sắp xếp không được để trống");
+        }
         User currentUser = userService.getCurrentUser();
 
         String sortBy = filter.getSortBy().equals("id") ? "createdAt" : filter.getSortBy();
@@ -62,8 +84,31 @@ public class RewardTransactionServiceImpl implements RewardTransactionService {
         long pointsChange = request.getPointsAmount() != null ? request.getPointsAmount() : 0L;
         long xpChange = request.getXpAmount() != null ? request.getXpAmount() : 0L;
 
+        RewardTransaction lastTx = rewardTransactionRepository
+                .findFirstByUser_UserIdOrderByCreatedAtDesc(user.getUserId())
+                .orElse(null);
+
+        long previousPoints = lastTx != null ? lastTx.getPointsBalance() : 0L;
+        long previousXp = lastTx != null ? lastTx.getXpBalance() : 0L;
+
         long newPoints = user.getTotalPoints() + pointsChange;
         long newXp = user.getTotalXp() + xpChange;
+
+        if (request.getPointsBalance() != null && !request.getPointsBalance().equals(newPoints)) {
+            throw new BusinessException("Tổng số điểm thưởng hiện tại không khớp với giao dịch trước đó");
+        }
+
+        if (request.getXpBalance() != null && !request.getXpBalance().equals(newXp)) {
+            throw new BusinessException("Tổng số kinh nghiệm hiện tại không khớp với giao dịch trước đó");
+        }
+
+        if (user.getTotalPoints() != previousPoints) {
+            throw new BusinessException("Tổng số điểm thưởng mới không khớp");
+        }
+
+        if (user.getTotalXp() != previousXp) {
+            throw new BusinessException("Tổng số điểm kinh nghiệm không khớp");
+        }
 
         // Update points and XP
         user.setTotalPoints((int) newPoints);
@@ -85,7 +130,15 @@ public class RewardTransactionServiceImpl implements RewardTransactionService {
                             .xpAtUnlock((int) newXp)
                             .unlockedAt(LocalDateTime.now())
                             .build();
-                    levelProgressRepository.save(levelProgress);
+                    levelProgress = levelProgressRepository.save(levelProgress);
+                    // push noti if level up
+                    fcmService.sendPushNotification(
+                            user.getFcmToken(),
+                            "Chúc mừng! Bạn đã đạt cấp độ mới: " + newLevel.getName(),
+                            "Bạn đã đạt cấp độ " + newLevel.getName() + ". Hãy tiếp tục khám phá để nhận thêm phần thưởng!",
+                            NotificationType.LEVEL_UP,
+                            levelProgress.getLevelProgressId()
+                    );
                 }
             }
         }

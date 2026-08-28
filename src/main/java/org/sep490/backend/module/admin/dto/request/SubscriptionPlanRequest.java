@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.sep490.backend.module.admin.entity.enumeration.PlanType;
 
 import java.util.Map;
 
@@ -36,4 +37,6 @@ public class SubscriptionPlanRequest {
     Long priceYearly;
 
     Map<String, Object> configLimit;
+
+    PlanType planType;
 }

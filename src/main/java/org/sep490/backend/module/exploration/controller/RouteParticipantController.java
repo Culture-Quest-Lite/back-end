@@ -1,9 +1,11 @@
 package org.sep490.backend.module.exploration.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.exploration.dto.filter.RouteParticipantFilter;
+import org.sep490.backend.module.exploration.dto.request.StartGroupQuestRoute;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantDetailResponse;
 import org.sep490.backend.module.exploration.dto.response.RouteParticipantResponse;
 import org.sep490.backend.module.exploration.service.inter.RouteParticipantService;
@@ -45,6 +47,26 @@ public class RouteParticipantController {
     @GetMapping("/{id}")
     public ResponseEntity<RouteParticipantDetailResponse> getById(@PathVariable("id") Long routeParticipantId) {
         RouteParticipantDetailResponse response = routeParticipantService.getRouteProgress(routeParticipantId);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/join/{token}")
+    public ResponseEntity<RouteParticipantResponse> join(@PathVariable("token") String token) {
+        HashMap<Integer, RouteParticipantResponse> response = routeParticipantService.joinRouteFromLink(token);
+        return response.containsKey(201)
+                ? ResponseEntity.status(HttpStatus.CREATED).body(response.get(201))
+                : ResponseEntity.ok(response.get(200));
+    }
+
+    @PostMapping("/join/group-quest")
+    public ResponseEntity<Void> startGroupQuest(@RequestBody StartGroupQuestRoute request) {
+        routeParticipantService.startGroupQuest(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @GetMapping("/{id}/me")
+    public ResponseEntity<RouteParticipantResponse> getByRouteId(@PathVariable("id") Long routeId) {
+        RouteParticipantResponse response = routeParticipantService.getByRouteId(routeId);
         return ResponseEntity.ok(response);
     }
 }

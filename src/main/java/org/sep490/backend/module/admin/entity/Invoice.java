@@ -8,6 +8,7 @@ import org.sep490.backend.module.admin.entity.enumeration.BillingCycleEnum;
 import org.sep490.backend.module.admin.entity.enumeration.InvoicePaymentStatus;
 import org.sep490.backend.module.admin.entity.enumeration.InvoiceStatus;
 import org.sep490.backend.module.admin.entity.enumeration.PaymentGateway;
+import org.sep490.backend.module.authentication.entity.User;
 
 import java.time.LocalDateTime;
 
@@ -26,8 +27,12 @@ public class Invoice {
     Long invoiceId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "partner_info_id", nullable = false)
+    @JoinColumn(name = "partner_info_id")
     PartnerInfo partnerInfo;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subscription_plan_id", nullable = false)
@@ -64,7 +69,7 @@ public class Invoice {
     @Column(name = "paid_at")
     LocalDateTime paidAt;
 
-    @Column(name = "payos_order_code")
+    @Column(name = "payos_order_code", unique = true)
     private Long payosOrderCode;
 
     @Column(name = "payos_payment_link_id")
@@ -82,5 +87,15 @@ public class Invoice {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     LocalDateTime createdAt;
+
+    @Column(name = "will_cancel_at_end")
+    @Builder.Default
+    private Boolean willCancelAtEnd = false; // false ~ renew
+
+    @Column(name = "canceled_at")
+    private LocalDateTime canceledAt;
+
+    @Column(name = "cancel_reason", columnDefinition = "TEXT")
+    private String cancelReason;
 
 }

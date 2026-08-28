@@ -15,4 +15,5 @@ public class FollowUserResponse {
     private String displayName;
     private String avatarUrl;
     private String levelName;
+    private Boolean isFollowing;
 }

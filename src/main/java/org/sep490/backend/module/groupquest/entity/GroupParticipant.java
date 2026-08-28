@@ -56,4 +56,10 @@ public class GroupParticipant {
     @UpdateTimestamp
     @Column(name = "updated_at")
     LocalDateTime updatedAt;
+
+    @Column(name = "joined_at")
+    LocalDateTime joinedAt;
+
+    @Column(name = "left_at")
+    LocalDateTime leftAt;
 }

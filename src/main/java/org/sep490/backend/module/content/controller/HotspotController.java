@@ -5,6 +5,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.scheduler.TempContentScheduler;
 import org.springframework.data.domain.Page;
 import org.sep490.backend.common.filter.dto.SearchRequest;
 import org.sep490.backend.module.content.dto.request.HotspotRequest;
@@ -14,6 +15,7 @@ import org.sep490.backend.module.content.service.inter.HotspotService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +27,7 @@ import java.util.List;
 public class HotspotController {
 
     HotspotService hotspotService;
+    TempContentScheduler scheduler;
 
     @GetMapping
     public ResponseEntity<List<HotspotResponse>> getHotspots() {
@@ -60,26 +63,36 @@ public class HotspotController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('PERM_HOTSPOT_MANAGE')")
     public ResponseEntity<HotspotResponse> createHotspot(@Valid @ModelAttribute HotspotRequest hotspotRequest) {
         HotspotResponse response = hotspotService.create(hotspotRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<HotspotResponse> updateHotspot(@PathVariable Long id, @Valid @RequestBody HotspotRequest hotspotRequest) {
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'HOTSPOT', 'HOTSPOT_MANAGE')")
+    public ResponseEntity<HotspotResponse> updateHotspot(@PathVariable Long id, @Valid @ModelAttribute HotspotRequest hotspotRequest) {
         HotspotResponse response = hotspotService.update(id, hotspotRequest);
         return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}/status")
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'HOTSPOT', 'HOTSPOT_MANAGE')")
     public ResponseEntity<HotspotResponse> updateHotspotStatus(@PathVariable Long id, @Valid @RequestParam ContentStatus status) {
         HotspotResponse response = hotspotService.updateStatus(id, status);
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@perm.isOwnerOrHasPerm(#id, 'HOTSPOT', 'HOTSPOT_MANAGE')")
     public ResponseEntity<String> deleteHotspot(@PathVariable Long id) {
         hotspotService.delete(id);
         return ResponseEntity.ok("Hotspot deleted successfully");
+    }
+
+    @PutMapping("/trigger-temp")
+    public ResponseEntity<Void> trigger() {
+        scheduler.processInvalidTempContent();
+        return ResponseEntity.ok(null);
     }
 }

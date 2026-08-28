@@ -1,6 +1,7 @@
 package org.sep490.backend.module.partner.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.sep490.backend.module.admin.dto.request.CancelSubscriptionRequest;
 import org.sep490.backend.module.admin.dto.request.PartnerSubscriptionRequest;
 import org.sep490.backend.module.admin.dto.response.PartnerSubscriptionResponse;
 import org.sep490.backend.module.admin.dto.response.PaymentInitResponse;
@@ -9,6 +10,7 @@ import org.sep490.backend.module.admin.service.PartnerSubscriptionService;
 import org.sep490.backend.module.admin.service.SubscriptionPlanService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +24,7 @@ public class PartnerSubscriptionController {
     private final SubscriptionPlanService subscriptionPlanService;
 
     @PostMapping(value = "/subscriptions/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('EXPLORER', 'PARTNER')")
     public ResponseEntity<PartnerSubscriptionResponse> registerSubscription(
             @ModelAttribute PartnerSubscriptionRequest request) {
         PartnerSubscriptionResponse response = subscriptionService.registerSubscription(request);
@@ -29,25 +32,39 @@ public class PartnerSubscriptionController {
     }
 
     @GetMapping("/subscriptions/my")
+    @PreAuthorize("hasRole('PARTNER')")
     public ResponseEntity<List<PartnerSubscriptionResponse>> getMySubscriptions() {
         return ResponseEntity.ok(subscriptionService.getMySubscriptions());
     }
 
     @GetMapping("/subscriptions/{id}")
+    @PreAuthorize("hasRole('PARTNER')")
     public ResponseEntity<SubscriptionPlanResponse> getSubscriptionPlanDetail(@PathVariable Long id) {
         return ResponseEntity.ok(subscriptionPlanService.getSubscriptionPlanDetail(id));
     }
 
     @GetMapping("/{id}/subscriptions")
+    @PreAuthorize("hasRole('PARTNER')")
     public ResponseEntity<List<PartnerSubscriptionResponse>> getSubscriptionsByPartnerId(@PathVariable Long id) {
         return ResponseEntity.ok(subscriptionService.getSubscriptionsByPartnerId(id));
     }
 
     @PostMapping("/subscriptions/{id}/initiate-payment")
+    //@PreAuthorize("hasRole('PARTNER')")
     public ResponseEntity<PaymentInitResponse> initiatePayment(
             @PathVariable Long id,
             @RequestParam(required = false) String redirectUrl,
             @RequestParam(defaultValue = "PAYOS") String gateway) {
         return ResponseEntity.ok(subscriptionService.initiatePayment(id, redirectUrl, gateway));
+    }
+
+    @PostMapping("/subscriptions/{id}/cancel")
+    @PreAuthorize("hasRole('PARTNER')")
+    public ResponseEntity<PartnerSubscriptionResponse> cancelPartnerSubscription(
+            @PathVariable Long id,
+            @RequestBody CancelSubscriptionRequest request) {
+
+        PartnerSubscriptionResponse response = subscriptionService.cancelSubscription(id, request.getReason());
+        return ResponseEntity.ok(response);
     }
 }

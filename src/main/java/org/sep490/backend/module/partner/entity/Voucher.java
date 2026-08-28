@@ -3,15 +3,13 @@ package org.sep490.backend.module.partner.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.locationtech.jts.geom.Point;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.partner.entity.enumeration.DiscountType;
 import org.sep490.backend.module.partner.entity.enumeration.VoucherStatus;
-import org.sep490.backend.module.content.entity.Media;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.ArrayList;
 
 @Entity
 @Data
@@ -35,6 +33,9 @@ public class Voucher {
 
     @Column(name = "voucher_name", nullable = false)
     String voucherName;
+
+    @Column(name = "image_url", length = 500)
+    String imageUrl;
 
     @Column(columnDefinition = "TEXT")
     String description;
@@ -62,15 +63,14 @@ public class Voucher {
     @Enumerated(EnumType.STRING)
     VoucherStatus status;
 
+    @Column(columnDefinition = "geometry(Point, 4326)")
+    Point location;
+
     @Column(name = "start_date", nullable = false)
     LocalDateTime startDate;
 
     @Column(name = "end_date", nullable = false)
     LocalDateTime endDate;
-
-    @OneToMany(mappedBy = "voucher", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    List<Media> medias = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
     LocalDateTime createdAt;

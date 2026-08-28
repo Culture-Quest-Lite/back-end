@@ -4,7 +4,10 @@ import lombok.AccessLevel;
 import lombok.Data;
 import lombok.experimental.FieldDefaults;
 import org.sep490.backend.module.content.entity.enumeration.ContentStatus;
+import org.sep490.backend.module.content.entity.enumeration.ContentType;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -21,4 +24,14 @@ public class StoryResponse {
     List<MediaResponse> medias;
     Long hotspotId;
     Long routeId;
+    Double cultureScore;
+    String cultureReason;
+    String rejectReason;
+
+    Double averageRating;
+    Long totalReviews;
+
+    ContentType contentType;
+    LocalDate validFrom;
+    LocalDate validTo;
 }

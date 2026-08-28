@@ -2,6 +2,8 @@ package org.sep490.backend.module.notification.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.sep490.backend.module.authentication.entity.User;
 import org.sep490.backend.module.notification.entity.enumeration.NotificationType;
 
@@ -32,8 +34,16 @@ public class Notification {
     @Column(name = "is_read", nullable = false)
     private Boolean isRead = false;
 
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    @Column(name = "read_at")
+    private LocalDateTime readAt;
 
     @Column(name = "notification_type")
     @Enumerated(EnumType.STRING)

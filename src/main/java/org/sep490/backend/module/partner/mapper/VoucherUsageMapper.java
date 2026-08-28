@@ -13,5 +13,6 @@ public interface VoucherUsageMapper {
     @Mapping(target = "voucherName", source = "voucherUsage.voucher.voucherName")
     @Mapping(target = "description", source = "voucherUsage.voucher.description")
     @Mapping(target = "pointsRequired", source = "voucherUsage.voucher.pointsRequired")
+    @Mapping(target = "voucherUsageCode", source = "voucherUsage.voucherUsageCode")
     VoucherUsageResponse toResponse(VoucherUsage voucherUsage);
 }

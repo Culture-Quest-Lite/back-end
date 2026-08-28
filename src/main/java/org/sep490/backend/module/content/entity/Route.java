@@ -39,6 +39,9 @@ public class Route {
     @Column(name = "description", columnDefinition = "TEXT")
     String description;
 
+    @Column(name = "image_url", length = 500)
+    String imageUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "difficulty", nullable = false)
     RouteDifficulty difficulty;
@@ -65,7 +68,7 @@ public class Route {
     @Column(name = "total_stops", nullable = false)
     Integer totalStops;
 
-    @Column(name = "share_token")
+    @Column(name = "share_token", length = 10)
     String shareToken;
 
     @Column(name = "share_expired_at")
@@ -97,8 +100,4 @@ public class Route {
     @OneToMany(mappedBy = "route", fetch = FetchType.LAZY)
     @Builder.Default
     List<Story> stories = new ArrayList<>();
-
-    @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    List<Media> medias = new ArrayList<>();
 }

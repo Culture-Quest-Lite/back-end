@@ -13,7 +13,9 @@ import java.util.List;
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RouteRequest {
-    MultipartFile[] files;
+
+    /** Ảnh bìa tuyến đường. Null hoặc rỗng khi update = giữ nguyên ảnh cũ. */
+    MultipartFile imageFile;
 
     @NotBlank(message = "Tên tuyến đường không được để trống")
     @Size(max = 100, message = "Tên tuyến đường không được vượt quá 100 ký tự")
@@ -39,14 +41,6 @@ public class RouteRequest {
     @NotEmpty(message = "Tuyến đường phải có ít nhất 4 điểm dừng (hotspot)")
     @Size(min = 4, message = "Tuyến đường phải có ít nhất 4 điểm dừng")
     List<Long> hotspotIds;
-
-    @NotNull(message = "Kinh nghiệm không được để trống")
-    @PositiveOrZero(message = "Kinh nghiệm không được là số âm")
-    Long xp;
-
-    @NotNull(message = "Điểm thưởng không được để trống")
-    @PositiveOrZero(message = "Điểm thưởng không được là số âm")
-    Long point;
 
     RouteStatus status;
 }

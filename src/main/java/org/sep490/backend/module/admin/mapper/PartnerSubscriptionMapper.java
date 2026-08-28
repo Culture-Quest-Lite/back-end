@@ -32,7 +32,8 @@ public interface PartnerSubscriptionMapper {
     @Mapping(source = "invoice.partnerInfo.location", target = "longitude", qualifiedByName = "getLongitude")
     @Mapping(source = "invoice.partnerInfo.location", target = "latitude", qualifiedByName = "getLatitude")
     @Mapping(source = "invoice.partnerInfo.documentUrl", target = "documentUrl")
-    @Mapping(expression = "java(\"ACTIVE\".equals(invoice.getPartnerInfo().getStatus() != null ? invoice.getPartnerInfo().getStatus().name() : null))", target = "isVerified")
+    @Mapping(target = "isVerified", expression =
+            "java(invoice.getPartnerInfo() != null && invoice.getPartnerInfo().getStatus() != null && \"ACTIVE\".equals(invoice.getPartnerInfo().getStatus().name()))")
     @Mapping(source = "invoice.billingCycle", target = "billingCycle")
     @Mapping(source = "invoice.status", target = "status")
     @Mapping(source = "invoice.startDate", target = "startDate")

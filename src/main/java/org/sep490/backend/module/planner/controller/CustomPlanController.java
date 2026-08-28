@@ -16,6 +16,7 @@ import org.sep490.backend.module.planner.service.RouteOptimizationService;
 import org.sep490.backend.module.planner.service.UserPlanService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -55,12 +56,14 @@ public class CustomPlanController {
     }
 
     @PutMapping("/{planId}")
+    @PreAuthorize("@perm.isOwner(#planId, 'PLAN')")
     public ResponseEntity<UserPlanResponse> update(
             @PathVariable Long planId, @Valid @RequestBody CreateCustomPlanRequest request) {
         return ResponseEntity.ok(userPlanService.update(planId, request));
     }
 
     @GetMapping("/{planId}")
+    @PreAuthorize("@perm.isOwner(#planId, 'PLAN')")
     public ResponseEntity<UserPlanResponse> getById(@PathVariable Long planId) {
         return ResponseEntity.ok(userPlanService.getById(planId));
     }
@@ -71,7 +74,15 @@ public class CustomPlanController {
     }
 
     @PostMapping("/{planId}/start")
+    @PreAuthorize("@perm.isOwner(#planId, 'PLAN')")
     public ResponseEntity<UserPlanResponse> start(@PathVariable Long planId) {
         return ResponseEntity.ok(userPlanService.start(planId));
+    }
+
+    @DeleteMapping("/{planId}")
+    @PreAuthorize("@perm.isOwner(#planId, 'PLAN')")
+    public ResponseEntity<Void> delete(@PathVariable Long planId) {
+        userPlanService.delete(planId);
+        return ResponseEntity.noContent().build();
     }
 }

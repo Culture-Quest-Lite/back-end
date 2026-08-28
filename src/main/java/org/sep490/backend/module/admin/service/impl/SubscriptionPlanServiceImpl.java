@@ -8,17 +8,21 @@ import java.util.List;
 import java.util.Map;
 
 import org.sep490.backend.common.exception.BusinessException;
+import org.sep490.backend.config.redis.CacheNames;
 import org.sep490.backend.module.admin.dto.filter.SubscriptionPlanFilterRequest;
 import org.sep490.backend.module.admin.dto.request.SubscriptionPlanRequest;
 import org.sep490.backend.module.admin.dto.response.SubscriptionPlanResponse;
 import org.sep490.backend.module.admin.entity.SubscriptionPlan;
 import org.sep490.backend.module.admin.entity.PlanRule;
+import org.sep490.backend.module.admin.entity.enumeration.PlanType;
 import org.sep490.backend.module.admin.entity.enumeration.SubscriptionPlanStatus;
 import org.sep490.backend.module.admin.mapper.SubscriptionPlanMapper;
 import org.sep490.backend.module.admin.repository.SubscriptionPlanRepository;
 import org.sep490.backend.module.admin.repository.PlanRuleRepository;
 import org.sep490.backend.module.admin.service.SubscriptionPlanService;
 import org.sep490.backend.module.admin.specification.SubscriptionPlanSpecification;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -39,11 +43,15 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
     @Override
     @Transactional
+    @CacheEvict(value = CacheNames.SUBSCRIPTION_PLANS, allEntries = true)
     public SubscriptionPlanResponse createSubscriptionPlan(SubscriptionPlanRequest request) {
         if (subscriptionPlanRepository.existsBySubscriptionPlanNameIgnoreCase(request.getSubscriptionPlanName())) {
             throw new BusinessException("Gói dịch vụ với tên \"" + request.getSubscriptionPlanName() + "\" đã tồn tại");
         }
         SubscriptionPlan plan = subscriptionPlanMapper.toEntity(request);
+        if (plan.getPlanType() == null) {
+            plan.setPlanType(PlanType.PARTNER);
+        }
         plan.setStatus(SubscriptionPlanStatus.ACTIVE);
         plan = subscriptionPlanRepository.save(plan);
         syncPlanRules(plan, request.getConfigLimit());
@@ -52,6 +60,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
     @Override
     @Transactional
+    @CacheEvict(value = CacheNames.SUBSCRIPTION_PLANS, allEntries = true)
     public SubscriptionPlanResponse updateSubscriptionPlan(Long id, SubscriptionPlanRequest request) {
         SubscriptionPlan plan = getSubscriptionPlanById(id);
         if (plan.getStatus() == SubscriptionPlanStatus.INACTIVE) {
@@ -96,18 +105,19 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<SubscriptionPlanResponse> getAllWithFilter(SubscriptionPlanFilterRequest filter) {
+    public Page<SubscriptionPlanResponse> getAllWithFilter(SubscriptionPlanFilterRequest filter, PlanType planType) {
         Sort sort = filter.getSortDir().equalsIgnoreCase(Sort.Direction.ASC.name())
                 ? Sort.by(filter.getSortBy()).ascending()
                 : Sort.by(filter.getSortBy()).descending();
         Pageable pageable = PageRequest.of(filter.getPage(), filter.getSize(), sort);
         Specification<SubscriptionPlan> spec = SubscriptionPlanSpecification.filter(
-                filter.getSearch(), filter.getStatus());
+                filter.getSearch(), filter.getStatus(), planType);
         return subscriptionPlanRepository.findAll(spec, pageable).map(subscriptionPlanMapper::toResponse);
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = CacheNames.SUBSCRIPTION_PLANS, allEntries = true)
     public void deleteSubscriptionPlan(Long id) {
         SubscriptionPlan plan = getSubscriptionPlanById(id);
         if (plan.getStatus() == SubscriptionPlanStatus.DELETED) {
@@ -127,5 +137,14 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
                     "Gói dịch vụ với id " + id + " đã bị xóa");
         }
         return plan;
+    }
+
+    @Override
+    @Cacheable(value = CacheNames.SUBSCRIPTION_PLANS, key = "#type.name()")
+    public List<SubscriptionPlanResponse> getActivePlanByType(PlanType type) {
+        return subscriptionPlanRepository.findByPlanTypeAndStatusOrderByPriceMonthlyAsc(type, SubscriptionPlanStatus.ACTIVE)
+                .stream()
+                .map(subscriptionPlanMapper::toResponse)
+                .toList();
     }
 }
